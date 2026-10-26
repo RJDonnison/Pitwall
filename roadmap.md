@@ -9,12 +9,12 @@
 - V1 gives current-season form the strongest historical weight; the official Fantasy Statistics feed cross-checks current prices and season points. `backtest --show-points` exposes full predicted-versus-actual scores.
 - Every CLI command supports versioned `--format json` output for `jq` and automation, while retaining text by default. `clear-team` removes only the locally imported team.
 
-## V2 — model learning and evaluation (planned)
+## V2 — model learning and evaluation (initial calibration implemented)
 
 - Build point-in-time driver and constructor training examples using only data available before each weekend, with separate qualifying, Sprint and race targets.
 - Split completed weekends **chronologically**: fit weights on earlier races, choose among candidates on later validation races, and measure improvement once on a final untouched test block. Use walk-forward validation as more races become available.
-- Add `f1fantasy train` to produce a versioned model for recent form, same-circuit history and telemetry. Compare it with the current fixed-weight and results-only forecasts, reporting regular and Sprint errors and sample counts separately.
-- Promote a candidate only if it improves the held-out evaluation; keep the previous model available for rollback. After evaluation, refit the approved approach on all completed races for future recommendations without rewriting its historical test result.
+- `f1fantasy train` now learns versioned, conservative blends of the fixed race forecast, earlier risk model and last-three-race average. It reports regular/Sprint errors and keeps the baseline when validation or test results worsen; the first live 2026 candidate was **not** promoted.
+- Next: tune the underlying current-season, circuit and telemetry feature weights on cached point-in-time examples, with rollback and a genuinely new held-out test block after additional races. The existing fixed model remains the fallback.
 - Consider an **opt-in** cache-compaction command that retains verified prediction features and the results data needed by the CLI while reclaiming bulky raw telemetry after preloading is complete.
 
 ## V3 — Fantasy account automation (planned)

@@ -66,9 +66,21 @@ f1fantasy backtest --races 4 --lookback 5 --compare-telemetry
 
 The model uses recent current-season Fantasy scores, FastF1 classification and grid form, earlier visits to each venue, and—when preloaded—circuit similarity and teammate-relative telemetry pace. Missing telemetry leaves the results-based forecast in place. `backtest` compares its point errors on regular and Sprint weekends; `recommend --no-telemetry` shows the results-only alternative. Past information is cut off before the predicted weekend. Estimated points are uncertain, especially for future bonus awards and changing car performance.
 
-Race predictions now separate ordinary finishes from severe-negative outcomes (approximated from earlier Fantasy race penalties). Their chance is shrunk toward the current team and field history, and unusually high past race scores are capped when estimating typical finish points. Sprint scores are shrunk toward race form when only a few Sprints are available. Use `recommend --no-risk` to compare with the original averaging approach. These are still fixed, interpretable rules; the V2 training command is **planned, not implemented**.
+Race predictions separate ordinary finishes from severe-negative outcomes (approximated from earlier Fantasy race penalties). Their chance is shrunk toward the current team and field history, and unusually high past race scores are capped when estimating typical finish points. Sprint scores are shrunk toward race form when only a few Sprints are available. Use `recommend --no-risk` to compare with the original averaging approach.
 
-Current-season FastF1 form has more influence than previous-season form (4× versus 1×, with older history weighted 0.5×). Current-season official Fantasy points remain the main scoring signal; older same-circuit evidence has a smaller adjustment. These are fixed weights, not a self-trained model.
+Current-season FastF1 form has more influence than previous-season form (4× versus 1×, with older history weighted 0.5×). Current-season official Fantasy points remain the main scoring signal; older same-circuit evidence has a smaller adjustment. These underlying form weights remain fixed; V2 learns a **conservative calibration blend** of the current forecast, the earlier race model and a last-three-race baseline.
+
+### Train V2 calibration weights
+
+```sh
+f1fantasy train
+f1fantasy train --format json | jq '.data.model | {active, trained_rounds, validation_rounds, test_rounds, metrics}'
+f1fantasy recommend --races 3 --format json | jq '.data.calibration'
+```
+
+`train` fits on earlier finalized weekends, compares candidate weights on later validation weekends, then measures them on a final untouched block. It saves a versioned artifact under `.f1fantasy/models/`; rerunning with the same completed races reuses that artifact instead of retuning on the test block. Only a candidate that improves **both** validation and test MAE for a scoring component is activated; `recommend` then loads it automatically. `--no-trained` restores the fixed-weight forecast, and sparse Sprint samples retain the baseline. The CLI never uses a trained artifact to predict a historical weekend at or before its training cutoff.
+
+The first live 2026 run used rounds 5–11 for fitting, 12–14 for validation and 15–17 for testing. It **did not promote** the candidate: driver race MAE was 11.33 (fixed) versus 11.37 (candidate) on validation, and 10.81 versus 10.95 on test. Constructor race MAE was also slightly worse. Consequently, recommendations still use the fixed model. V2 currently learns calibration weights, not the internal 4×/1×/0.5× feature parameters; richer feature training remains future work.
 
 ### Inspect scores and use JSON output
 
@@ -90,7 +102,7 @@ Every V1 command (`init`, `clear-team`, `prices`, `statistics`, `recommend`, `ba
 
 ## Roadmap and data sources
 
-- [Simplified roadmap](roadmap.md) — V1 status, planned V2 training, V3 account automation and V4 F1 Predict.
+- [Simplified roadmap](roadmap.md) — V1, the initial V2 trainer, planned V3 account automation and V4 F1 Predict.
 - [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs) — roster, scoring, Boost, chips and transfers.
 - [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
 - [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics) — independent current-price and season-point verification and terminal rankings.
