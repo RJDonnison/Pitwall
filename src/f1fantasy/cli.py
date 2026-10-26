@@ -108,6 +108,10 @@ def _parser() -> argparse.ArgumentParser:
     statistics = commands.add_parser(
         "statistics", help="Show the official Fantasy Statistics rankings"
     )
+    clear_team = commands.add_parser(
+        "clear-team",
+        help="Remove the locally imported team (does not change your F1 account)",
+    )
     recommend = commands.add_parser(
         "recommend", help="Recommend lineup, transfers and 2x Boost"
     )
@@ -150,7 +154,7 @@ def _parser() -> argparse.ArgumentParser:
     warm.add_argument("--year", type=int)
     warm.add_argument("--round", type=int)
     warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
-    for command in (init, prices, statistics, recommend, backtest, warm):
+    for command in (init, prices, statistics, clear_team, recommend, backtest, warm):
         command.add_argument(
             "--format",
             choices=("text", "json"),
@@ -175,6 +179,21 @@ def _json_output(
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "clear-team":
+            removed = args.state.exists() or args.state.is_symlink()
+            if removed:
+                args.state.unlink()
+            if args.format == "json":
+                _json_output(
+                    "clear-team", {"state_path": str(args.state), "removed": removed}
+                )
+            else:
+                print(
+                    f"Removed locally imported team from {args.state}"
+                    if removed
+                    else f"No locally imported team at {args.state}"
+                )
+            return 0
         if args.command == "preload":
             if args.status:
                 years = [

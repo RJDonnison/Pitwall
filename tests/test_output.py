@@ -149,3 +149,25 @@ def test_backtest_details_preload_and_error_json(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert json.loads(captured.err)["status"] == "error"
+
+
+def test_clear_team_is_offline_idempotent_and_only_removes_selected_state(
+    tmp_path, monkeypatch, capsys
+):
+    state = tmp_path / "team.json"
+    unrelated = tmp_path / "keep.json"
+    state.write_text('{"drivers": []}')
+    unrelated.write_text("keep")
+    monkeypatch.setattr(
+        cli,
+        "snapshot",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("clear-team must not fetch live data")
+        ),
+    )
+    assert cli.main(["--state", str(state), "clear-team", "--format", "json"]) == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["command"] == "clear-team" and result["data"]["removed"] is True
+    assert not state.exists() and unrelated.read_text() == "keep"
+    assert cli.main(["--state", str(state), "clear-team"]) == 0
+    assert "No locally imported team" in capsys.readouterr().out
