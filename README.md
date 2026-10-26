@@ -1,97 +1,69 @@
-# F1 Fantasy planner (V1)
+# F1 Fantasy planner
 
-Read-only recommendations for F1 Fantasy. Fetches the current race-week's public
-Fantasy prices and roster for **every** run, then combines completed official
-Fantasy scoring history with FastF1 results to estimate qualifying, Sprint and
-race points. Earlier visits to the same circuit in the previous two seasons
-modify each event's forecast. Fails when the next race's feed is unavailable or
-the lineup cannot be verified.
+This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses a 2× Boost driver, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. It recommends changes for you to make; it does not sign in or submit a team.
 
-## Install
+## Requirements
 
-Requires Python 3.11 or newer.
+- Python 3.11 or newer and an internet connection for F1 Fantasy and FastF1 data.
+- Disk space for a local historical cache if using `preload`; loading all completed sessions across three seasons can take considerable time and space.
+- No F1 account is required for recommendations. You can manually import your existing team to plan transfers.
+
+## Usage
+
+From this repository, install into a virtual environment:
 
 ```sh
 python -m venv .venv
 .venv/bin/python -m pip install -e .
-.venv/bin/f1fantasy prices
-.venv/bin/f1fantasy recommend --races 3
-.venv/bin/f1fantasy backtest --races 4 --lookback 5
+source .venv/bin/activate
 ```
 
-If you want to type `f1fantasy` without the `.venv/bin/` prefix in zsh or
-bash, first run `source .venv/bin/activate` **from this repository**. The
-installation and CLI executable are local to that virtual environment.
+Activation lets you type `f1fantasy` in zsh or bash. Without it, use `.venv/bin/f1fantasy` for every command.
 
-When F1 Fantasy has not yet published the next race-week roster, you can
-generate a **provisional preview** using the most recent completed race's
-official price/roster feed:
+### Recommend a team
 
 ```sh
-.venv/bin/f1fantasy prices --allow-old-prices
-.venv/bin/f1fantasy recommend --races 3 --allow-old-prices
+f1fantasy prices
+f1fantasy recommend --races 3
 ```
 
-The feed is fetched again on every run and must be complete, recently
-published, and updated after the previous race. This option only applies
-when the upcoming roster is unpublished; it does not bypass malformed prices,
-network failures, or missing data. Preview prices and driver availability
-for the next event are **unverified**, so re-run without the flag before
-making a change in F1 Fantasy.
+Each recommendation fetches the next race's **current Fantasy roster and prices**. With no imported team, it assumes a new team with a $100m starting budget. Output includes budget, qualifying/Sprint/race estimates, Boost, net transfers and their penalties. Future prices are assumed unchanged until the next run. Always check the Fantasy website's team-lock deadline; the session start displayed by the CLI is not a verified lock time.
 
-The first recommendation uses a $100m budget. To plan transfers from your real
-team, import its **current total spendable budget** (team value plus remaining
-cash), five driver Fantasy IDs, two constructor Fantasy IDs and optional unused
-carried transfer. IDs are printed by `prices`.
+If the next race-week feed is empty, you can preview with the last completed race's official prices:
 
 ```sh
-.venv/bin/f1fantasy init --drivers 1 2 3 4 5 --constructors 25 27 --budget 102.4 --carry 1
-.venv/bin/f1fantasy recommend --races 3
+f1fantasy recommend --races 3 --allow-old-prices
 ```
 
-Alternatively `f1fantasy init --import-file my-team.json` accepts:
+This is labelled **provisional** because upcoming prices and driver availability have not been verified. Re-run without the flag before applying a lineup.
 
-```json
-{
-  "season": 2026,
-  "budget": 102.4,
-  "carry": 1,
-  "drivers": ["1", "2", "3", "4", "5"],
-  "constructors": ["25", "27"]
-}
+### Plan transfers from your team
+
+Find active Fantasy IDs using `f1fantasy prices` (or `prices --allow-old-prices` for a provisional list). Import your actual team, current spendable budget in millions (team value plus remaining cash), and any one carried transfer:
+
+```sh
+f1fantasy init --drivers ID1 ID2 ID3 ID4 ID5 --constructors TEAM1 TEAM2 --budget 102.4 --carry 1
+f1fantasy recommend --races 3
 ```
 
-These are example IDs only; select actual active IDs from the live `prices`
-output. The validated local team state is stored at `.f1fantasy/team.json`
-(ignored by Git). Re-import it after applying changes on the Fantasy website.
-Use `--allow-penalties` only if paying −10 points per extra transfer is acceptable.
-Pass `--season YEAR` and `--state PATH` before the command to override defaults.
+Alternatively, `f1fantasy init --import-file my-team.json` accepts `{"season": 2026, "budget": 102.4, "carry": 1, "drivers": ["ID1", "ID2", "ID3", "ID4", "ID5"], "constructors": ["TEAM1", "TEAM2"]}`. The CLI validates IDs against the fetched roster and stores your team at `.f1fantasy/team.json`, which Git ignores. Re-import after making changes on the Fantasy website. The optimizer uses two free net transfers after your first race, at most one carried transfer, and only permits extra −10-point transfers with `recommend --allow-penalties`.
 
-The optimizer considers five drivers, two constructors, budget, the 2× Boost,
-net transfers, one-week carry-over and Sprint points. Future race prices are
-assumed unchanged; re-run after every price update. Historical official scores
-include overtakes, fastest laps, Driver of the Day and constructor pit-stop
-bonuses; future occurrences are estimates, not certainties. FastF1 classification
-and grid form provides an additional signal, particularly for new entrants.
-Sprint qualifying earns no separately modeled Fantasy points. It never logs
-into or changes an F1 account.
+### Preload history and compare forecasts
 
-`backtest` replays the last completed weekends, producing mean absolute point
-errors (MAE) for drivers and constructors, reported separately for Sprint and
-regular events. Each forecast uses only earlier race results; the target week's
-archived roster is used only to identify which assets to evaluate. This command
-does not need the next race's price feed to be open. Historical prices are not
-used to claim a retrospective budget-optimal team.
+```sh
+f1fantasy preload --seasons 3
+f1fantasy preload --status
+f1fantasy backtest --races 4 --lookback 5 --compare-telemetry
+```
 
-`recommend` lists expected qualifying, Sprint and race points including the
-2× Boost, net transfers and penalties, the current cost and the three-race
-projected total. The first session time is **not** a verified Fantasy team-lock
-deadline: check the deadline in the game before acting. The CLI deliberately
-rejects an empty next-race feed, an incomplete roster, or prices predating
-the last completed race unless an explicit provisional preview is requested.
+`preload` covers completed sessions in the current and previous two seasons, persists FastF1's raw cache plus compact, versioned telemetry features, and resumes already processed sessions. Missing sessions are reported. To try one session first: `f1fantasy preload --seasons 2 --year 2025 --round 20 --session Qualifying`. Use `--refresh` to rebuild selected features. This historical cache **never replaces** the fresh Fantasy price and roster fetch on recommendations.
 
-Rules: [F1 Fantasy FAQ](https://fantasy.formula1.com/en/faqs),
-[2026 game rules](https://fantasy.formula1.com/en/game-rules).
+The model uses recent current-season Fantasy scores, FastF1 classification and grid form, earlier visits to each venue, and—when preloaded—circuit similarity and teammate-relative telemetry pace. Missing telemetry leaves the results-based forecast in place. `backtest` compares its point errors on regular and Sprint weekends; `recommend --no-telemetry` shows the results-only alternative. Past information is cut off before the predicted weekend. Estimated points are uncertain, especially for future bonus awards and changing car performance.
 
-For development, install with `.venv/bin/python -m pip install -e '.[dev]'`
-and run `.venv/bin/python -m pytest`.
+## Roadmap and data sources
+
+- [Simplified roadmap](roadmap.md) — V1 status and future V2/V3 milestones.
+- [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs) — roster, scoring, Boost, chips and transfers.
+- [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
+- [FastF1 documentation](https://docs.fastf1.dev/) — session results, laps, car telemetry and weather.
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V3.
