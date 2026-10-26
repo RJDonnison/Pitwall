@@ -9,12 +9,12 @@
 - V1 gives current-season form the strongest historical weight; the official Fantasy Statistics feed cross-checks current prices and season points. `backtest --show-points` exposes full predicted-versus-actual scores.
 - Every CLI command supports versioned `--format json` output for `jq` and automation, while retaining text by default. `clear-team` removes only the locally imported team.
 
-## V2 — model learning and evaluation (initial calibration implemented)
+## V2 — model learning and evaluation (planned)
 
 - Build point-in-time driver and constructor training examples using only data available before each weekend, with separate qualifying, Sprint and race targets.
-- Train on the prior season, then test each current-season race before adding its result and refitting for the next race. Report the prequential comparison with the fixed model; keep subsequent new weekends for independent forward checks.
-- `f1fantasy train` now warms up on labelled previous-season races (user-imported official scores or an explicitly approximate FastF1 proxy), then tests each current-season race before adding it to training. It reports per-round prequential MAE and keeps the fixed model if replay errors do not improve; the first live 2025→2026 proxy replay was **not** promoted.
-- Next: tune the underlying current-season, circuit and telemetry feature weights on cached point-in-time examples, with rollback and a genuinely new held-out test block after additional races. The existing fixed model remains the fallback.
+- Split completed weekends **chronologically**: fit weights on earlier races, choose among candidates on later validation races, and measure improvement once on a final untouched test block. Use walk-forward validation as more races become available.
+- Add `f1fantasy train` to produce a versioned model for recent form, same-circuit history and telemetry. Compare it with the current fixed-weight and results-only forecasts, reporting regular and Sprint errors and sample counts separately.
+- Promote a candidate only if it improves the held-out evaluation; keep the previous model available for rollback. After evaluation, refit the approved approach on all completed races for future recommendations without rewriting its historical test result.
 - Consider an **opt-in** cache-compaction command that retains verified prediction features and the results data needed by the CLI while reclaiming bulky raw telemetry after preloading is complete.
 
 ## V3 — Fantasy account automation (planned)

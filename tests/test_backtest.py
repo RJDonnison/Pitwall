@@ -37,7 +37,7 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     monkeypatch.setattr(
         backtest,
         "estimate_assets",
-        lambda a, w, lookback, use_telemetry, use_risk, use_model, return_features: {
+        lambda a, w, lookback, use_telemetry, use_risk: {
             (0, "d"): Estimate(2, 3 if w[0].sprint else 0, 5),
             (0, "c"): Estimate(3, 4 if w[0].sprint else 0, 6),
         },
@@ -95,44 +95,3 @@ def test_backtest_requires_completed_race(monkeypatch):
     monkeypatch.setattr(backtest, "season_weekends", lambda _: [weekend])
     with pytest.raises(DataError, match="finalized"):
         backtest.run_backtest(2026, now=datetime(2026, 4, 2, tzinfo=timezone.utc))
-
-
-def test_budgeted_regret_uses_prelock_prices_and_realized_boost(monkeypatch, tmp_path):
-    event = Weekend(
-        2026,
-        1,
-        "Test",
-        1,
-        datetime(2026, 4, 1, tzinfo=timezone.utc),
-        False,
-        True,
-        datetime(2026, 4, 2, tzinfo=timezone.utc),
-    )
-    assets = tuple(
-        [Asset(str(i), f"D{i}", "DRIVER", str(i // 2), 50, f"D{i}") for i in range(20)]
-        + [Asset(f"c{i}", f"T{i}", "CONSTRUCTOR", str(i), 100) for i in range(10)]
-    )
-    monkeypatch.setattr(backtest, "season_weekends", lambda _: [event])
-    monkeypatch.setattr(
-        backtest, "load_assets", lambda *_args, **_kwargs: (assets, None)
-    )
-    monkeypatch.setattr(backtest, "load_verified", lambda *_args: assets)
-    monkeypatch.setattr(
-        backtest,
-        "estimate_assets",
-        lambda *_args, **_kwargs: {
-            (0, a.id): Estimate(0, 0, 100 - index) for index, a in enumerate(assets)
-        },
-    )
-    monkeypatch.setattr(
-        backtest,
-        "completed_scores",
-        lambda *_args: {a.id: (0, 0, float(index)) for index, a in enumerate(assets)},
-    )
-    result = backtest.run_backtest(
-        2026, now=datetime(2026, 5, 1, tzinfo=timezone.utc), price_dir=tmp_path
-    )[0]
-    budgeted = result.selection["budgeted_initial_team"]
-    assert budgeted["regret_points"] > 0
-    assert budgeted["hindsight_best_points"] > budgeted["picked_actual_points"]
-    assert budgeted["boost_driver_id"] in budgeted["selected_ids"]

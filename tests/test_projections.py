@@ -126,10 +126,6 @@ def test_official_bonuses_use_only_earlier_completed_races(monkeypatch):
         2 < result[0, "a"].sprint < 20
     )  # official bonus informs, but one Sprint is shrunk
     assert result[0, "c"].race > 40
-    _, details = projections.estimate_assets(assets, [target], return_features=True)
-    assert details[0, "a"]["race"]["official_form"] == 30
-    assert details[0, "a"]["race"]["recent3"] == 30
-    assert details[0, "a"]["race"]["severe_probability"] >= 0
 
 
 def test_track_form_only_uses_earlier_visits_to_same_venue(monkeypatch):
@@ -296,67 +292,3 @@ def test_current_season_form_outweighs_previous_year(monkeypatch):
     monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
     result = projections.estimate_assets(assets, [target], lookback=2)
     assert 10 < result[0, "a"].race < 20
-
-
-def test_validated_weights_apply_only_after_training_cutoff(monkeypatch):
-    from f1fantasy import training
-
-    assets = (
-        Asset("a", "A", "DRIVER", "t", 50, "AAA"),
-        Asset("b", "B", "DRIVER", "t", 50, "BBB"),
-        Asset("c", "Team", "CONSTRUCTOR", "t", 50),
-    )
-    target = Weekend(
-        2026, 3, "Target", 3, datetime(2026, 5, 1, tzinfo=timezone.utc), False, False
-    )
-    earlier = Weekend(
-        2026,
-        2,
-        "Before",
-        2,
-        datetime(2026, 4, 10, tzinfo=timezone.utc),
-        False,
-        True,
-        datetime(2026, 4, 11, tzinfo=timezone.utc),
-    )
-
-    class Event(dict):
-        def get_session_date(self, *_args, **_kwargs):
-            return pd.Timestamp("2026-04-11")
-
-    monkeypatch.setattr(projections, "configure_cache", lambda: None)
-    monkeypatch.setattr(projections, "fastf1_weekend", lambda *_: None)
-    monkeypatch.setattr(projections, "season_weekends", lambda *_: [earlier, target])
-    monkeypatch.setattr(projections, "_track_form", lambda *_: {0: {}})
-    monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
-    monkeypatch.setattr(
-        projections.fastf1, "get_event_schedule", lambda *_: {"RoundNumber": [0]}
-    )
-    monkeypatch.setattr(
-        projections.fastf1, "get_event", lambda *_: Event(EventFormat="conventional")
-    )
-    monkeypatch.setattr(
-        projections, "_session_scores", lambda *_: {"AAA": 2.0, "BBB": 2.0}
-    )
-    monkeypatch.setattr(
-        projections,
-        "completed_scores",
-        lambda *_: {"a": (2, 0, 30), "b": (2, 0, 10), "c": (10, 0, 50)},
-    )
-    artifact = {
-        "active": True,
-        "last_completed_round": 2,
-        "weights": {
-            kind: {"race": [0, 0, 1], "qualifying": [1, 0], "sprint": [1, 0]}
-            for kind in ("DRIVER", "CONSTRUCTOR")
-        },
-    }
-    monkeypatch.setattr(training, "load_model", lambda *_: artifact)
-    fixed = projections.estimate_assets(assets, [target], use_model=False)
-    trained = projections.estimate_assets(assets, [target])
-    assert trained[0, "a"].race == 30
-    assert trained[0, "a"].race != fixed[0, "a"].race
-    artifact["last_completed_round"] = 3
-    assert (
-        projections.estimate_assets(assets, [target])[0, "a"].race == fixed[0, "a"].race
-    )

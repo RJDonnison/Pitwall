@@ -13,11 +13,9 @@ from .backtest import run_backtest
 from .data import DataError, load_statistics, snapshot
 from .history import cache_status, preload
 from .optimizer import optimize
-from .price_history import save_verified
 from .output import asset as asset_output
 from .output import backtest_row, envelope, event as event_output
 from .projections import estimate_assets
-from .training import load_model, model_path, train
 
 DEFAULT_STATE = Path(".f1fantasy/team.json")
 
@@ -140,11 +138,6 @@ def _parser() -> argparse.ArgumentParser:
         help="Use the original race/Sprint average for comparison",
     )
     recommend.add_argument(
-        "--no-trained",
-        action="store_true",
-        help="Use the fixed-weight forecast instead of a validated model",
-    )
-    recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
     )
     backtest = commands.add_parser(
@@ -172,11 +165,6 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Backtest the original race/Sprint averaging model",
     )
-    backtest.add_argument(
-        "--no-trained",
-        action="store_true",
-        help="Replay the fixed-weight forecast without saved calibration",
-    )
     warm = commands.add_parser(
         "preload", help="Cache completed sessions for this season and the previous two"
     )
@@ -186,25 +174,7 @@ def _parser() -> argparse.ArgumentParser:
     warm.add_argument("--year", type=int)
     warm.add_argument("--round", type=int)
     warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
-    training = commands.add_parser(
-        "train", help="Fit and validate forecast weights on completed races"
-    )
-    training.add_argument("--lookback", type=int, default=5)
-    training.add_argument(
-        "--prior-season-scores",
-        type=Path,
-        help="Import verified prior-season Fantasy scores instead of FastF1 proxies",
-    )
-    for command in (
-        init,
-        prices,
-        statistics,
-        clear_team,
-        recommend,
-        backtest,
-        warm,
-        training,
-    ):
+    for command in (init, prices, statistics, clear_team, recommend, backtest, warm):
         command.add_argument(
             "--format",
             choices=("text", "json"),
@@ -250,38 +220,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: {exc}", file=sys.stderr)
         return 2
     try:
-        if args.command == "train":
-            if not 1 <= args.lookback <= 10:
-                raise DataError("--lookback must be between 1 and 10")
-            report = train(
-                args.season,
-                lookback=args.lookback,
-                prior_scores_file=args.prior_season_scores,
-            )
-            path = str(model_path(args.season))
-            if args.format == "json":
-                _json_output("train", {"model_path": path, "model": report})
-            else:
-                print(
-                    f"Model: {path} ({'active' if report['active'] else 'baseline retained'})"
-                )
-                print(
-                    f"Warm-start: {report['prior_season']} ({report['prior_source']}, "
-                    f"{report['prior_examples']} examples); "
-                    f"replayed current-season rounds: {report['replay_rounds']}"
-                )
-                for kind, phases in report["metrics"].items():
-                    for phase, metrics in phases.items():
-                        if "replay_mae" in metrics:
-                            print(
-                                f"  {kind} {phase}: walk-forward MAE "
-                                f"{metrics['baseline_mae']:.1f} baseline → "
-                                f"{metrics['replay_mae']:.1f} trained; "
-                                f"recent half {metrics['recent_baseline_mae']:.1f} → "
-                                f"{metrics['recent_replay_mae']:.1f}; "
-                                f"{'promoted' if metrics['promoted'] else 'not promoted'}"
-                            )
-            return 0
         if args.command == "clear-team":
             removed = args.state.exists() or args.state.is_symlink()
             if removed:
@@ -379,7 +317,6 @@ def main(argv: list[str] | None = None) -> int:
                 count=args.races,
                 lookback=args.lookback,
                 use_risk=not args.no_risk,
-                use_model=not args.no_trained,
             )
             summaries = {}
             for sprint in (False, True):
@@ -401,29 +338,15 @@ def main(argv: list[str] | None = None) -> int:
                     }
             comparison = {}
             if args.compare_telemetry:
-                with_telemetry = (
-                    rows
-                    if args.no_trained
-                    else run_backtest(
-                        args.season,
-                        count=args.races,
-                        lookback=args.lookback,
-                        use_risk=not args.no_risk,
-                        use_model=False,
-                    )
-                )
                 baseline = run_backtest(
                     args.season,
                     count=args.races,
                     lookback=args.lookback,
                     use_telemetry=False,
                     use_risk=not args.no_risk,
-                    use_model=False,
                 )
                 for label, is_sprint in (("regular", False), ("sprint", True)):
-                    actual = [
-                        r for r in with_telemetry if r.weekend.sprint == is_sprint
-                    ]
+                    actual = [r for r in rows if r.weekend.sprint == is_sprint]
                     old = [r for r in baseline if r.weekend.sprint == is_sprint]
                     if actual:
                         comparison[label] = {
@@ -431,10 +354,7 @@ def main(argv: list[str] | None = None) -> int:
                                 r.driver_error * r.drivers for r in old
                             )
                             / sum(r.drivers for r in old),
-                            "telemetry_driver_mae": sum(
-                                r.driver_error * r.drivers for r in actual
-                            )
-                            / sum(r.drivers for r in actual),
+                            "telemetry_driver_mae": summaries[label]["driver_mae"],
                             "weekends": len(actual),
                         }
             risk_comparison = {}
@@ -444,17 +364,12 @@ def main(argv: list[str] | None = None) -> int:
                     count=args.races,
                     lookback=args.lookback,
                     use_risk=False,
-                    use_model=False,
                 )
                 new_rows = (
                     rows
-                    if args.no_trained and not args.no_risk
+                    if not args.no_risk
                     else run_backtest(
-                        args.season,
-                        count=args.races,
-                        lookback=args.lookback,
-                        use_risk=True,
-                        use_model=False,
+                        args.season, count=args.races, lookback=args.lookback
                     )
                 )
 
@@ -500,7 +415,6 @@ def main(argv: list[str] | None = None) -> int:
                         "season": args.season,
                         "lookback": args.lookback,
                         "risk_model_enabled": not args.no_risk,
-                        "trained_model_enabled": not args.no_trained,
                         "rows": [backtest_row(r) for r in rows],
                         "summary": summaries,
                         "telemetry_comparison": comparison,
@@ -530,22 +444,6 @@ def main(argv: list[str] | None = None) -> int:
                         f"  Driver race MAE vs last-3 average ({row.baseline_driver_count} drivers): "
                         f"model {row.model_driver_race_error_on_baseline:.1f}, "
                         f"naive {row.baseline_driver_race_error:.1f}"
-                    )
-                if row.selection and row.selection.get("drivers"):
-                    choices = row.selection["drivers"]
-                    print(
-                        f"  Unbudgeted top-5 overlap: {choices['top_pick_overlap']}/5; "
-                        f"points regret: {choices['unbudgeted_points_regret']:.1f}; "
-                        f"Boost regret within those five: "
-                        f"{choices['boost_regret_within_predicted_five']:.1f}"
-                    )
-                if row.selection and row.selection.get("budgeted_initial_team"):
-                    comparison = row.selection["budgeted_initial_team"]
-                    print(
-                        f"  $100m initial-team regret with verified pre-lock prices: "
-                        f"{comparison['regret_points']:.1f} pts "
-                        f"({comparison['picked_actual_points']:.1f} vs "
-                        f"hindsight {comparison['hindsight_best_points']:.1f})"
                     )
                 if args.show_points:
                     for kind in ("DRIVER", "CONSTRUCTOR"):
@@ -685,23 +583,7 @@ def main(argv: list[str] | None = None) -> int:
             horizon,
             use_telemetry=not args.no_telemetry,
             use_risk=not args.no_risk,
-            use_model=not args.no_trained,
         )
-        saved = (
-            load_model(args.season)
-            if not args.no_trained and not args.no_risk and not args.no_telemetry
-            else None
-        )
-        applied = bool(
-            saved
-            and saved["active"]
-            and saved["last_completed_round"] < horizon[0].round
-        )
-        if args.format == "text" and applied:
-            print(
-                f"Trained calibration v{saved['version']} active "
-                f"(through round {saved['last_completed_round']})"
-            )
         lineups = optimize(
             live.assets,
             horizon,
@@ -711,7 +593,6 @@ def main(argv: list[str] | None = None) -> int:
             carry,
             args.allow_penalties,
         )
-        price_snapshot_saved = save_verified(live)
         lineup_data = []
         for index, lineup in enumerate(lineups):
             selected = lineup.drivers + lineup.constructors
@@ -789,19 +670,11 @@ def main(argv: list[str] | None = None) -> int:
                     "carried_transfer": carry,
                     "telemetry_enabled": not args.no_telemetry,
                     "risk_model_enabled": not args.no_risk,
-                    "calibration": {
-                        "applied": applied,
-                        "version": saved["version"] if applied else None,
-                        "trained_through_round": saved["last_completed_round"]
-                        if applied
-                        else None,
-                    },
                     "lineups": lineup_data,
                     "projected_total_points": float(
                         sum(l.expected_points for l in lineups)
                     ),
                     "future_prices_assumed_constant": True,
-                    "verified_prelock_price_snapshot_saved": price_snapshot_saved,
                 },
                 warnings,
             )

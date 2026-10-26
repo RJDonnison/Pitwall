@@ -79,7 +79,6 @@ def backtest_row(row: BacktestRow) -> dict:
             "driver_race_mae": row.baseline_driver_race_error,
             "model_driver_race_mae_same_samples": row.model_driver_race_error_on_baseline,
         },
-        "selection_diagnostics": row.selection,
         "assets": [
             {
                 "id": entry.id,
