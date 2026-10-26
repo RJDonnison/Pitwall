@@ -292,9 +292,9 @@ def replay_calibration(
     prior: list[Observation], current: list[Observation], season: int, source: str
 ) -> dict:
     """Test current-season round N, then add N to training before round N+1."""
+    if len({item.round for item in prior}) < 5:
+        raise DataError("Need at least five previous-season warm-start races")
     rounds = sorted({item.round for item in current})
-    if len(rounds) < 3:
-        raise DataError("Need at least three finalized current-season races for replay")
     pool = list(prior)
     weekly = []
     recorded: dict[tuple[str, str], list[tuple[int, float, float]]] = {}
@@ -344,7 +344,7 @@ def replay_calibration(
         "prior_example_weight": _source_weight(source),
         "replay_rounds": rounds,
         "weekly": weekly,
-        "last_completed_round": rounds[-1],
+        "last_completed_round": rounds[-1] if rounds else 0,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "weights": {},
         "metrics": {},
@@ -430,13 +430,12 @@ def train(
         for w in season_weekends(season)
         if w.last_session is not None and w.last_session + timedelta(days=1) < now
     ]
-    if len(complete) < 3:
-        raise DataError("Need at least three finalized current-season weekends")
     previous = load_model(season, directory)
     desired_source = "imported_official" if prior_scores_file else "fastf1_proxy"
+    last_round = complete[-1].round if complete else 0
     if (
         previous is not None
-        and previous["last_completed_round"] >= complete[-1].round
+        and previous["last_completed_round"] >= last_round
         and previous.get("prior_source") == desired_source
     ):
         if previous.get("lookback", 5) != lookback:
@@ -446,21 +445,29 @@ def train(
         return previous
     prior_weeks, source = load_previous_season(season, official_file=prior_scores_file)
     warm_start = prior_observations(prior_weeks, source)
-    current = run_backtest(
-        season,
-        count=len(complete),
-        lookback=lookback,
-        now=now,
-        use_risk=True,
-        use_model=False,
+    current = (
+        run_backtest(
+            season,
+            count=len(complete),
+            lookback=lookback,
+            now=now,
+            use_risk=True,
+            use_model=False,
+        )
+        if complete
+        else []
     )
-    legacy = run_backtest(
-        season,
-        count=len(complete),
-        lookback=lookback,
-        now=now,
-        use_risk=False,
-        use_model=False,
+    legacy = (
+        run_backtest(
+            season,
+            count=len(complete),
+            lookback=lookback,
+            now=now,
+            use_risk=False,
+            use_model=False,
+        )
+        if complete
+        else []
     )
     report = replay_calibration(
         warm_start, observations(current, legacy), season, source

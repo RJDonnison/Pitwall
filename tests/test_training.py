@@ -181,13 +181,36 @@ def test_invalid_weights_never_activate(tmp_path):
 
 
 def test_replay_requires_earlier_training_events():
-    with pytest.raises(DataError, match="three finalized"):
+    with pytest.raises(DataError, match="previous-season"):
         training.replay_calibration(
             [],
             [training.Observation(1, "DRIVER", "race", 5, (4, 4, 4))],
             2026,
             "fastf1_proxy",
         )
+
+
+def test_can_warm_start_before_current_seasons_first_race(tmp_path, monkeypatch):
+    monkeypatch.setattr(training, "season_weekends", lambda _: [])
+    monkeypatch.setattr(
+        training,
+        "load_previous_season",
+        lambda *_args, **_kwargs: (prior_weeks(), "fastf1_proxy"),
+    )
+    monkeypatch.setattr(
+        training,
+        "run_backtest",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("no current race to test")
+        ),
+    )
+    result = training.train(
+        2026, directory=tmp_path, now=datetime(2026, 2, 1, tzinfo=timezone.utc)
+    )
+    assert result["last_completed_round"] == 0
+    assert result["replay_rounds"] == []
+    assert result["prior_examples"] > 0
+    assert not result["active"]  # proxy labels alone cannot validate Fantasy MAE
 
 
 def test_current_official_scores_outweigh_approximate_prior_labels():
