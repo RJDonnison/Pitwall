@@ -119,6 +119,10 @@ def load_assets(
     rows = feed.get("Value")
     if not isinstance(rows, list):
         raise DataError("Fantasy roster has no values")
+    if not rows:
+        raise DataError(
+            f"Fantasy roster for race week {gameday_id} has not been published yet"
+        )
     try:
         published = datetime.strptime(
             feed["FeedTime"]["UTCTime"], "%m/%d/%Y %I:%M:%S %p"
@@ -165,6 +169,8 @@ def load_assets(
         raise DataError("Incomplete active driver/constructor roster")
     if not {d.team_id for d in drivers}.issubset({c.team_id for c in constructors}):
         raise DataError("Driver/constructor mapping is incomplete")
+    if any(sum(d.team_id == c.team_id for d in drivers) != 2 for c in constructors):
+        raise DataError("Expected exactly two active drivers for each constructor")
     return tuple(assets), published
 
 
@@ -208,22 +214,55 @@ def completed_scores(
 def snapshot(
     season: int, now: datetime | None = None
 ) -> tuple[Snapshot, list[Weekend]]:
-    weekends = upcoming_weekends(season, now)
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise DataError("Current time must have a timezone")
+    schedule = season_weekends(season)
+    weekends = [w for w in schedule if w.first_session > now]
     if not weekends:
         raise DataError(f"No upcoming Fantasy weekend for {season}")
     first = weekends[0]
     if first.locked:
         raise DataError(f"Fantasy team for {first.name} is locked or not open yet")
     assets, published = load_assets(first.gameday_id)
+    finished = [
+        w for w in schedule if w.last_session and w.last_session < first.first_session
+    ]
+    if finished:
+        last = finished[-1]
+        previous, _ = load_assets(last.gameday_id, require_recent=False)
+        if published < last.last_session:
+            raise DataError("Upcoming prices predate the previous race result")
+        for kind in ("DRIVER", "CONSTRUCTOR"):
+            if sum(a.kind == kind for a in assets) != sum(
+                a.kind == kind for a in previous
+            ):
+                raise DataError(
+                    "Upcoming Fantasy roster differs in size from the last verified round"
+                )
     return Snapshot(first, assets, datetime.now(timezone.utc), published), weekends
 
 
 def fastf1_weekend(weekend: Weekend) -> Any:
-    """Check FastF1's round and format against Fantasy's schedule."""
+    """Check FastF1's round, race date and format against Fantasy's schedule."""
     try:
         event = fastf1.get_event(weekend.season, weekend.round)
         if ("sprint" in str(event["EventFormat"]).lower()) != weekend.sprint:
             raise DataError(f"Conflicting Sprint format for {weekend.name}")
+        if weekend.last_session is not None:
+            race_date = (
+                event.get_session_date("Race", utc=True)
+                .to_pydatetime()
+                .replace(tzinfo=timezone.utc)
+            )
+            if not (
+                weekend.first_session
+                <= race_date
+                <= weekend.last_session + timedelta(hours=3)
+            ):
+                raise DataError(
+                    f"FastF1 race date disagrees with Fantasy event {weekend.name}"
+                )
         return event
     except DataError:
         raise

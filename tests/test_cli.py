@@ -70,8 +70,9 @@ def test_cli_import_and_recommendation(tmp_path, monkeypatch, capsys):
     )
     printed = capsys.readouterr().out
     assert "2x Boost" in printed
-    assert "Sprint included" in printed
+    assert "Sprint 24.0" in printed
     assert "Net transfers" in printed
+    assert "Projected 1-race total" in printed
 
 
 def test_rejects_unverified_import(tmp_path, monkeypatch, capsys):

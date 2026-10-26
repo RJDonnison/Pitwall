@@ -33,7 +33,7 @@ def _read_state(path: Path) -> dict:
         if not isinstance(state, dict):
             raise ValueError("Team state must be a JSON object")
         return state
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
         raise DataError(f"Cannot read team state {path}: {exc}") from exc
 
 
@@ -43,6 +43,10 @@ def _validate_state(
     try:
         if int(state["season"]) != season:
             raise DataError("Team season differs from live Fantasy season")
+        if not isinstance(state["drivers"], list) or not isinstance(
+            state["constructors"], list
+        ):
+            raise DataError("Team driver and constructor IDs must be JSON lists")
         drivers = [str(id_) for id_ in state["drivers"]]
         constructors = [str(id_) for id_ in state["constructors"]]
         if len(drivers) != 5 or len(constructors) != 2:
@@ -195,13 +199,23 @@ def main(argv: list[str] | None = None) -> int:
         )
         for index, lineup in enumerate(lineups):
             print(
-                f"\n{lineup.weekend.name} ({'Sprint' if lineup.weekend.sprint else 'regular'}) — {lineup.weekend.first_session.isoformat()}"
+                f"\n{lineup.weekend.name} ({'Sprint' if lineup.weekend.sprint else 'regular'}) — "
+                f"first scoring session {lineup.weekend.first_session.isoformat()}"
             )
             print(f"  Drivers: {', '.join(a.name for a in lineup.drivers)}")
             print(f"  Constructors: {', '.join(a.name for a in lineup.constructors)}")
             print(f"  2x Boost: {lineup.boost.name}")
             print(
                 f"  Cost: ${lineup.cost / 10:.1f}m / ${budget / 10:.1f}m; projected: {lineup.expected_points:.1f} pts"
+            )
+            selected = lineup.drivers + lineup.constructors
+            qualifying = sum(forecasts[index, a.id].qualifying for a in selected)
+            sprint = sum(forecasts[index, a.id].sprint for a in selected)
+            race = sum(forecasts[index, a.id].race for a in selected)
+            boost = forecasts[index, lineup.boost.id]
+            print(
+                f"  Sessions (including 2x Boost): qualifying {qualifying + boost.qualifying:.1f}, "
+                f"Sprint {sprint + boost.sprint:.1f}, race {race + boost.race:.1f}"
             )
             if previous is not None or index:
                 print(
@@ -224,10 +238,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(
                     f"  In: {', '.join(names[id_] for id_ in sorted(after - before)) or 'none'}"
                 )
-            if lineup.weekend.sprint:
-                print("  Sprint included in projected driver and constructor points")
         print(
-            "\nForecast learns official Fantasy bonus scoring from completed races; future prices held constant. Re-import your actual team after making changes."
+            f"\nProjected {len(lineups)}-race total: {sum(l.expected_points for l in lineups):.1f} pts"
+        )
+        print(
+            "Fantasy lock time must be checked in the game. Forecast uses current-season official scoring and prior visits to each circuit; future prices held constant. Re-import your actual team after making changes."
         )
         return 0
     except (DataError, OSError) as exc:

@@ -89,3 +89,129 @@ def test_official_weekend_total_and_bonus_history(monkeypatch):
     rows[0].pop("GamedayPoints")
     with pytest.raises(data.DataError, match="Unverifiable"):
         data.completed_scores(2, sprint=True)
+
+
+def test_unopened_raceweek_fails_without_falling_back_to_old_prices(monkeypatch):
+    monkeypatch.setattr(data, "_get_json", lambda _: {"Value": []})
+    with pytest.raises(data.DataError, match="not been published"):
+        data.load_assets(19)
+
+
+def test_fastf1_event_must_match_fantasy_race_date(monkeypatch):
+    import pandas as pd
+
+    class Event(dict):
+        def get_session_date(self, *_args, **_kwargs):
+            return pd.Timestamp("2026-06-01")
+
+    monkeypatch.setattr(
+        data.fastf1, "get_event", lambda *_: Event(EventFormat="conventional")
+    )
+    weekend = data.Weekend(
+        2026,
+        4,
+        "Miami",
+        4,
+        datetime(2026, 5, 2, tzinfo=timezone.utc),
+        False,
+        False,
+        datetime(2026, 5, 3, tzinfo=timezone.utc),
+    )
+    with pytest.raises(data.DataError, match="disagrees"):
+        data.fastf1_weekend(weekend)
+
+
+def test_snapshot_rejects_partial_next_roster(monkeypatch):
+    previous = data.Weekend(
+        2026,
+        18,
+        "USA",
+        18,
+        datetime(2026, 10, 24, tzinfo=timezone.utc),
+        False,
+        True,
+        datetime(2026, 10, 25, tzinfo=timezone.utc),
+    )
+    upcoming = data.Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        datetime(2026, 10, 31, tzinfo=timezone.utc),
+        False,
+        False,
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+
+    def roster(week, *, require_recent=True):
+        count = 10 if week == 19 else 11
+        assets = tuple(
+            data.Asset(str(i), str(i), "DRIVER", str(i // 2), 50, "AAA")
+            for i in range(count * 2)
+        ) + tuple(
+            data.Asset(f"c{i}", str(i), "CONSTRUCTOR", str(i), 50) for i in range(count)
+        )
+        return assets, datetime(2026, 10, 26, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(data, "load_assets", roster)
+    with pytest.raises(data.DataError, match="differs in size"):
+        data.snapshot(2026, datetime(2026, 10, 27, tzinfo=timezone.utc))
+
+
+def test_every_snapshot_refetches_prices_and_rejects_an_empty_update(monkeypatch):
+    next_race = data.Weekend(
+        2026, 1, "Opening", 1, datetime(2026, 11, 1, tzinfo=timezone.utc), False, False
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [next_race])
+    rows = [
+        {
+            "IsActive": "1",
+            "PositionName": "DRIVER",
+            "Value": 5,
+            "PlayerId": str(i),
+            "FUllName": f"Driver {i}",
+            "TeamId": str(i // 2),
+            "DriverTLA": f"D{i}",
+        }
+        for i in range(20)
+    ] + [
+        {
+            "IsActive": "1",
+            "PositionName": "CONSTRUCTOR",
+            "Value": 5,
+            "PlayerId": f"c{i}",
+            "FUllName": f"Team {i}",
+            "TeamId": str(i),
+        }
+        for i in range(10)
+    ]
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {
+                "Data": {
+                    "Value": rows if len(calls) == 1 else [],
+                    "FeedTime": {
+                        "UTCTime": datetime.now(timezone.utc).strftime(
+                            "%m/%d/%Y %I:%M:%S %p"
+                        )
+                    },
+                }
+            }
+
+    def get(*_args, **_kwargs):
+        calls.append(1)
+        return Response()
+
+    monkeypatch.setattr(data.requests, "get", get)
+    assert (
+        len(data.snapshot(2026, datetime(2026, 10, 26, tzinfo=timezone.utc))[0].assets)
+        == 30
+    )
+    with pytest.raises(data.DataError, match="not been published"):
+        data.snapshot(2026, datetime(2026, 10, 26, tzinfo=timezone.utc))
+    assert len(calls) == 2

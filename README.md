@@ -3,8 +3,9 @@
 Read-only recommendations for F1 Fantasy. Fetches the current race-week's public
 Fantasy prices and roster for **every** run, then combines completed official
 Fantasy scoring history with FastF1 results to estimate qualifying, Sprint and
-race points. Fails when the next race's feed is
-unavailable or the lineup cannot be verified.
+race points. Earlier visits to the same circuit in the previous two seasons
+modify each event's forecast. Fails when the next race's feed is unavailable or
+the lineup cannot be verified.
 
 ## Install
 
@@ -62,5 +63,15 @@ archived roster is used only to identify which assets to evaluate. This command
 does not need the next race's price feed to be open. Historical prices are not
 used to claim a retrospective budget-optimal team.
 
+`recommend` lists expected qualifying, Sprint and race points including the
+2× Boost, net transfers and penalties, the current cost and the three-race
+projected total. The first session time is **not** a verified Fantasy team-lock
+deadline: check the deadline in the game before acting. The CLI deliberately
+rejects an empty next-race feed, an incomplete roster, or prices predating
+the last completed race; it never substitutes old prices.
+
 Rules: [F1 Fantasy FAQ](https://fantasy.formula1.com/en/faqs),
 [2026 game rules](https://fantasy.formula1.com/en/game-rules).
+
+For development, install with `.venv/bin/python -m pip install -e '.[dev]'`
+and run `.venv/bin/python -m pytest`.
