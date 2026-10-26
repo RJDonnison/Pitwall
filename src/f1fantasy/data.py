@@ -36,6 +36,7 @@ class Weekend:
     first_session: datetime
     sprint: bool
     locked: bool
+    last_session: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -70,10 +71,8 @@ def _timestamp(value: str) -> datetime:
     return result.astimezone(timezone.utc)
 
 
-def upcoming_weekends(season: int, now: datetime | None = None) -> list[Weekend]:
-    now = now or datetime.now(timezone.utc)
-    if now.tzinfo is None:
-        raise DataError("Current time must have a timezone")
+def season_weekends(season: int) -> list[Weekend]:
+    """Return scheduled race weekends, including earlier completed rounds."""
     fixtures = _get_json("v2/schedule/raceday_en.json").get("fixtures")
     if not isinstance(fixtures, list):
         raise DataError("Fantasy schedule has no fixtures")
@@ -85,8 +84,6 @@ def upcoming_weekends(season: int, now: datetime | None = None) -> list[Weekend]
         weekends = []
         for gameday, sessions in groups.items():
             start = min(_timestamp(s["SessionStartDateISO8601"]) for s in sessions)
-            if start <= now:
-                continue
             first = min(
                 sessions, key=lambda s: _timestamp(s["SessionStartDateISO8601"])
             )
@@ -99,11 +96,19 @@ def upcoming_weekends(season: int, now: datetime | None = None) -> list[Weekend]
                     start,
                     any("Sprint" in s["SessionName"] for s in sessions),
                     bool(int(first["GDIsLocked"])),
+                    max(_timestamp(s["SessionEndDateISO8601"]) for s in sessions),
                 )
             )
         return sorted(weekends, key=lambda w: w.first_session)
     except (KeyError, TypeError, ValueError) as exc:
         raise DataError(f"Cannot verify Fantasy schedule: {exc}") from exc
+
+
+def upcoming_weekends(season: int, now: datetime | None = None) -> list[Weekend]:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise DataError("Current time must have a timezone")
+    return [w for w in season_weekends(season) if w.first_session > now]
 
 
 def load_assets(gameday_id: int) -> tuple[tuple[Asset, ...], datetime]:
@@ -158,6 +163,43 @@ def load_assets(gameday_id: int) -> tuple[tuple[Asset, ...], datetime]:
     if not {d.team_id for d in drivers}.issubset({c.team_id for c in constructors}):
         raise DataError("Driver/constructor mapping is incomplete")
     return tuple(assets), published
+
+
+def completed_scores(
+    gameday_id: int, sprint: bool
+) -> dict[str, tuple[float, float, float]]:
+    """Official per-weekend Fantasy scores, including awarded bonus categories.
+
+    Call only for a weekend known to have completed *before* the prediction.
+    The feed also contains cumulative season statistics; those are intentionally
+    ignored because they can contain information from later events.
+    """
+    feed = _get_json(f"drivers/{gameday_id}_en.json")
+    rows = feed.get("Value")
+    if not isinstance(rows, list) or len(rows) < 30:
+        raise DataError(f"Incomplete Fantasy scores for race week {gameday_id}")
+    output: dict[str, tuple[float, float, float]] = {}
+    try:
+        for item in rows:
+            if str(item["IsActive"]) != "1":
+                continue
+            key = str(item["PlayerId"])
+            q = Decimal(str(item["QualifyingPoints"]))
+            r = Decimal(str(item["RacePoints"]))
+            s = Decimal(str(item["SprintPoints"])) if sprint else Decimal(0)
+            total = Decimal(str(item["GamedayPoints"]))
+            if not all(n.is_finite() for n in (q, r, s, total)) or key in output:
+                raise DataError(f"Invalid Fantasy scores for race week {gameday_id}")
+            # Occasionally the displayed session subtotals differ from the final
+            # official weekend score. Preserve the final score in the race bucket.
+            output[key] = (float(q), float(s), float(total - q - s))
+    except (KeyError, TypeError, InvalidOperation) as exc:
+        raise DataError(
+            f"Unverifiable Fantasy scores for race week {gameday_id}: {exc}"
+        ) from exc
+    if len(output) < 30:
+        raise DataError(f"Incomplete Fantasy scores for race week {gameday_id}")
+    return output
 
 
 def snapshot(

@@ -26,6 +26,7 @@ def test_sprint_uses_prior_results_only(monkeypatch):
             return pd.Timestamp("2026-03-05")
 
     monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "season_weekends", lambda _: [])
     monkeypatch.setattr(
         projections.fastf1, "get_event", lambda *_: Event(EventFormat="sprint")
     )
@@ -67,3 +68,49 @@ def test_unclassified_sprint_and_race_are_penalized(monkeypatch):
     monkeypatch.setattr(projections.fastf1, "get_session", lambda *_: Session())
     assert projections._session_scores(2026, 1, "S")["AAA"] == -10
     assert projections._session_scores(2026, 1, "R")["AAA"] == -20
+
+
+def test_official_bonuses_use_only_earlier_completed_races(monkeypatch):
+    assets = (
+        Asset("a", "A", "DRIVER", "team", 50, "AAA"),
+        Asset("b", "B", "DRIVER", "team", 50, "BBB"),
+        Asset("c", "Team", "CONSTRUCTOR", "team", 50),
+    )
+    target = Weekend(
+        2026, 3, "Target", 3, datetime(2026, 3, 10, tzinfo=timezone.utc), True, False
+    )
+    previous = Weekend(
+        2026,
+        2,
+        "Prior",
+        2,
+        datetime(2026, 3, 3, tzinfo=timezone.utc),
+        True,
+        True,
+        datetime(2026, 3, 4, tzinfo=timezone.utc),
+    )
+    monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "season_weekends", lambda _: [previous, target])
+    monkeypatch.setattr(
+        projections.fastf1, "get_event_schedule", lambda *_: {"RoundNumber": [0, 1]}
+    )
+
+    class Event(dict):
+        def get_session_date(self, *_args, **_kwargs):
+            return pd.Timestamp("2026-03-03")
+
+    monkeypatch.setattr(
+        projections.fastf1, "get_event", lambda *_: Event(EventFormat="sprint")
+    )
+    monkeypatch.setattr(projections, "_session_scores", lambda *_: {"AAA": 2, "BBB": 2})
+    fetched = []
+
+    def official(id_, _sprint):
+        fetched.append(id_)
+        return {"a": (10, 20, 30), "b": (5, 5, 10), "c": (25, 30, 55)}
+
+    monkeypatch.setattr(projections, "completed_scores", official)
+    result = projections.estimate_assets(assets, [target])
+    assert fetched == [2]
+    assert result[0, "a"].sprint > 10
+    assert result[0, "c"].race > 40

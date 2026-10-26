@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
             if lineup.weekend.sprint:
                 print("  Sprint included in projected driver and constructor points")
         print(
-            "\nForecast omits overtakes, Driver of the Day and pit-stop bonuses; future prices held constant. Re-import your actual team after making changes."
+            "\nForecast learns official Fantasy bonus scoring from completed races; future prices held constant. Re-import your actual team after making changes."
         )
         return 0
     except (DataError, OSError) as exc:

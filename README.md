@@ -1,8 +1,9 @@
 # F1 Fantasy planner (V1)
 
 Read-only recommendations for F1 Fantasy. Fetches the current race-week's public
-Fantasy prices and roster for **every** run, then uses completed FastF1 results to
-estimate qualifying, Sprint and race points. Fails when the next race's feed is
+Fantasy prices and roster for **every** run, then combines completed official
+Fantasy scoring history with FastF1 results to estimate qualifying, Sprint and
+race points. Fails when the next race's feed is
 unavailable or the lineup cannot be verified.
 
 ## Install
@@ -46,11 +47,12 @@ Pass `--season YEAR` and `--state PATH` before the command to override defaults.
 
 The optimizer considers five drivers, two constructors, budget, the 2× Boost,
 net transfers, one-week carry-over and Sprint points. Future race prices are
-assumed unchanged; re-run after every price update. This early forecast uses
-classification and grid positions from FastF1. Official Fantasy overtakes,
-Driver of the Day and constructor pit-stop bonuses are not predicted, so
-projected points are approximate. Sprint qualifying earns no separately
-modeled Fantasy points. It never logs into or changes an F1 account.
+assumed unchanged; re-run after every price update. Historical official scores
+include overtakes, fastest laps, Driver of the Day and constructor pit-stop
+bonuses; future occurrences are estimates, not certainties. FastF1 classification
+and grid form provides an additional signal, particularly for new entrants.
+Sprint qualifying earns no separately modeled Fantasy points. It never logs
+into or changes an F1 account.
 
 Rules: [F1 Fantasy FAQ](https://fantasy.formula1.com/en/faqs),
 [2026 game rules](https://fantasy.formula1.com/en/game-rules).

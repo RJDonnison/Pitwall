@@ -1,8 +1,4 @@
-"""Conservative, pre-weekend Fantasy point estimates from FastF1 results.
-
-FastF1 does not expose official Fantasy overtakes, Driver of the Day or pit-stop
-bonuses consistently. These estimates intentionally exclude those categories.
-"""
+"""Pre-weekend predictions from completed Fantasy scores and FastF1 form."""
 
 from __future__ import annotations
 
@@ -12,7 +8,14 @@ from typing import Any
 
 import fastf1
 
-from .data import Asset, DataError, Weekend, fastf1_weekend
+from .data import (
+    Asset,
+    DataError,
+    Weekend,
+    completed_scores,
+    fastf1_weekend,
+    season_weekends,
+)
 
 QUALIFYING = {position: 11 - position for position in range(1, 11)}
 RACE = {
@@ -105,6 +108,12 @@ def estimate_assets(
             if not prior:
                 raise DataError(f"Cannot load prior-season history: {exc}") from exc
     history: dict[str, dict[str, list[float]]] = {}
+    fantasy_history: dict[str, dict[str, list[float]]] = {}
+    completed = {
+        w.round: w
+        for w in season_weekends(first.season)
+        if w.last_session is not None and w.last_session < first.first_session
+    }
     for year, round_number in prior:
         event = fastf1.get_event(year, round_number)
         # A postponed or delayed event must never leak into a prediction.
@@ -120,25 +129,46 @@ def estimate_assets(
                 continue
             for tla, score in _session_scores(year, round_number, kind).items():
                 history.setdefault(tla, {}).setdefault(kind, []).append(score)
+        if year == first.season and round_number in completed:
+            historic = completed[round_number]
+            for id_, (q, s, r) in completed_scores(
+                historic.gameday_id, historic.sprint
+            ).items():
+                record = fantasy_history.setdefault(id_, {})
+                for kind, points in (("Q", q), ("R", r)):
+                    record.setdefault(kind, []).append(points)
+                if historic.sprint:
+                    record.setdefault("S", []).append(s)
     if not any(h.get("R") for h in history.values()):
         raise DataError("No completed race results available before the weekend")
 
-    def mean(tla: str, kind: str, default: float) -> float:
-        values = history.get(tla, {}).get(kind, [])
+    def mean(values: list[float], default: float) -> float:
         if not values:
             return default
         weights = list(range(1, len(values) + 1))
         return sum(v * w for v, w in zip(values, weights)) / sum(weights)
 
+    def blended(id_: str, kind: str, fallback: float) -> float:
+        values = fantasy_history.get(id_, {}).get(kind, [])
+        if not values:
+            return fallback
+        # Official Fantasy history contains overtakes, fastest laps, DOTD,
+        # qualifying advancement and pit-stop bonuses absent from FastF1
+        # classifications. FastF1 form limits noise from very small samples.
+        share = min(0.85, 0.5 + 0.1 * len(values))
+        return share * mean(values, fallback) + (1 - share) * fallback
+
     drivers = [a for a in assets if a.kind == "DRIVER"]
     output: dict[tuple[int, str], Estimate] = {}
     for index, weekend in enumerate(weekends):
         for driver in drivers:
-            q = mean(driver.tla, "Q", 0)
-            r = mean(driver.tla, "R", 0)
-            # Sprint races have fewer laps/points. A previous Sprint is preferred
-            # over a scaled race estimate, without inventing Sprint qualifying points.
-            s = mean(driver.tla, "S", r * 0.35) if weekend.sprint else 0.0
+            base = history.get(driver.tla, {})
+            q_base = mean(base.get("Q", []), 0)
+            r_base = mean(base.get("R", []), 0)
+            q = blended(driver.id, "Q", q_base)
+            r = blended(driver.id, "R", r_base)
+            s_base = mean(base.get("S", []), r * 0.35)
+            s = blended(driver.id, "S", s_base) if weekend.sprint else 0.0
             output[index, driver.id] = Estimate(q, s, r)
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [
@@ -156,6 +186,10 @@ def estimate_assets(
                 else -1
             )
             output[index, constructor.id] = Estimate(
-                q + bonus, sum(m.sprint for m in members), sum(m.race for m in members)
+                blended(constructor.id, "Q", q + bonus),
+                blended(constructor.id, "S", sum(m.sprint for m in members))
+                if weekend.sprint
+                else 0,
+                blended(constructor.id, "R", sum(m.race for m in members)),
             )
     return output
