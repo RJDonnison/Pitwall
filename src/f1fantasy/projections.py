@@ -18,6 +18,7 @@ from .data import (
     season_weekends,
 )
 from .history import configure_cache
+from .risk import expected_session_points
 from .telemetry_model import adjustments as telemetry_adjustments
 
 QUALIFYING = {position: 11 - position for position in range(1, 11)}
@@ -137,6 +138,7 @@ def estimate_assets(
     lookback: int = 5,
     *,
     use_telemetry: bool = True,
+    use_risk: bool = True,
 ) -> dict[tuple[int, str], Estimate]:
     """Use completed rounds strictly before the first predicted weekend.
 
@@ -254,14 +256,32 @@ def estimate_assets(
             q = track_adjusted(
                 index, driver.tla, "Q", q_base, blended(driver.id, "Q", q_base)
             )
-            r = track_adjusted(
-                index, driver.tla, "R", r_base, blended(driver.id, "R", r_base)
+            race_forecast = (
+                expected_session_points(driver, "R", fantasy_history, drivers, r_base)
+                if use_risk
+                else blended(driver.id, "R", r_base)
             )
-            s_base = season_mean(base.get("S", []), r * 0.35)
-            s = (
-                track_adjusted(
-                    index, driver.tla, "S", s_base, blended(driver.id, "S", s_base)
+            r = track_adjusted(index, driver.tla, "R", r_base, race_forecast)
+            sprint_results = base.get("S", [])
+            if use_risk:
+                race_reference = max(0, r) * 0.35
+                s_base = (
+                    len(sprint_results) * season_mean(sprint_results, race_reference)
+                    + 4 * race_reference
+                ) / (len(sprint_results) + 4)
+                sprint_forecast = expected_session_points(
+                    driver,
+                    "S",
+                    fantasy_history,
+                    drivers,
+                    s_base,
+                    race_finish_reference=r,
                 )
+            else:
+                s_base = season_mean(sprint_results, r * 0.35)
+                sprint_forecast = blended(driver.id, "S", s_base)
+            s = (
+                track_adjusted(index, driver.tla, "S", s_base, sprint_forecast)
                 if weekend.sprint
                 else 0.0
             )

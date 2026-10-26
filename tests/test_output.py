@@ -127,6 +127,8 @@ def test_backtest_details_preload_and_error_json(monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert report["data"]["rows"][0]["assets"][0]["actual_points"]["total"] == 11
     assert report["data"]["rows"][0]["mae_points"]["qualifying_all_assets"] == 1
+    assert "signed_bias_points" in report["data"]["rows"][0]
+    assert "naive_last_3_races" in report["data"]["rows"][0]
 
     assert (
         cli.main(["--season", "2026", "backtest", "--races", "1", "--show-points"]) == 0

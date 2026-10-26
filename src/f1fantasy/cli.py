@@ -133,6 +133,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Use the results-only forecast for comparison",
     )
     recommend.add_argument(
+        "--no-risk",
+        action="store_true",
+        help="Use the original race/Sprint average for comparison",
+    )
+    recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
     )
     backtest = commands.add_parser(
@@ -149,6 +154,16 @@ def _parser() -> argparse.ArgumentParser:
         "--compare-telemetry",
         action="store_true",
         help="Compare point errors with and without cached telemetry",
+    )
+    backtest.add_argument(
+        "--compare-risk",
+        action="store_true",
+        help="Compare driver race-point errors with and without risk adjustment",
+    )
+    backtest.add_argument(
+        "--no-risk",
+        action="store_true",
+        help="Backtest the original race/Sprint averaging model",
     )
     warm = commands.add_parser(
         "preload", help="Cache completed sessions for this season and the previous two"
@@ -297,7 +312,12 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "backtest":
             if not 1 <= args.races <= 24 or not 1 <= args.lookback <= 10:
                 raise DataError("Backtest races must be 1–24 and lookback 1–10")
-            rows = run_backtest(args.season, count=args.races, lookback=args.lookback)
+            rows = run_backtest(
+                args.season,
+                count=args.races,
+                lookback=args.lookback,
+                use_risk=not args.no_risk,
+            )
             summaries = {}
             for sprint in (False, True):
                 group = [r for r in rows if r.weekend.sprint == sprint]
@@ -323,6 +343,7 @@ def main(argv: list[str] | None = None) -> int:
                     count=args.races,
                     lookback=args.lookback,
                     use_telemetry=False,
+                    use_risk=not args.no_risk,
                 )
                 for label, is_sprint in (("regular", False), ("sprint", True)):
                     actual = [r for r in rows if r.weekend.sprint == is_sprint]
@@ -336,15 +357,68 @@ def main(argv: list[str] | None = None) -> int:
                             "telemetry_driver_mae": summaries[label]["driver_mae"],
                             "weekends": len(actual),
                         }
+            risk_comparison = {}
+            if args.compare_risk:
+                old_rows = run_backtest(
+                    args.season,
+                    count=args.races,
+                    lookback=args.lookback,
+                    use_risk=False,
+                )
+                new_rows = (
+                    rows
+                    if not args.no_risk
+                    else run_backtest(
+                        args.season, count=args.races, lookback=args.lookback
+                    )
+                )
+
+                def driver_race_mae(group):
+                    errors = [
+                        abs(item.predicted.race - item.actual.race)
+                        for row in group
+                        for item in row.assets
+                        if item.kind == "DRIVER"
+                    ]
+                    return sum(errors) / len(errors)
+
+                for label, sprint in (("regular", False), ("sprint", True)):
+                    old = [row for row in old_rows if row.weekend.sprint == sprint]
+                    new = [row for row in new_rows if row.weekend.sprint == sprint]
+                    if old and new:
+                        risk_comparison[label] = {
+                            "weekends": len(old),
+                            "baseline_driver_race_mae": driver_race_mae(old),
+                            "risk_driver_race_mae": driver_race_mae(new),
+                        }
+                        if sprint:
+
+                            def sprint_mae(group):
+                                errors = [
+                                    abs(item.predicted.sprint - item.actual.sprint)
+                                    for row in group
+                                    for item in row.assets
+                                    if item.kind == "DRIVER"
+                                ]
+                                return sum(errors) / len(errors)
+
+                            risk_comparison[label]["baseline_driver_sprint_mae"] = (
+                                sprint_mae(old)
+                            )
+                            risk_comparison[label]["risk_driver_sprint_mae"] = (
+                                sprint_mae(new)
+                            )
             if args.format == "json":
                 _json_output(
                     "backtest",
                     {
                         "season": args.season,
                         "lookback": args.lookback,
+                        "risk_model_enabled": not args.no_risk,
                         "rows": [backtest_row(r) for r in rows],
                         "summary": summaries,
                         "telemetry_comparison": comparison,
+                        "risk_comparison": risk_comparison,
                         "mae_definition": "mean absolute predicted-minus-actual Fantasy points; session MAE includes drivers and constructors",
                     },
                 )
@@ -361,6 +435,16 @@ def main(argv: list[str] | None = None) -> int:
                     f"constructors {row.constructor_error:.1f}; "
                     f"qualifying {row.qualifying_error:.1f}{detail}, race {row.race_error:.1f}"
                 )
+                bias = f"Q {row.qualifying_bias:+.1f}, race {row.race_bias:+.1f}"
+                if row.sprint_bias is not None:
+                    bias += f", Sprint {row.sprint_bias:+.1f}"
+                print(f"  Signed bias (predicted − actual): {bias}")
+                if row.baseline_driver_race_error is not None:
+                    print(
+                        f"  Driver race MAE vs last-3 average ({row.baseline_driver_count} drivers): "
+                        f"model {row.model_driver_race_error_on_baseline:.1f}, "
+                        f"naive {row.baseline_driver_race_error:.1f}"
+                    )
                 if args.show_points:
                     for kind in ("DRIVER", "CONSTRUCTOR"):
                         print(f"  {kind} points (predicted → actual; signed error):")
@@ -388,6 +472,19 @@ def main(argv: list[str] | None = None) -> int:
                     f"{item['baseline_driver_mae']:.1f} baseline → "
                     f"{item['telemetry_driver_mae']:.1f} telemetry"
                 )
+            for label, item in risk_comparison.items():
+                display = "Sprint" if label == "sprint" else label
+                print(
+                    f"{display} race-risk comparison (driver race MAE): "
+                    f"{item['baseline_driver_race_mae']:.1f} baseline → "
+                    f"{item['risk_driver_race_mae']:.1f} risk-adjusted"
+                )
+                if label == "sprint":
+                    print(
+                        f"Sprint-risk comparison (driver Sprint MAE): "
+                        f"{item['baseline_driver_sprint_mae']:.1f} baseline → "
+                        f"{item['risk_driver_sprint_mae']:.1f} risk-adjusted"
+                    )
             return 0
         if args.command == "recommend" and not 1 <= args.races <= 5:
             raise DataError("--races must be between 1 and 5")
@@ -482,7 +579,10 @@ def main(argv: list[str] | None = None) -> int:
             previous, budget, carry = _validate_state(state, live.assets, args.season)
         horizon = weekends[: args.races]
         forecasts = estimate_assets(
-            live.assets, horizon, use_telemetry=not args.no_telemetry
+            live.assets,
+            horizon,
+            use_telemetry=not args.no_telemetry,
+            use_risk=not args.no_risk,
         )
         lineups = optimize(
             live.assets,
@@ -569,6 +669,7 @@ def main(argv: list[str] | None = None) -> int:
                     "budget_tenths_m": budget,
                     "carried_transfer": carry,
                     "telemetry_enabled": not args.no_telemetry,
+                    "risk_model_enabled": not args.no_risk,
                     "lineups": lineup_data,
                     "projected_total_points": float(
                         sum(l.expected_points for l in lineups)

@@ -14,10 +14,10 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
             i,
             f"Round {i}",
             i,
-            datetime(2026, 4, i, tzinfo=timezone.utc),
+            datetime(2026, 4, i * 5, tzinfo=timezone.utc),
             i == 2,
             True,
-            datetime(2026, 4, i + 1, tzinfo=timezone.utc),
+            datetime(2026, 4, i * 5 + 1, tzinfo=timezone.utc),
         )
         for i in (1, 2)
     ]
@@ -37,7 +37,7 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     monkeypatch.setattr(
         backtest,
         "estimate_assets",
-        lambda a, w, lookback, use_telemetry: {
+        lambda a, w, lookback, use_telemetry, use_risk: {
             (0, "d"): Estimate(2, 3 if w[0].sprint else 0, 5),
             (0, "c"): Estimate(3, 4 if w[0].sprint else 0, 6),
         },
@@ -56,6 +56,11 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     assert requested == [1, 2]
     assert [r.sprint_error for r in results] == [None, 1.0]
     assert [r.driver_error for r in results] == [0.0, 1.0]
+    assert results[0].baseline_driver_count == 0
+    assert results[1].baseline_driver_count == 1
+    assert results[1].baseline_driver_race_error == 0
+    assert results[1].model_driver_race_error_on_baseline == 1
+    assert results[1].race_bias == -1
     monkeypatch.setattr(cli, "run_backtest", lambda *args, **kwargs: results)
     assert cli.main(["--season", "2026", "backtest", "--races", "2"]) == 0
     printed = capsys.readouterr().out
@@ -67,6 +72,13 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
         == 0
     )
     assert "telemetry comparison" in capsys.readouterr().out
+    assert (
+        cli.main(["--season", "2026", "backtest", "--races", "2", "--compare-risk"])
+        == 0
+    )
+    printed = capsys.readouterr().out
+    assert "Signed bias" in printed and "last-3 average" in printed
+    assert "Sprint-risk comparison" in printed
 
 
 def test_backtest_requires_completed_race(monkeypatch):

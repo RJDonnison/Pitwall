@@ -51,9 +51,9 @@ def test_sprint_uses_prior_results_only(monkeypatch):
     monkeypatch.setattr(projections, "_session_scores", scores)
     result = projections.estimate_assets(assets, [first, second])
     assert {(1, "Q"), (1, "R"), (1, "S"), (2, "Q"), (2, "R"), (2, "S")} <= set(calls)
-    assert result[0, "a"].sprint == 8.0
+    assert 0 < result[0, "a"].sprint < 8.0  # scarce Sprints shrink toward race form
     assert result[1, "a"].sprint == 0
-    assert result[0, "c"].sprint == 13.0
+    assert result[0, "c"].sprint == result[0, "a"].sprint + result[0, "b"].sprint
 
 
 def test_unclassified_sprint_and_race_are_penalized(monkeypatch):
@@ -122,7 +122,9 @@ def test_official_bonuses_use_only_earlier_completed_races(monkeypatch):
     monkeypatch.setattr(projections, "completed_scores", official)
     result = projections.estimate_assets(assets, [target])
     assert fetched == [2]
-    assert result[0, "a"].sprint > 10
+    assert (
+        2 < result[0, "a"].sprint < 20
+    )  # official bonus informs, but one Sprint is shrunk
     assert result[0, "c"].race > 40
 
 
@@ -246,13 +248,13 @@ def test_telemetry_adjustment_flows_into_driver_and_constructor(monkeypatch):
     )
     result = projections.estimate_assets(assets, [target], lookback=1)
     assert result[0, "a"].qualifying == 7
-    assert result[0, "a"].sprint == 6
     assert result[0, "c"].race == 14
     baseline = projections.estimate_assets(
         assets, [target], lookback=1, use_telemetry=False
     )
     assert baseline[0, "a"].qualifying == 5
     assert baseline[0, "c"].race == 10
+    assert result[0, "a"].sprint - baseline[0, "a"].sprint == 1
 
 
 def test_current_season_form_outweighs_previous_year(monkeypatch):
