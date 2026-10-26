@@ -1,5 +1,5 @@
 from f1fantasy.data import Asset
-from f1fantasy.risk import expected_session_points
+from f1fantasy.risk import expected_session_points, reliability_components
 
 
 def drivers():
@@ -16,6 +16,10 @@ def test_severe_negative_risk_lowers_race_expectation():
     safe_points = expected_session_points(a, "R", safe, [a, b], fallback=30)
     risky_points = expected_session_points(a, "R", with_dnf, [a, b], fallback=30)
     assert 0 < risky_points < safe_points < 40
+    assert (
+        reliability_components(a, "R", with_dnf, [a, b], 30).severe_probability
+        > reliability_components(a, "R", safe, [a, b], 30).severe_probability
+    )
 
 
 def test_outlier_race_and_single_negative_sprint_do_not_dominate():

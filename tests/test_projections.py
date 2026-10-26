@@ -126,6 +126,10 @@ def test_official_bonuses_use_only_earlier_completed_races(monkeypatch):
         2 < result[0, "a"].sprint < 20
     )  # official bonus informs, but one Sprint is shrunk
     assert result[0, "c"].race > 40
+    _, details = projections.estimate_assets(assets, [target], return_features=True)
+    assert details[0, "a"]["race"]["official_form"] == 30
+    assert details[0, "a"]["race"]["recent3"] == 30
+    assert details[0, "a"]["race"]["severe_probability"] >= 0
 
 
 def test_track_form_only_uses_earlier_visits_to_same_venue(monkeypatch):

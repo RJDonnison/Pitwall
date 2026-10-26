@@ -17,6 +17,7 @@ class BacktestAsset:
     predicted: Estimate
     actual: Estimate
     baseline_race_points: float | None = None
+    features: dict[str, dict[str, float]] | None = None
 
     @property
     def error(self) -> float:
@@ -52,6 +53,7 @@ def run_backtest(
     use_telemetry: bool = True,
     use_risk: bool = True,
     use_model: bool = True,
+    capture_features: bool = False,
 ) -> list[BacktestRow]:
     """Replay completed weekends; inputs for each forecast end before its start.
 
@@ -74,14 +76,16 @@ def run_backtest(
     rows = []
     for target in completed[-count:]:
         assets, _ = load_assets(target.gameday_id, require_recent=False)
-        forecasts = estimate_assets(
+        estimates = estimate_assets(
             assets,
             [target],
             lookback=lookback,
             use_telemetry=use_telemetry,
             use_risk=use_risk,
             use_model=use_model,
+            return_features=capture_features,
         )
+        forecasts, features = estimates if capture_features else (estimates, {})
         actual = completed_scores(target.gameday_id, target.sprint)
         by_kind = {"DRIVER": [], "CONSTRUCTOR": []}
         qualifying, sprint, race = [], [], []
@@ -108,6 +112,7 @@ def run_backtest(
                     expected,
                     Estimate(q, s, r),
                     naive_race,
+                    features.get((0, asset.id)),
                 )
             )
             by_kind[asset.kind].append(abs(expected.total - (q + s + r)))

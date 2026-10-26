@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from .data import Asset
+
+
+@dataclass(frozen=True)
+class Reliability:
+    severe_probability: float
+    classified_points: float
 
 
 def _recent(values: list[float]) -> float:
@@ -10,7 +18,7 @@ def _recent(values: list[float]) -> float:
     return sum(value * weight for value, weight in zip(values, weights)) / sum(weights)
 
 
-def expected_session_points(
+def reliability_components(
     driver: Asset,
     kind: str,
     history: dict[str, dict[str, list[float]]],
@@ -18,8 +26,8 @@ def expected_session_points(
     fallback: float,
     *,
     race_finish_reference: float = 0,
-) -> float:
-    """Shrink severe-negative risk toward the teammate and current-season field.
+) -> Reliability:
+    """Estimate severe-negative risk and points conditional on avoiding it.
 
     Scores at or below the published not-classified penalty are used as a
     *proxy* for that regime. Other negative scores remain finish outcomes.
@@ -27,7 +35,7 @@ def expected_session_points(
     """
     values = history.get(driver.id, {}).get(kind, [])
     if not values:
-        return fallback
+        return Reliability(0, fallback)
     penalty = -20 if kind == "R" else -10
     severe = lambda score: score <= penalty
     field = [
@@ -59,7 +67,7 @@ def expected_session_points(
     if not finishes:
         finishes = teammate_finishes
     if not finishes:
-        return fallback
+        return Reliability(0, fallback)
     conditional = _recent(finishes)
     if kind == "S":
         # Sprint samples are sparse; borrow strength from full-race pace.
@@ -71,6 +79,32 @@ def expected_session_points(
         conditional = (len(finishes) * conditional + 2 * _recent(teammate_finishes)) / (
             len(finishes) + 2
         )
-    expectation = (1 - probability) * conditional + probability * penalty
+    return Reliability(probability, conditional)
+
+
+def expected_session_points(
+    driver: Asset,
+    kind: str,
+    history: dict[str, dict[str, list[float]]],
+    drivers: list[Asset],
+    fallback: float,
+    *,
+    race_finish_reference: float = 0,
+) -> float:
+    values = history.get(driver.id, {}).get(kind, [])
+    if not values:
+        return fallback
+    parts = reliability_components(
+        driver,
+        kind,
+        history,
+        drivers,
+        fallback,
+        race_finish_reference=race_finish_reference,
+    )
+    penalty = -20 if kind == "R" else -10
+    expectation = (
+        1 - parts.severe_probability
+    ) * parts.classified_points + parts.severe_probability * penalty
     share = min(0.85, 0.5 + 0.1 * len(values))
     return share * expectation + (1 - share) * fallback

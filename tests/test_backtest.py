@@ -37,7 +37,7 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     monkeypatch.setattr(
         backtest,
         "estimate_assets",
-        lambda a, w, lookback, use_telemetry, use_risk, use_model: {
+        lambda a, w, lookback, use_telemetry, use_risk, use_model, return_features: {
             (0, "d"): Estimate(2, 3 if w[0].sprint else 0, 5),
             (0, "c"): Estimate(3, 4 if w[0].sprint else 0, 6),
         },

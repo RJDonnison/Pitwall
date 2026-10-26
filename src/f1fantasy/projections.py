@@ -19,7 +19,7 @@ from .data import (
     season_weekends,
 )
 from .history import configure_cache
-from .risk import expected_session_points
+from .risk import expected_session_points, reliability_components
 from .telemetry_model import adjustments as telemetry_adjustments
 
 QUALIFYING = {position: 11 - position for position in range(1, 11)}
@@ -142,7 +142,14 @@ def estimate_assets(
     use_telemetry: bool = True,
     use_risk: bool = True,
     use_model: bool = True,
-) -> dict[tuple[int, str], Estimate]:
+    return_features: bool = False,
+) -> (
+    dict[tuple[int, str], Estimate]
+    | tuple[
+        dict[tuple[int, str], Estimate],
+        dict[tuple[int, str], dict[str, dict[str, float]]],
+    ]
+):
     """Use completed rounds strictly before the first predicted weekend.
 
     Upcoming events share the same historical inputs; Sprint forecasts differ by
@@ -251,6 +258,35 @@ def estimate_assets(
 
     drivers = [a for a in assets if a.kind == "DRIVER"]
     output: dict[tuple[int, str], Estimate] = {}
+    features: dict[tuple[int, str], dict[str, dict[str, float]]] = {}
+
+    def component(
+        asset: Asset,
+        index: int,
+        kind: str,
+        fastf1_form: float,
+        baseline: float,
+        telemetry_delta: float = 0,
+        team_form: float | None = None,
+        severe_probability: float = 0,
+        classified_points: float | None = None,
+    ) -> dict[str, float]:
+        own = fantasy_history.get(asset.id, {}).get(kind, [])
+        track_visits = track[index].get(asset.tla, {}).get(kind, [])
+        return {
+            "baseline": float(baseline),
+            "fastf1_form": float(fastf1_form),
+            "official_form": float(mean(own, fastf1_form)),
+            "recent3": float(sum(own[-3:]) / len(own[-3:]) if own else baseline),
+            "team_form": float(team_form if team_form is not None else baseline),
+            "circuit_form": float(season_mean(track_visits, fastf1_form)),
+            "telemetry_delta": float(telemetry_delta),
+            "severe_probability": float(severe_probability),
+            "classified_points": float(
+                classified_points if classified_points is not None else baseline
+            ),
+        }
+
     for index, weekend in enumerate(weekends):
         for driver in drivers:
             base = history.get(driver.tla, {})
@@ -293,6 +329,40 @@ def estimate_assets(
             )
             q, s, r = q + q_delta, s + s_delta, r + r_delta
             output[index, driver.id] = Estimate(q, s, r)
+            teammate = next(
+                (
+                    a
+                    for a in drivers
+                    if a.team_id == driver.team_id and a.id != driver.id
+                ),
+                None,
+            )
+            risk = reliability_components(driver, "R", fantasy_history, drivers, r_base)
+            features[index, driver.id] = {}
+            for phase, key, base_score, score, delta in (
+                ("qualifying", "Q", q_base, q, q_delta),
+                ("sprint", "S", s_base, s, s_delta),
+                ("race", "R", r_base, r, r_delta),
+            ):
+                teammate_scores = (
+                    fantasy_history.get(teammate.id, {}).get(key, [])
+                    if teammate is not None
+                    else []
+                )
+                partner_form = (
+                    mean(teammate_scores, score) if teammate_scores else score
+                )
+                features[index, driver.id][phase] = component(
+                    driver,
+                    index,
+                    key,
+                    base_score,
+                    score,
+                    delta,
+                    partner_form,
+                    risk.severe_probability if phase == "race" else 0,
+                    risk.classified_points if phase == "race" else score,
+                )
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [
                 output[index, d.id] for d in drivers if d.team_id == constructor.team_id
@@ -315,6 +385,18 @@ def estimate_assets(
                 else 0,
                 blended(constructor.id, "R", sum(m.race for m in members)),
             )
+            features[index, constructor.id] = {}
+            for phase, key in (("qualifying", "Q"), ("sprint", "S"), ("race", "R")):
+                member_values = [getattr(m, phase) for m in members]
+                score = getattr(output[index, constructor.id], phase)
+                features[index, constructor.id][phase] = component(
+                    constructor,
+                    index,
+                    key,
+                    sum(member_values),
+                    score,
+                    team_form=sum(member_values),
+                )
     if use_model and use_risk and use_telemetry:
         # Training imports backtest -> projections; import locally to avoid a
         # cycle and never use a model to generate its own training examples.
@@ -353,4 +435,4 @@ def estimate_assets(
                         + weights["race"][1] * older.race
                         + weights["race"][2] * naive,
                     )
-    return output
+    return (output, features) if return_features else output
