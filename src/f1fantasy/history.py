@@ -76,6 +76,8 @@ def _clean_laps(session: Any) -> Any:
     for field in ("PitInTime", "PitOutTime"):
         if field in laps:
             mask &= laps[field].isna()
+    if "Deleted" in laps:
+        mask &= ~laps["Deleted"].fillna(False).astype(bool)
     if "TrackStatus" in laps:
         mask &= laps["TrackStatus"].astype(str).eq("1")
     return laps[mask]
@@ -243,9 +245,7 @@ def preload(
                     continue
                 try:
                     session = fastf1.get_session(year, round_number, identifier)
-                    session.load(
-                        laps=True, telemetry=True, weather=True, messages=False
-                    )
+                    session.load(laps=True, telemetry=True, weather=True, messages=True)
                     data = extract_features(
                         session,
                         year=year,

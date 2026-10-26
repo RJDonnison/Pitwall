@@ -120,9 +120,10 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
     class Session:
         name = "Qualifying"
 
-        def load(self, **_kwargs):
-            pass
+        def load(self, **kwargs):
+            calls.append(kwargs)
 
+    calls = []
     monkeypatch.setattr(history.fastf1, "get_session", lambda *_: Session())
     monkeypatch.setattr(
         history,
@@ -139,6 +140,9 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
     )
     now = datetime(2026, 6, 1, tzinfo=timezone.utc)
     assert history.preload(1, root=tmp_path, now=now) == (1, 0, [])
+    assert calls == [
+        {"laps": True, "telemetry": True, "weather": True, "messages": True}
+    ]
     assert history.preload(1, root=tmp_path, now=now) == (0, 1, [])
     assert history.cache_status(tmp_path) == {2026: 1}
     assert history.load_features(2026, 1, 1, now, tmp_path) is not None
@@ -146,3 +150,25 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
         history.load_features(
             2026, 1, 1, datetime(2026, 1, 1, tzinfo=timezone.utc), tmp_path
         )
+
+
+def test_clean_laps_excludes_deleted_laps():
+    class Session:
+        laps = pd.DataFrame(
+            [
+                {
+                    "LapTime": timedelta(seconds=70),
+                    "IsAccurate": True,
+                    "TrackStatus": "1",
+                    "Deleted": True,
+                },
+                {
+                    "LapTime": timedelta(seconds=71),
+                    "IsAccurate": True,
+                    "TrackStatus": "1",
+                    "Deleted": False,
+                },
+            ]
+        )
+
+    assert len(history._clean_laps(Session())) == 1
