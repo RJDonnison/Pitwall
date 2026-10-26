@@ -18,7 +18,7 @@ from .feature_training import from_backtests, prior_features, replay as feature_
 from .prior_history import PriorWeek, load_previous_season
 from .risk import expected_session_points
 
-MODEL_VERSION = 6
+MODEL_VERSION = 7
 DEFAULT_MODEL_DIR = Path(".f1fantasy/models")
 
 

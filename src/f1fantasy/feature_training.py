@@ -247,11 +247,14 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
             old = sum(b for b, _ in group) / len(group) if group else None
             new = sum(m for _, m in group) / len(group) if group else None
             recent = group[len(group) // 2 :]
+            recent_old = sum(b for b, _ in recent) / len(recent) if recent else None
+            recent_new = sum(m for _, m in recent) / len(recent) if recent else None
+            wins = sum(candidate + 0.05 < baseline for baseline, candidate in group)
             promoted = (
                 len(group) >= (3 if phase == "sprint" else 5)
-                and new + 0.05 < old
-                and sum(m for _, m in recent) / len(recent) + 0.05
-                < sum(b for b, _ in recent) / len(recent)
+                and new <= old * 0.98
+                and recent_new <= recent_old * 0.98
+                and wins > len(group) / 2
             )
             coefficients[kind][phase] = (
                 fit(
@@ -264,6 +267,9 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
                 "weekends": len(group),
                 "baseline_mae": old,
                 "feature_mae": new,
+                "recent_baseline_mae": recent_old,
+                "recent_feature_mae": recent_new,
+                "improved_weekends": wins,
                 "promoted": promoted,
             }
             active |= promoted
