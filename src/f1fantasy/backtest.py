@@ -6,7 +6,20 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from .data import DataError, Weekend, completed_scores, load_assets, season_weekends
-from .projections import estimate_assets
+from .projections import Estimate, estimate_assets
+
+
+@dataclass(frozen=True)
+class BacktestAsset:
+    id: str
+    name: str
+    kind: str
+    predicted: Estimate
+    actual: Estimate
+
+    @property
+    def error(self) -> float:
+        return self.predicted.total - self.actual.total
 
 
 @dataclass(frozen=True)
@@ -19,6 +32,7 @@ class BacktestRow:
     qualifying_error: float
     sprint_error: float | None
     race_error: float
+    assets: tuple[BacktestAsset, ...] = ()
 
 
 def run_backtest(
@@ -55,6 +69,7 @@ def run_backtest(
         actual = completed_scores(target.gameday_id, target.sprint)
         by_kind = {"DRIVER": [], "CONSTRUCTOR": []}
         qualifying, sprint, race = [], [], []
+        details: list[BacktestAsset] = []
         for asset in assets:
             if asset.id not in actual:
                 raise DataError(
@@ -62,6 +77,11 @@ def run_backtest(
                 )
             expected = forecasts[0, asset.id]
             q, s, r = actual[asset.id]
+            details.append(
+                BacktestAsset(
+                    asset.id, asset.name, asset.kind, expected, Estimate(q, s, r)
+                )
+            )
             by_kind[asset.kind].append(abs(expected.total - (q + s + r)))
             qualifying.append(abs(expected.qualifying - q))
             if target.sprint:
@@ -77,6 +97,7 @@ def run_backtest(
                 sum(qualifying) / len(qualifying),
                 sum(sprint) / len(sprint) if sprint else None,
                 sum(race) / len(race),
+                tuple(details),
             )
         )
     return rows
