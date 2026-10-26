@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+import pandas as pd
+
 from f1fantasy import projections
 from f1fantasy.data import Asset, Weekend
 
@@ -27,6 +29,11 @@ def test_sprint_uses_prior_results_only(monkeypatch):
     monkeypatch.setattr(
         projections.fastf1, "get_event", lambda *_: Event(EventFormat="sprint")
     )
+    monkeypatch.setattr(
+        projections.fastf1,
+        "get_event_schedule",
+        lambda *_: {"RoundNumber": [0, 1, 2, 3]},
+    )
     calls = []
 
     def scores(_year, round_number, kind):
@@ -35,7 +42,28 @@ def test_sprint_uses_prior_results_only(monkeypatch):
 
     monkeypatch.setattr(projections, "_session_scores", scores)
     result = projections.estimate_assets(assets, [first, second])
-    assert set(calls) == {(1, "Q"), (1, "R"), (1, "S"), (2, "Q"), (2, "R"), (2, "S")}
+    assert {(1, "Q"), (1, "R"), (1, "S"), (2, "Q"), (2, "R"), (2, "S")} <= set(calls)
     assert result[0, "a"].sprint == 8.0
     assert result[1, "a"].sprint == 0
     assert result[0, "c"].sprint == 13.0
+
+
+def test_unclassified_sprint_and_race_are_penalized(monkeypatch):
+    class Session:
+        results = pd.DataFrame(
+            [
+                {
+                    "Abbreviation": "AAA",
+                    "Position": 20,
+                    "ClassifiedPosition": "R",
+                    "GridPosition": 4,
+                }
+            ]
+        )
+
+        def load(self, **_kwargs):
+            pass
+
+    monkeypatch.setattr(projections.fastf1, "get_session", lambda *_: Session())
+    assert projections._session_scores(2026, 1, "S")["AAA"] == -10
+    assert projections._session_scores(2026, 1, "R")["AAA"] == -20

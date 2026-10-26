@@ -58,13 +58,14 @@ def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]
                 score = QUALIFYING.get(position, 0) if position else -5
             else:
                 finish = RACE if kind == "R" else SPRINT
+                classified = _position(row.get("ClassifiedPosition"))
                 score = (
                     finish.get(position, 0)
-                    if position
+                    if classified
                     else (-20 if kind == "R" else -10)
                 )
                 grid = _position(row.get("GridPosition"))
-                if grid and position:
+                if grid and classified and position:
                     change = grid - position
                     score += max(-10, change) if kind == "S" else change
             scores[tla] = float(score)
@@ -90,12 +91,22 @@ def estimate_assets(
     for weekend in weekends:
         fastf1_weekend(weekend)
     first = weekends[0]
-    prior = list(range(max(1, first.round - lookback), first.round))
-    if not prior:
-        raise DataError("No completed current-season race to train on")
+    prior = [
+        (first.season, r) for r in range(max(1, first.round - lookback), first.round)
+    ]
+    if len(prior) < lookback:
+        try:
+            schedule = fastf1.get_event_schedule(first.season - 1)
+            rounds = sorted(int(n) for n in schedule["RoundNumber"] if int(n) > 0)
+            prior = [
+                (first.season - 1, r) for r in rounds[-(lookback - len(prior)) :]
+            ] + prior
+        except Exception as exc:
+            if not prior:
+                raise DataError(f"Cannot load prior-season history: {exc}") from exc
     history: dict[str, dict[str, list[float]]] = {}
-    for round_number in prior:
-        event = fastf1.get_event(first.season, round_number)
+    for year, round_number in prior:
+        event = fastf1.get_event(year, round_number)
         # A postponed or delayed event must never leak into a prediction.
         if (
             event.get_session_date("Race", utc=True)
@@ -107,7 +118,7 @@ def estimate_assets(
         for kind in ("Q", "R", "S"):
             if kind == "S" and "sprint" not in str(event["EventFormat"]).lower():
                 continue
-            for tla, score in _session_scores(first.season, round_number, kind).items():
+            for tla, score in _session_scores(year, round_number, kind).items():
                 history.setdefault(tla, {}).setdefault(kind, []).append(score)
     if not any(h.get("R") for h in history.values()):
         raise DataError("No completed race results available before the weekend")
