@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .backtest import run_backtest
 from .data import DataError, snapshot
+from .history import cache_status, preload
 from .optimizer import optimize
 from .projections import estimate_assets
 
@@ -120,12 +121,30 @@ def _parser() -> argparse.ArgumentParser:
     )
     backtest.add_argument("--races", type=int, default=4)
     backtest.add_argument("--lookback", type=int, default=5)
+    warm = commands.add_parser(
+        "preload", help="Cache completed sessions for this season and the previous two"
+    )
+    warm.add_argument("--seasons", type=int, default=3)
+    warm.add_argument("--refresh", action="store_true")
+    warm.add_argument("--status", action="store_true")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "preload":
+            if args.status:
+                for year, count in sorted(cache_status().items()):
+                    print(f"{year}: {count} processed sessions")
+                return 0
+            stored, skipped, gaps = preload(seasons=args.seasons, refresh=args.refresh)
+            print(
+                f"Processed {stored} sessions; reused {skipped}; unavailable {len(gaps)}"
+            )
+            for gap in gaps:
+                print(f"  {gap}")
+            return 1 if gaps else 0
         if args.command == "backtest":
             if not 1 <= args.races <= 24 or not 1 <= args.lookback <= 10:
                 raise DataError("Backtest races must be 1–24 and lookback 1–10")
