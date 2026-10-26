@@ -1,0 +1,9 @@
+plan/
+.playwright-mcp/
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.pyc
+.coverage
+.f1fantasy/
