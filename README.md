@@ -15,6 +15,7 @@ python -m venv .venv
 .venv/bin/python -m pip install -e .
 .venv/bin/f1fantasy prices
 .venv/bin/f1fantasy recommend --races 3
+.venv/bin/f1fantasy backtest --races 4 --lookback 5
 ```
 
 The first recommendation uses a $100m budget. To plan transfers from your real
@@ -53,6 +54,13 @@ bonuses; future occurrences are estimates, not certainties. FastF1 classificatio
 and grid form provides an additional signal, particularly for new entrants.
 Sprint qualifying earns no separately modeled Fantasy points. It never logs
 into or changes an F1 account.
+
+`backtest` replays the last completed weekends, producing mean absolute point
+errors (MAE) for drivers and constructors, reported separately for Sprint and
+regular events. Each forecast uses only earlier race results; the target week's
+archived roster is used only to identify which assets to evaluate. This command
+does not need the next race's price feed to be open. Historical prices are not
+used to claim a retrospective budget-optimal team.
 
 Rules: [F1 Fantasy FAQ](https://fantasy.formula1.com/en/faqs),
 [2026 game rules](https://fantasy.formula1.com/en/game-rules).

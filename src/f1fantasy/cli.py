@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
+from .backtest import run_backtest
 from .data import DataError, snapshot
 from .optimizer import optimize
 from .projections import estimate_assets
@@ -102,12 +103,46 @@ def _parser() -> argparse.ArgumentParser:
     recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
     )
+    backtest = commands.add_parser(
+        "backtest", help="Evaluate historical regular and Sprint forecasts"
+    )
+    backtest.add_argument("--races", type=int, default=4)
+    backtest.add_argument("--lookback", type=int, default=5)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        if args.command == "backtest":
+            if not 1 <= args.races <= 24 or not 1 <= args.lookback <= 10:
+                raise DataError("Backtest races must be 1–24 and lookback 1–10")
+            rows = run_backtest(args.season, count=args.races, lookback=args.lookback)
+            for row in rows:
+                label = "Sprint" if row.weekend.sprint else "regular"
+                detail = (
+                    f", Sprint {row.sprint_error:.1f}"
+                    if row.sprint_error is not None
+                    else ""
+                )
+                print(
+                    f"{row.weekend.name} ({label}): MAE drivers {row.driver_error:.1f}, "
+                    f"constructors {row.constructor_error:.1f}; "
+                    f"qualifying {row.qualifying_error:.1f}{detail}, race {row.race_error:.1f}"
+                )
+            for sprint in (False, True):
+                group = [r for r in rows if r.weekend.sprint == sprint]
+                if group:
+                    label = "Sprint" if sprint else "regular"
+                    drivers = sum(r.drivers for r in group)
+                    constructors = sum(r.constructors for r in group)
+                    print(
+                        f"{label} ({len(group)} weekends): driver MAE "
+                        f"{sum(r.driver_error * r.drivers for r in group) / drivers:.1f}; "
+                        f"constructor MAE "
+                        f"{sum(r.constructor_error * r.constructors for r in group) / constructors:.1f}"
+                    )
+            return 0
         if args.command == "recommend" and not 1 <= args.races <= 5:
             raise DataError("--races must be between 1 and 5")
         live, weekends = snapshot(args.season)

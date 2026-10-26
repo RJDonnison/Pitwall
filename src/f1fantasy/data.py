@@ -111,7 +111,10 @@ def upcoming_weekends(season: int, now: datetime | None = None) -> list[Weekend]
     return [w for w in season_weekends(season) if w.first_session > now]
 
 
-def load_assets(gameday_id: int) -> tuple[tuple[Asset, ...], datetime]:
+def load_assets(
+    gameday_id: int, *, require_recent: bool = True
+) -> tuple[tuple[Asset, ...], datetime]:
+    """Load a full race-week roster; older feeds are for historical evaluation only."""
     feed = _get_json(f"drivers/{gameday_id}_en.json")
     rows = feed.get("Value")
     if not isinstance(rows, list):
@@ -123,7 +126,7 @@ def load_assets(gameday_id: int) -> tuple[tuple[Asset, ...], datetime]:
     except (KeyError, TypeError, ValueError) as exc:
         raise DataError("Fantasy prices lack a valid source timestamp") from exc
     age = datetime.now(timezone.utc) - published
-    if age < -timedelta(minutes=5) or age > timedelta(days=45):
+    if age < -timedelta(minutes=5) or (require_recent and age > timedelta(days=45)):
         raise DataError("Fantasy price feed is stale or dated in the future")
     assets: list[Asset] = []
     try:

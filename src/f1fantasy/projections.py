@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from math import isfinite
 from typing import Any
+import unicodedata
 
 import fastf1
 
@@ -81,6 +82,53 @@ def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]
         ) from exc
 
 
+def _venue(value: object) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", str(value)).lower() if c.isalnum()
+    )
+
+
+def _track_form(
+    weekends: list[Weekend],
+    cutoff: Any,
+) -> dict[int, dict[str, dict[str, list[float]]]]:
+    """Earlier visits to each upcoming venue, independent of season form."""
+    locations = {
+        index: _venue(fastf1.get_event(w.season, w.round)["Location"])
+        for index, w in enumerate(weekends)
+    }
+    track: dict[int, dict[str, dict[str, list[float]]]] = {
+        index: {} for index in locations
+    }
+    for year in range(weekends[0].season - 2, weekends[0].season + 1):
+        schedule = fastf1.get_event_schedule(year)
+        for _, row in schedule.iterrows():
+            round_number = int(row["RoundNumber"])
+            if round_number < 1:
+                continue
+            matched = [
+                index
+                for index, location in locations.items()
+                if location and _venue(row["Location"]) == location
+            ]
+            if not matched:
+                continue
+            event = fastf1.get_event(year, round_number)
+            race_date = event.get_session_date("Race", utc=True).to_pydatetime()
+            if race_date.replace(tzinfo=cutoff.tzinfo) >= cutoff:
+                continue
+            for kind in ("Q", "R", "S"):
+                if kind == "S" and "sprint" not in str(event["EventFormat"]).lower():
+                    continue
+                results = _session_scores(year, round_number, kind)
+                for index in matched:
+                    for tla, score in results.items():
+                        track[index].setdefault(tla, {}).setdefault(kind, []).append(
+                            score
+                        )
+    return track
+
+
 def estimate_assets(
     assets: tuple[Asset, ...], weekends: list[Weekend], lookback: int = 5
 ) -> dict[tuple[int, str], Estimate]:
@@ -141,6 +189,7 @@ def estimate_assets(
                     record.setdefault("S", []).append(s)
     if not any(h.get("R") for h in history.values()):
         raise DataError("No completed race results available before the weekend")
+    track = _track_form(weekends, first.first_session)
 
     def mean(values: list[float], default: float) -> float:
         if not values:
@@ -158,6 +207,15 @@ def estimate_assets(
         share = min(0.85, 0.5 + 0.1 * len(values))
         return share * mean(values, fallback) + (1 - share) * fallback
 
+    def track_adjusted(
+        index: int, tla: str, kind: str, baseline: float, predicted: float
+    ) -> float:
+        visits = track[index].get(tla, {}).get(kind, [])
+        if not visits:
+            return predicted
+        weight = min(0.35, 0.15 + 0.1 * len(visits))
+        return predicted + weight * (mean(visits, baseline) - baseline)
+
     drivers = [a for a in assets if a.kind == "DRIVER"]
     output: dict[tuple[int, str], Estimate] = {}
     for index, weekend in enumerate(weekends):
@@ -165,10 +223,20 @@ def estimate_assets(
             base = history.get(driver.tla, {})
             q_base = mean(base.get("Q", []), 0)
             r_base = mean(base.get("R", []), 0)
-            q = blended(driver.id, "Q", q_base)
-            r = blended(driver.id, "R", r_base)
+            q = track_adjusted(
+                index, driver.tla, "Q", q_base, blended(driver.id, "Q", q_base)
+            )
+            r = track_adjusted(
+                index, driver.tla, "R", r_base, blended(driver.id, "R", r_base)
+            )
             s_base = mean(base.get("S", []), r * 0.35)
-            s = blended(driver.id, "S", s_base) if weekend.sprint else 0.0
+            s = (
+                track_adjusted(
+                    index, driver.tla, "S", s_base, blended(driver.id, "S", s_base)
+                )
+                if weekend.sprint
+                else 0.0
+            )
             output[index, driver.id] = Estimate(q, s, r)
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [
