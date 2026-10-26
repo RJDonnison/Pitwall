@@ -19,4 +19,12 @@
 - Reuse the race forecast engine to choose valid answers with the highest expected Predict score and backtest by question type.
 - Add authenticated submission and read-back verification after the recommendation workflow is proven.
 
+## V4 — model learning and evaluation (planned)
+
+- Build point-in-time driver and constructor training examples using only data available before each weekend, with separate qualifying, Sprint and race targets.
+- Split completed weekends **chronologically**: fit weights on earlier races, choose among candidates on later validation races, and measure improvement once on a final untouched test block. Use walk-forward validation as more races become available.
+- Add `f1fantasy train` to produce a versioned model for recent form, same-circuit history and telemetry. Compare it with the current fixed-weight and results-only forecasts, reporting regular and Sprint errors and sample counts separately.
+- Promote a candidate only if it improves the held-out evaluation; keep the previous model available for rollback. After evaluation, refit the approved approach on all completed races for future recommendations without rewriting its historical test result.
+- Consider an **opt-in** cache-compaction command that retains verified prediction features and the results data needed by the CLI while reclaiming bulky raw telemetry after preloading is complete.
+
 The detailed working plan is in the local, Git-ignored `plan/current.md`.
