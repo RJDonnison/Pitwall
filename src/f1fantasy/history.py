@@ -7,24 +7,30 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
 from statistics import median
 from typing import Any
+from urllib.parse import urlsplit
 
 import fastf1
 import numpy as np
 import pandas as pd
+from fastf1.exceptions import RateLimitExceededError
 
 from .data import DataError
 
 SCHEMA = 1
 DEFAULT_CACHE = Path(".f1fantasy/cache")
+RATE_LIMIT_MESSAGE = (
+    "FastF1 request limit reached. Completed sessions are saved; "
+    "wait for the limit to reset, then rerun preload to resume."
+)
 
 
 def configure_cache(root: Path = DEFAULT_CACHE) -> None:
     path = root / "fastf1"
     path.mkdir(parents=True, exist_ok=True)
     if hasattr(fastf1.Cache, "configure"):
-        fastf1.Cache.configure(cache_dir=str(path), use_requests_cache=False)
+        fastf1.Cache.configure(cache_dir=str(path), use_requests_cache=True)
     else:
-        fastf1.Cache.enable_cache(str(path), use_requests_cache=False)
+        fastf1.Cache.enable_cache(str(path), use_requests_cache=True)
 
 
 def _compact_session(root: Path, session: Any) -> None:
@@ -41,6 +47,17 @@ def _compact_session(root: Path, session: Any) -> None:
         if path.is_symlink():
             raise DataError(f"Refusing to remove symlinked cache file: {path}")
         path.unlink(missing_ok=True)
+    cached = fastf1.Cache._requests_session_cached
+    if cached is not None:
+        telemetry_paths = {
+            f"{session.api_path}CarData.z.jsonStream",
+            f"{session.api_path}Position.z.jsonStream",
+        }
+        urls = [
+            url for url in cached.cache.urls() if urlsplit(url).path in telemetry_paths
+        ]
+        if urls:
+            cached.cache.delete(urls=urls)
 
 
 def feature_path(
@@ -227,6 +244,8 @@ def preload(
             continue
         try:
             schedule = fastf1.get_event_schedule(year)
+        except RateLimitExceededError as exc:
+            raise DataError(RATE_LIMIT_MESSAGE) from exc
         except Exception as exc:
             gaps.append(f"{year} schedule: {exc}")
             continue
@@ -236,7 +255,13 @@ def preload(
                 continue
             if target_round is not None and round_number != target_round:
                 continue
-            event = fastf1.get_event(year, round_number)
+            try:
+                event = fastf1.get_event(year, round_number)
+            except RateLimitExceededError as exc:
+                raise DataError(RATE_LIMIT_MESSAGE) from exc
+            except Exception as exc:
+                gaps.append(f"{year} round {round_number} event: {exc}")
+                continue
             for identifier in range(1, 6):
                 name = event.get(f"Session{identifier}")
                 if not isinstance(name, str) or not name.strip():
@@ -276,6 +301,8 @@ def preload(
                     load_features(year, round_number, identifier, now, root)
                     _compact_session(root, session)
                     stored += 1
+                except RateLimitExceededError as exc:
+                    raise DataError(RATE_LIMIT_MESSAGE) from exc
                 except Exception as exc:
                     gaps.append(f"{year} round {round_number} {name}: {exc}")
     return stored, skipped, gaps

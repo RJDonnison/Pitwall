@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -6,6 +7,7 @@ import pytest
 
 from f1fantasy import history
 from f1fantasy.data import DataError
+from fastf1.exceptions import RateLimitExceededError
 
 
 def test_car_telemetry_uses_distance_weighted_track_features():
@@ -110,6 +112,27 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
     monkeypatch.setattr(
         history.fastf1.Cache, "configure", lambda **_kwargs: None, raising=False
     )
+
+    class HttpCache:
+        urls_to_delete = []
+
+        def urls(self):
+            return [
+                "https://api.fastf1.dev/v1/schedule_2026.json",
+                "https://livetiming.formula1.com/static/2026/Monaco/Qualifying/CarData.z.jsonStream",
+                "https://livetiming.formula1.com/static/2026/Monaco/Qualifying/Position.z.jsonStream",
+                "https://livetiming.formula1.com/static/2026/Other/CarData.z.jsonStream",
+            ]
+
+        def delete(self, *, urls):
+            self.urls_to_delete.extend(urls)
+
+    http = HttpCache()
+    monkeypatch.setattr(
+        history.fastf1.Cache,
+        "_requests_session_cached",
+        SimpleNamespace(cache=http),
+    )
     monkeypatch.setattr(
         history.fastf1,
         "get_event_schedule",
@@ -149,6 +172,10 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
     assert not (cache / "car_data.ff1pkl").exists()
     assert not (cache / "position_data.ff1pkl").exists()
     assert (cache / "driver_info.ff1pkl").read_bytes() == b"cached"
+    assert http.urls_to_delete == [
+        "https://livetiming.formula1.com/static/2026/Monaco/Qualifying/CarData.z.jsonStream",
+        "https://livetiming.formula1.com/static/2026/Monaco/Qualifying/Position.z.jsonStream",
+    ]
     assert calls == [
         {"laps": True, "telemetry": True, "weather": True, "messages": True}
     ]
@@ -161,15 +188,48 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
         )
 
 
-def test_configure_cache_disables_raw_http_cache(tmp_path, monkeypatch):
+def test_configure_cache_keeps_http_cache_for_repeated_schedule_requests(
+    tmp_path, monkeypatch
+):
     calls = []
     monkeypatch.setattr(
         history.fastf1.Cache, "configure", lambda **kwargs: calls.append(kwargs)
     )
     history.configure_cache(tmp_path)
     assert calls == [
-        {"cache_dir": str(tmp_path / "fastf1"), "use_requests_cache": False}
+        {"cache_dir": str(tmp_path / "fastf1"), "use_requests_cache": True}
     ]
+
+
+@pytest.mark.parametrize("failure", ["schedule", "event", "session"])
+def test_preload_exits_cleanly_on_rate_limit(tmp_path, monkeypatch, failure):
+    def rate_limited(*_args, **_kwargs):
+        raise RateLimitExceededError("any API: 500 calls/h")
+
+    class Event(dict):
+        def get_session_date(self, *_args, **_kwargs):
+            return pd.Timestamp("2026-01-10")
+
+    class Session:
+        def load(self, **_kwargs):
+            rate_limited()
+
+    monkeypatch.setattr(history, "configure_cache", lambda *_args: None)
+    monkeypatch.setattr(
+        history.fastf1,
+        "get_event_schedule",
+        rate_limited
+        if failure == "schedule"
+        else lambda _year: pd.DataFrame({"RoundNumber": [1]}),
+    )
+    monkeypatch.setattr(
+        history.fastf1,
+        "get_event",
+        rate_limited if failure == "event" else lambda *_args: Event(Session1="Race"),
+    )
+    monkeypatch.setattr(history.fastf1, "get_session", lambda *_args: Session())
+    with pytest.raises(DataError, match="wait for the limit to reset"):
+        history.preload(1, root=tmp_path, now=datetime(2026, 6, 1, tzinfo=timezone.utc))
 
 
 def test_compaction_refuses_outside_cache(tmp_path):
