@@ -19,6 +19,26 @@ python -m venv .venv
 .venv/bin/f1fantasy backtest --races 4 --lookback 5
 ```
 
+If you want to type `f1fantasy` without the `.venv/bin/` prefix in zsh or
+bash, first run `source .venv/bin/activate` **from this repository**. The
+installation and CLI executable are local to that virtual environment.
+
+When F1 Fantasy has not yet published the next race-week roster, you can
+generate a **provisional preview** using the most recent completed race's
+official price/roster feed:
+
+```sh
+.venv/bin/f1fantasy prices --allow-old-prices
+.venv/bin/f1fantasy recommend --races 3 --allow-old-prices
+```
+
+The feed is fetched again on every run and must be complete, recently
+published, and updated after the previous race. This option only applies
+when the upcoming roster is unpublished; it does not bypass malformed prices,
+network failures, or missing data. Preview prices and driver availability
+for the next event are **unverified**, so re-run without the flag before
+making a change in F1 Fantasy.
+
 The first recommendation uses a $100m budget. To plan transfers from your real
 team, import its **current total spendable budget** (team value plus remaining
 cash), five driver Fantasy IDs, two constructor Fantasy IDs and optional unused
@@ -68,7 +88,7 @@ used to claim a retrospective budget-optimal team.
 projected total. The first session time is **not** a verified Fantasy team-lock
 deadline: check the deadline in the game before acting. The CLI deliberately
 rejects an empty next-race feed, an incomplete roster, or prices predating
-the last completed race; it never substitutes old prices.
+the last completed race unless an explicit provisional preview is requested.
 
 Rules: [F1 Fantasy FAQ](https://fantasy.formula1.com/en/faqs),
 [2026 game rules](https://fantasy.formula1.com/en/game-rules).

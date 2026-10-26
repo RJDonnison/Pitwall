@@ -215,3 +215,152 @@ def test_every_snapshot_refetches_prices_and_rejects_an_empty_update(monkeypatch
     with pytest.raises(data.DataError, match="not been published"):
         data.snapshot(2026, datetime(2026, 10, 26, tzinfo=timezone.utc))
     assert len(calls) == 2
+
+
+def test_explicit_old_prices_preview_uses_only_recent_completed_feed(monkeypatch):
+    previous = data.Weekend(
+        2026,
+        18,
+        "USA",
+        18,
+        datetime(2026, 10, 24, tzinfo=timezone.utc),
+        False,
+        True,
+        datetime(2026, 10, 25, 20, tzinfo=timezone.utc),
+    )
+    upcoming = data.Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        datetime(2026, 10, 31, tzinfo=timezone.utc),
+        False,
+        False,
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+    calls = []
+
+    def roster(week, *, require_recent=True):
+        calls.append((week, require_recent))
+        if week == 19:
+            raise data.RosterNotPublished("Next week has no roster")
+        return (data.Asset("c", "Team", "CONSTRUCTOR", "t", 50),), datetime(
+            2026, 10, 25, 22, tzinfo=timezone.utc
+        )
+
+    monkeypatch.setattr(data, "load_assets", roster)
+    now = datetime(2026, 10, 26, tzinfo=timezone.utc)
+    with pytest.raises(data.RosterNotPublished):
+        data.snapshot(2026, now)
+    snap, weeks = data.snapshot(2026, now, allow_old_prices=True)
+    assert (
+        snap.provisional and snap.weekend == upcoming and snap.price_weekend == previous
+    )
+    assert weeks[0] == upcoming
+    assert calls == [(19, True), (19, True), (18, True)]
+
+
+def test_old_prices_flag_does_not_hide_bad_price_data(monkeypatch):
+    previous = data.Weekend(
+        2026,
+        18,
+        "USA",
+        18,
+        datetime(2026, 10, 24, tzinfo=timezone.utc),
+        False,
+        True,
+        datetime(2026, 10, 25, 20, tzinfo=timezone.utc),
+    )
+    upcoming = data.Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        datetime(2026, 10, 31, tzinfo=timezone.utc),
+        False,
+        False,
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+    called = []
+
+    def roster(week, *, require_recent=True):
+        called.append(week)
+        raise data.DataError("Invalid Fantasy price")
+
+    monkeypatch.setattr(data, "load_assets", roster)
+    with pytest.raises(data.DataError, match="Invalid Fantasy price"):
+        data.snapshot(
+            2026, datetime(2026, 10, 26, tzinfo=timezone.utc), allow_old_prices=True
+        )
+    assert called == [19]
+
+
+def test_old_prices_flag_prefers_published_upcoming_feed(monkeypatch):
+    previous = data.Weekend(
+        2026,
+        18,
+        "USA",
+        18,
+        datetime(2026, 10, 24, tzinfo=timezone.utc),
+        False,
+        True,
+        datetime(2026, 10, 25, 20, tzinfo=timezone.utc),
+    )
+    upcoming = data.Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        datetime(2026, 10, 31, tzinfo=timezone.utc),
+        False,
+        False,
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+    calls = []
+
+    def roster(week, *, require_recent=True):
+        calls.append(week)
+        return (data.Asset("c", "Team", "CONSTRUCTOR", "t", 50),), datetime(
+            2026, 10, 26, tzinfo=timezone.utc
+        )
+
+    monkeypatch.setattr(data, "load_assets", roster)
+    result, _ = data.snapshot(
+        2026, datetime(2026, 10, 26, tzinfo=timezone.utc), allow_old_prices=True
+    )
+    assert result.provisional is False and result.price_weekend == upcoming
+    assert calls == [19, 18]
+
+
+def test_previous_feed_must_be_updated_after_completed_race(monkeypatch):
+    previous = data.Weekend(
+        2026,
+        18,
+        "USA",
+        18,
+        datetime(2026, 10, 24, tzinfo=timezone.utc),
+        False,
+        True,
+        datetime(2026, 10, 25, 20, tzinfo=timezone.utc),
+    )
+    upcoming = data.Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        datetime(2026, 10, 31, tzinfo=timezone.utc),
+        False,
+        False,
+    )
+    monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+
+    def roster(week, *, require_recent=True):
+        if week == 19:
+            raise data.RosterNotPublished("Not available")
+        return (), datetime(2026, 10, 25, 19, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(data, "load_assets", roster)
+    with pytest.raises(data.DataError, match="not been updated"):
+        data.snapshot(
+            2026, datetime(2026, 10, 26, tzinfo=timezone.utc), allow_old_prices=True
+        )

@@ -67,7 +67,7 @@ def _validate_state(
         budget = _money(state["budget"])
         if sum(catalog[id_].price for id_ in chosen) > budget:
             raise DataError(
-                "Imported team exceeds the provided current budget at live prices"
+                "Imported team exceeds the provided budget at fetched prices"
             )
         carry = int(state.get("carry", 0))
         if carry not in (0, 1):
@@ -99,10 +99,18 @@ def _parser() -> argparse.ArgumentParser:
     init.add_argument("--constructors", nargs=2, metavar="ID")
     init.add_argument("--budget", help="Current team budget in $m, e.g. 104.2")
     init.add_argument("--carry", type=int, default=0)
-    commands.add_parser("prices", help="Show newly fetched active Fantasy prices")
+    prices = commands.add_parser(
+        "prices", help="Show newly fetched active Fantasy prices"
+    )
     recommend = commands.add_parser(
         "recommend", help="Recommend lineup, transfers and 2x Boost"
     )
+    for command in (init, prices, recommend):
+        command.add_argument(
+            "--allow-old-prices",
+            action="store_true",
+            help="If the next roster is unpublished, preview with the latest complete official feed",
+        )
     recommend.add_argument("--races", type=int, default=3)
     recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
@@ -149,10 +157,20 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "recommend" and not 1 <= args.races <= 5:
             raise DataError("--races must be between 1 and 5")
-        live, weekends = snapshot(args.season)
+        live, weekends = snapshot(args.season, allow_old_prices=args.allow_old_prices)
         print(
             f"Fantasy feed: {live.published_at.isoformat()} (fetched {live.fetched_at.isoformat()})"
         )
+        if live.provisional:
+            print(
+                f"PROVISIONAL: {live.weekend.name} has no published roster/prices. "
+                f"Using {live.price_weekend.name}'s freshly retrieved feed; "
+                "prices and availability for the next race are unverified."
+            )
+        if live.weekend.locked:
+            print(
+                "NOTICE: F1 Fantasy reports that the next race week is locked/not open."
+            )
         if args.command == "prices":
             print(f"{live.weekend.name}: {len(live.assets)} active assets")
             for asset in sorted(live.assets, key=lambda a: (a.kind, -a.price, a.name)):
@@ -244,6 +262,10 @@ def main(argv: list[str] | None = None) -> int:
         print(
             "Fantasy lock time must be checked in the game. Forecast uses current-season official scoring and prior visits to each circuit; future prices held constant. Re-import your actual team after making changes."
         )
+        if live.provisional:
+            print(
+                "PROVISIONAL ONLY: Re-run without --allow-old-prices before applying this team."
+            )
         return 0
     except (DataError, OSError) as exc:
         print(f"Error: {exc}", file=sys.stderr)

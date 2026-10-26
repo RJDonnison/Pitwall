@@ -17,6 +17,10 @@ class DataError(ValueError):
     """A required live source could not be verified."""
 
 
+class RosterNotPublished(DataError):
+    """The requested race-week roster feed is available but empty."""
+
+
 @dataclass(frozen=True)
 class Asset:
     id: str
@@ -45,6 +49,14 @@ class Snapshot:
     assets: tuple[Asset, ...]
     fetched_at: datetime
     published_at: datetime
+    price_weekend: Weekend | None = None
+
+    @property
+    def provisional(self) -> bool:
+        return (
+            self.price_weekend is not None
+            and self.price_weekend.gameday_id != self.weekend.gameday_id
+        )
 
 
 def _get_json(path: str) -> dict[str, Any]:
@@ -120,7 +132,7 @@ def load_assets(
     if not isinstance(rows, list):
         raise DataError("Fantasy roster has no values")
     if not rows:
-        raise DataError(
+        raise RosterNotPublished(
             f"Fantasy roster for race week {gameday_id} has not been published yet"
         )
     try:
@@ -212,7 +224,7 @@ def completed_scores(
 
 
 def snapshot(
-    season: int, now: datetime | None = None
+    season: int, now: datetime | None = None, *, allow_old_prices: bool = False
 ) -> tuple[Snapshot, list[Weekend]]:
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -222,25 +234,39 @@ def snapshot(
     if not weekends:
         raise DataError(f"No upcoming Fantasy weekend for {season}")
     first = weekends[0]
-    if first.locked:
+    if first.locked and not allow_old_prices:
         raise DataError(f"Fantasy team for {first.name} is locked or not open yet")
-    assets, published = load_assets(first.gameday_id)
-    finished = [
-        w for w in schedule if w.last_session and w.last_session < first.first_session
-    ]
+    finished = [w for w in schedule if w.last_session and w.last_session < now]
+    price_weekend = first
+    try:
+        assets, published = load_assets(first.gameday_id)
+    except DataError as exc:
+        if not (allow_old_prices and isinstance(exc, RosterNotPublished) and finished):
+            raise
+        price_weekend = finished[-1]
+        # The previous feed must itself be current and have been updated after
+        # that race. Its prices/roster are explicitly provisional for next week.
+        assets, published = load_assets(price_weekend.gameday_id)
+        if published < price_weekend.last_session:
+            raise DataError(
+                "Previous race prices have not been updated since its finish"
+            ) from exc
     if finished:
         last = finished[-1]
-        previous, _ = load_assets(last.gameday_id, require_recent=False)
-        if published < last.last_session:
-            raise DataError("Upcoming prices predate the previous race result")
-        for kind in ("DRIVER", "CONSTRUCTOR"):
-            if sum(a.kind == kind for a in assets) != sum(
-                a.kind == kind for a in previous
-            ):
-                raise DataError(
-                    "Upcoming Fantasy roster differs in size from the last verified round"
-                )
-    return Snapshot(first, assets, datetime.now(timezone.utc), published), weekends
+        if price_weekend == first:
+            previous, _ = load_assets(last.gameday_id, require_recent=False)
+            if published < last.last_session:
+                raise DataError("Upcoming prices predate the previous race result")
+            for kind in ("DRIVER", "CONSTRUCTOR"):
+                if sum(a.kind == kind for a in assets) != sum(
+                    a.kind == kind for a in previous
+                ):
+                    raise DataError(
+                        "Upcoming Fantasy roster differs in size from the last verified round"
+                    )
+    return Snapshot(
+        first, assets, datetime.now(timezone.utc), published, price_weekend
+    ), weekends
 
 
 def fastf1_weekend(weekend: Weekend) -> Any:
