@@ -51,6 +51,7 @@ def run_backtest(
     now: datetime | None = None,
     use_telemetry: bool = True,
     use_risk: bool = True,
+    use_model: bool = True,
 ) -> list[BacktestRow]:
     """Replay completed weekends; inputs for each forecast end before its start.
 
@@ -79,6 +80,7 @@ def run_backtest(
             lookback=lookback,
             use_telemetry=use_telemetry,
             use_risk=use_risk,
+            use_model=use_model,
         )
         actual = completed_scores(target.gameday_id, target.sprint)
         by_kind = {"DRIVER": [], "CONSTRUCTOR": []}

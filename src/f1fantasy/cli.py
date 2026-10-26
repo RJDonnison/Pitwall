@@ -16,7 +16,7 @@ from .optimizer import optimize
 from .output import asset as asset_output
 from .output import backtest_row, envelope, event as event_output
 from .projections import estimate_assets
-from .training import model_path, train
+from .training import load_model, model_path, train
 
 DEFAULT_STATE = Path(".f1fantasy/team.json")
 
@@ -139,6 +139,11 @@ def _parser() -> argparse.ArgumentParser:
         help="Use the original race/Sprint average for comparison",
     )
     recommend.add_argument(
+        "--no-trained",
+        action="store_true",
+        help="Use the fixed-weight forecast instead of a validated model",
+    )
+    recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
     )
     backtest = commands.add_parser(
@@ -165,6 +170,11 @@ def _parser() -> argparse.ArgumentParser:
         "--no-risk",
         action="store_true",
         help="Backtest the original race/Sprint averaging model",
+    )
+    backtest.add_argument(
+        "--no-trained",
+        action="store_true",
+        help="Replay the fixed-weight forecast without saved calibration",
     )
     warm = commands.add_parser(
         "preload", help="Cache completed sessions for this season and the previous two"
@@ -358,6 +368,7 @@ def main(argv: list[str] | None = None) -> int:
                 count=args.races,
                 lookback=args.lookback,
                 use_risk=not args.no_risk,
+                use_model=not args.no_trained,
             )
             summaries = {}
             for sprint in (False, True):
@@ -379,15 +390,29 @@ def main(argv: list[str] | None = None) -> int:
                     }
             comparison = {}
             if args.compare_telemetry:
+                with_telemetry = (
+                    rows
+                    if args.no_trained
+                    else run_backtest(
+                        args.season,
+                        count=args.races,
+                        lookback=args.lookback,
+                        use_risk=not args.no_risk,
+                        use_model=False,
+                    )
+                )
                 baseline = run_backtest(
                     args.season,
                     count=args.races,
                     lookback=args.lookback,
                     use_telemetry=False,
                     use_risk=not args.no_risk,
+                    use_model=False,
                 )
                 for label, is_sprint in (("regular", False), ("sprint", True)):
-                    actual = [r for r in rows if r.weekend.sprint == is_sprint]
+                    actual = [
+                        r for r in with_telemetry if r.weekend.sprint == is_sprint
+                    ]
                     old = [r for r in baseline if r.weekend.sprint == is_sprint]
                     if actual:
                         comparison[label] = {
@@ -395,7 +420,10 @@ def main(argv: list[str] | None = None) -> int:
                                 r.driver_error * r.drivers for r in old
                             )
                             / sum(r.drivers for r in old),
-                            "telemetry_driver_mae": summaries[label]["driver_mae"],
+                            "telemetry_driver_mae": sum(
+                                r.driver_error * r.drivers for r in actual
+                            )
+                            / sum(r.drivers for r in actual),
                             "weekends": len(actual),
                         }
             risk_comparison = {}
@@ -405,12 +433,17 @@ def main(argv: list[str] | None = None) -> int:
                     count=args.races,
                     lookback=args.lookback,
                     use_risk=False,
+                    use_model=False,
                 )
                 new_rows = (
                     rows
-                    if not args.no_risk
+                    if args.no_trained and not args.no_risk
                     else run_backtest(
-                        args.season, count=args.races, lookback=args.lookback
+                        args.season,
+                        count=args.races,
+                        lookback=args.lookback,
+                        use_risk=True,
+                        use_model=False,
                     )
                 )
 
@@ -456,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
                         "season": args.season,
                         "lookback": args.lookback,
                         "risk_model_enabled": not args.no_risk,
+                        "trained_model_enabled": not args.no_trained,
                         "rows": [backtest_row(r) for r in rows],
                         "summary": summaries,
                         "telemetry_comparison": comparison,
@@ -624,7 +658,23 @@ def main(argv: list[str] | None = None) -> int:
             horizon,
             use_telemetry=not args.no_telemetry,
             use_risk=not args.no_risk,
+            use_model=not args.no_trained,
         )
+        saved = (
+            load_model(args.season)
+            if not args.no_trained and not args.no_risk and not args.no_telemetry
+            else None
+        )
+        applied = bool(
+            saved
+            and saved["active"]
+            and saved["last_completed_round"] < horizon[0].round
+        )
+        if args.format == "text" and applied:
+            print(
+                f"Trained calibration v{saved['version']} active "
+                f"(through round {saved['last_completed_round']})"
+            )
         lineups = optimize(
             live.assets,
             horizon,
@@ -711,6 +761,13 @@ def main(argv: list[str] | None = None) -> int:
                     "carried_transfer": carry,
                     "telemetry_enabled": not args.no_telemetry,
                     "risk_model_enabled": not args.no_risk,
+                    "calibration": {
+                        "applied": applied,
+                        "version": saved["version"] if applied else None,
+                        "trained_through_round": saved["last_completed_round"]
+                        if applied
+                        else None,
+                    },
                     "lineups": lineup_data,
                     "projected_total_points": float(
                         sum(l.expected_points for l in lineups)

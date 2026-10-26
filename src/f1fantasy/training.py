@@ -237,10 +237,20 @@ def train(
     if previous is not None and previous["last_completed_round"] >= complete[-1].round:
         return previous
     current = run_backtest(
-        season, count=len(complete), lookback=lookback, now=now, use_risk=True
+        season,
+        count=len(complete),
+        lookback=lookback,
+        now=now,
+        use_risk=True,
+        use_model=False,
     )
     legacy = run_backtest(
-        season, count=len(complete), lookback=lookback, now=now, use_risk=False
+        season,
+        count=len(complete),
+        lookback=lookback,
+        now=now,
+        use_risk=False,
+        use_model=False,
     )
     report = fit_calibration(observations(current, legacy), season)
     path = model_path(season, directory)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from math import isfinite
 from typing import Any
 import unicodedata
@@ -50,6 +51,7 @@ def _position(value: Any) -> int | None:
     return None
 
 
+@lru_cache(maxsize=256)
 def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]:
     try:
         session = fastf1.get_session(year, round_number, kind)
@@ -139,6 +141,7 @@ def estimate_assets(
     *,
     use_telemetry: bool = True,
     use_risk: bool = True,
+    use_model: bool = True,
 ) -> dict[tuple[int, str], Estimate]:
     """Use completed rounds strictly before the first predicted weekend.
 
@@ -312,4 +315,42 @@ def estimate_assets(
                 else 0,
                 blended(constructor.id, "R", sum(m.race for m in members)),
             )
+    if use_model and use_risk and use_telemetry:
+        # Training imports backtest -> projections; import locally to avoid a
+        # cycle and never use a model to generate its own training examples.
+        from .training import load_model
+
+        model = load_model(first.season)
+        if (
+            model is not None
+            and model["active"]
+            and model["last_completed_round"] < first.round
+        ):
+            legacy = estimate_assets(
+                assets,
+                weekends,
+                lookback,
+                use_telemetry=use_telemetry,
+                use_risk=False,
+                use_model=False,
+            )
+            for index, _weekend in enumerate(weekends):
+                for asset in assets:
+                    current, older = output[index, asset.id], legacy[index, asset.id]
+                    weights = model["weights"][asset.kind]
+                    naive_values = fantasy_history.get(asset.id, {}).get("R", [])[-3:]
+                    naive = (
+                        sum(naive_values) / len(naive_values)
+                        if naive_values
+                        else current.race
+                    )
+                    output[index, asset.id] = Estimate(
+                        weights["qualifying"][0] * current.qualifying
+                        + weights["qualifying"][1] * older.qualifying,
+                        weights["sprint"][0] * current.sprint
+                        + weights["sprint"][1] * older.sprint,
+                        weights["race"][0] * current.race
+                        + weights["race"][1] * older.race
+                        + weights["race"][2] * naive,
+                    )
     return output
