@@ -81,7 +81,13 @@ def adjustments(
                 if pace <= 0 or not isfinite(gap):
                     continue
                 skill = -gap / pace
-                weight = 1.3 if record["year"] == weekend.season else 1.0
+                weight = (
+                    3.0
+                    if record["year"] == weekend.season
+                    else 1.0
+                    if record["year"] == weekend.season - 1
+                    else 0.5
+                )
                 samples.append((skill, similarity(record) * weight, weight))
             if len(samples) < 2:
                 continue

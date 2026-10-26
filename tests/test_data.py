@@ -163,6 +163,7 @@ def test_every_snapshot_refetches_prices_and_rejects_an_empty_update(monkeypatch
         2026, 1, "Opening", 1, datetime(2026, 11, 1, tzinfo=timezone.utc), False, False
     )
     monkeypatch.setattr(data, "season_weekends", lambda _: [next_race])
+    monkeypatch.setattr(data, "load_statistics", lambda *_: None)
     rows = [
         {
             "IsActive": "1",
@@ -316,6 +317,7 @@ def test_old_prices_flag_prefers_published_upcoming_feed(monkeypatch):
         False,
     )
     monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
+    monkeypatch.setattr(data, "load_statistics", lambda *_: None)
     calls = []
 
     def roster(week, *, require_recent=True):
@@ -363,4 +365,50 @@ def test_previous_feed_must_be_updated_after_completed_race(monkeypatch):
     with pytest.raises(data.DataError, match="not been updated"):
         data.snapshot(
             2026, datetime(2026, 10, 26, tzinfo=timezone.utc), allow_old_prices=True
+        )
+
+
+def test_statistics_verifies_price_and_season_points(monkeypatch):
+    feed = {
+        "season": "2026",
+        "driver": [
+            {
+                "config": {"key": "fPoints"},
+                "participants": [
+                    {
+                        "playerid": "a",
+                        "playername": "A",
+                        "teamname": "Team",
+                        "curvalue": 10.2,
+                        "statvalue": 120,
+                    }
+                ],
+            }
+        ],
+        "constructor": [
+            {
+                "config": {"key": "fPoints"},
+                "participants": [
+                    {
+                        "playerid": "c",
+                        "playername": None,
+                        "teamname": "Team",
+                        "curvalue": 15.1,
+                        "statvalue": 250,
+                    }
+                ],
+            }
+        ],
+    }
+    monkeypatch.setattr(data, "_get_json", lambda _: feed)
+    assets = (
+        data.Asset("a", "A", "DRIVER", "1", 102, "AAA", 120),
+        data.Asset("c", "Team", "CONSTRUCTOR", "1", 151, "", 250),
+    )
+    assert len(data.load_statistics(2026, assets).entries) == 2
+    with pytest.raises(data.DataError, match="price disagrees"):
+        data.load_statistics(2026, (data.Asset("a", "A", "DRIVER", "1", 103),))
+    with pytest.raises(data.DataError, match="points disagree"):
+        data.load_statistics(
+            2026, (data.Asset("a", "A", "DRIVER", "1", 102, "AAA", 119),)
         )

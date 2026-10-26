@@ -93,13 +93,13 @@ def _venue(value: object) -> str:
 def _track_form(
     weekends: list[Weekend],
     cutoff: Any,
-) -> dict[int, dict[str, dict[str, list[float]]]]:
+) -> dict[int, dict[str, dict[str, list[tuple[int, float]]]]]:
     """Earlier visits to each upcoming venue, independent of season form."""
     locations = {
         index: _venue(fastf1.get_event(w.season, w.round)["Location"])
         for index, w in enumerate(weekends)
     }
-    track: dict[int, dict[str, dict[str, list[float]]]] = {
+    track: dict[int, dict[str, dict[str, list[tuple[int, float]]]]] = {
         index: {} for index in locations
     }
     for year in range(weekends[0].season - 2, weekends[0].season + 1):
@@ -126,7 +126,7 @@ def _track_form(
                 for index in matched:
                     for tla, score in results.items():
                         track[index].setdefault(tla, {}).setdefault(kind, []).append(
-                            score
+                            (year, score)
                         )
     return track
 
@@ -162,7 +162,7 @@ def estimate_assets(
         except Exception as exc:
             if not prior:
                 raise DataError(f"Cannot load prior-season history: {exc}") from exc
-    history: dict[str, dict[str, list[float]]] = {}
+    history: dict[str, dict[str, list[tuple[int, float]]]] = {}
     fantasy_history: dict[str, dict[str, list[float]]] = {}
     completed = {
         w.round: w
@@ -183,7 +183,7 @@ def estimate_assets(
             if kind == "S" and "sprint" not in str(event["EventFormat"]).lower():
                 continue
             for tla, score in _session_scores(year, round_number, kind).items():
-                history.setdefault(tla, {}).setdefault(kind, []).append(score)
+                history.setdefault(tla, {}).setdefault(kind, []).append((year, score))
         if year == first.season and round_number in completed:
             historic = completed[round_number]
             for id_, (q, s, r) in completed_scores(
@@ -205,6 +205,24 @@ def estimate_assets(
         weights = list(range(1, len(values) + 1))
         return sum(v * w for v, w in zip(values, weights)) / sum(weights)
 
+    def season_mean(values: list[tuple[int, float]], default: float) -> float:
+        if not values:
+            return default
+        weights = [
+            (index + 1)
+            * (
+                4.0
+                if year == first.season
+                else 1.0
+                if year == first.season - 1
+                else 0.5
+            )
+            for index, (year, _) in enumerate(values)
+        ]
+        return sum(score * weight for (_, score), weight in zip(values, weights)) / sum(
+            weights
+        )
+
     def blended(id_: str, kind: str, fallback: float) -> float:
         values = fantasy_history.get(id_, {}).get(kind, [])
         if not values:
@@ -221,23 +239,25 @@ def estimate_assets(
         visits = track[index].get(tla, {}).get(kind, [])
         if not visits:
             return predicted
-        weight = min(0.35, 0.15 + 0.1 * len(visits))
-        return predicted + weight * (mean(visits, baseline) - baseline)
+        weight = min(0.30, 0.10 + 0.08 * len(visits))
+        if not any(year == first.season for year, _ in visits):
+            weight = min(weight, 0.15)
+        return predicted + weight * (season_mean(visits, baseline) - baseline)
 
     drivers = [a for a in assets if a.kind == "DRIVER"]
     output: dict[tuple[int, str], Estimate] = {}
     for index, weekend in enumerate(weekends):
         for driver in drivers:
             base = history.get(driver.tla, {})
-            q_base = mean(base.get("Q", []), 0)
-            r_base = mean(base.get("R", []), 0)
+            q_base = season_mean(base.get("Q", []), 0)
+            r_base = season_mean(base.get("R", []), 0)
             q = track_adjusted(
                 index, driver.tla, "Q", q_base, blended(driver.id, "Q", q_base)
             )
             r = track_adjusted(
                 index, driver.tla, "R", r_base, blended(driver.id, "R", r_base)
             )
-            s_base = mean(base.get("S", []), r * 0.35)
+            s_base = season_mean(base.get("S", []), r * 0.35)
             s = (
                 track_adjusted(
                     index, driver.tla, "S", s_base, blended(driver.id, "S", s_base)

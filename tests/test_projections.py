@@ -171,7 +171,7 @@ def test_track_form_only_uses_earlier_visits_to_same_venue(monkeypatch):
         (2025, 3, "Q"),
         (2025, 3, "R"),
     }
-    assert result[0]["AAA"]["R"] == [12, 12]
+    assert result[0]["AAA"]["R"] == [(2024, 12), (2025, 12)]
 
 
 def test_track_form_changes_only_matched_weekend_forecast(monkeypatch):
@@ -209,7 +209,7 @@ def test_track_form_changes_only_matched_weekend_forecast(monkeypatch):
     )
     monkeypatch.setattr(projections, "_session_scores", lambda *_: {"AAA": 5, "BBB": 5})
     monkeypatch.setattr(
-        projections, "_track_form", lambda *_: {0: {"AAA": {"R": [25]}}, 1: {}}
+        projections, "_track_form", lambda *_: {0: {"AAA": {"R": [(2025, 25)]}}, 1: {}}
     )
     forecast = projections.estimate_assets(assets, weekends, lookback=1)
     assert forecast[0, "a"].race > forecast[1, "a"].race
@@ -253,3 +253,40 @@ def test_telemetry_adjustment_flows_into_driver_and_constructor(monkeypatch):
     )
     assert baseline[0, "a"].qualifying == 5
     assert baseline[0, "c"].race == 10
+
+
+def test_current_season_form_outweighs_previous_year(monkeypatch):
+    assets = (
+        Asset("a", "A", "DRIVER", "team", 50, "AAA"),
+        Asset("b", "B", "DRIVER", "team", 50, "BBB"),
+        Asset("c", "Team", "CONSTRUCTOR", "team", 50),
+    )
+    target = Weekend(
+        2026, 2, "Target", 2, datetime(2026, 4, 10, tzinfo=timezone.utc), False, False
+    )
+
+    class Event(dict):
+        def get_session_date(self, *_args, **_kwargs):
+            return pd.Timestamp("2025-12-01")
+
+    monkeypatch.setattr(projections, "configure_cache", lambda: None)
+    monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "season_weekends", lambda _: [])
+    monkeypatch.setattr(
+        projections.fastf1, "get_event_schedule", lambda *_: {"RoundNumber": [0, 20]}
+    )
+    monkeypatch.setattr(
+        projections.fastf1, "get_event", lambda *_: Event(EventFormat="conventional")
+    )
+    monkeypatch.setattr(
+        projections,
+        "_session_scores",
+        lambda year, *_: {
+            "AAA": 50 if year == 2025 else 10,
+            "BBB": 50 if year == 2025 else 10,
+        },
+    )
+    monkeypatch.setattr(projections, "_track_form", lambda *_: {0: {}})
+    monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
+    result = projections.estimate_assets(assets, [target], lookback=2)
+    assert 10 < result[0, "a"].race < 20

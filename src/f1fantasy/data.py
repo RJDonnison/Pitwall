@@ -29,6 +29,23 @@ class Asset:
     team_id: str
     price: int  # $0.1m units, avoiding floating-point budget mistakes
     tla: str = ""
+    season_points: float | None = None
+
+
+@dataclass(frozen=True)
+class Statistic:
+    id: str
+    kind: str
+    name: str
+    price: int
+    season_points: float
+
+
+@dataclass(frozen=True)
+class StatisticsSnapshot:
+    season: int
+    entries: tuple[Statistic, ...]
+    fetched_at: datetime
 
 
 @dataclass(frozen=True)
@@ -50,6 +67,7 @@ class Snapshot:
     fetched_at: datetime
     published_at: datetime
     price_weekend: Weekend | None = None
+    statistics: StatisticsSnapshot | None = None
 
     @property
     def provisional(self) -> bool:
@@ -168,6 +186,11 @@ def load_assets(
                     str(row["TeamId"]),
                     int(amount),
                     str(row.get("DriverTLA", "")),
+                    (
+                        float(Decimal(str(row["OverallPpints"])))
+                        if row.get("OverallPpints") not in (None, "")
+                        else None
+                    ),
                 )
             )
     except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
@@ -184,6 +207,67 @@ def load_assets(
     if any(sum(d.team_id == c.team_id for d in drivers) != 2 for c in constructors):
         raise DataError("Expected exactly two active drivers for each constructor")
     return tuple(assets), published
+
+
+def load_statistics(
+    season: int, assets: tuple[Asset, ...] | None = None
+) -> StatisticsSnapshot:
+    """Cross-check the same official rankings shown on the Fantasy Statistics page."""
+    feed = _get_json("v2/statistics/driverconstructors_4.json")
+    try:
+        if int(feed["season"]) != season:
+            raise DataError("Statistics season does not match the Fantasy schedule")
+        entries = []
+        for section, kind in (("driver", "DRIVER"), ("constructor", "CONSTRUCTOR")):
+            points = next(
+                block for block in feed[section] if block["config"]["key"] == "fPoints"
+            )
+            for row in points["participants"]:
+                price = Decimal(str(row["curvalue"])) * 10
+                total = Decimal(str(row["statvalue"]))
+                if (
+                    not price.is_finite()
+                    or price != price.to_integral_value()
+                    or not total.is_finite()
+                ):
+                    raise DataError(
+                        "Statistics contains invalid prices or season points"
+                    )
+                entries.append(
+                    Statistic(
+                        str(row["playerid"]),
+                        kind,
+                        str(row["playername"] or row["teamname"]),
+                        int(price),
+                        float(total),
+                    )
+                )
+        if len({entry.id for entry in entries}) != len(entries):
+            raise DataError("Statistics contains duplicate Fantasy IDs")
+        if assets is not None:
+            known = {entry.id: entry for entry in entries}
+            for asset in assets:
+                row = known.get(asset.id)
+                if row is None or row.kind != asset.kind:
+                    raise DataError(
+                        f"Statistics missing active {asset.kind.lower()} {asset.name}"
+                    )
+                if row.price != asset.price:
+                    raise DataError(
+                        f"Statistics price disagrees with race-week feed for {asset.name}"
+                    )
+                if (
+                    asset.season_points is not None
+                    and row.season_points != asset.season_points
+                ):
+                    raise DataError(
+                        f"Statistics points disagree with race-week feed for {asset.name}"
+                    )
+        return StatisticsSnapshot(season, tuple(entries), datetime.now(timezone.utc))
+    except (KeyError, TypeError, ValueError, StopIteration, InvalidOperation) as exc:
+        if isinstance(exc, DataError):
+            raise
+        raise DataError(f"Cannot verify Fantasy Statistics page feed: {exc}") from exc
 
 
 def completed_scores(
@@ -264,8 +348,9 @@ def snapshot(
                     raise DataError(
                         "Upcoming Fantasy roster differs in size from the last verified round"
                     )
+    stats = load_statistics(season, assets) if price_weekend == first else None
     return Snapshot(
-        first, assets, datetime.now(timezone.utc), published, price_weekend
+        first, assets, datetime.now(timezone.utc), published, price_weekend, stats
     ), weekends
 
 
