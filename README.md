@@ -29,6 +29,8 @@ f1fantasy recommend --races 3
 
 Each recommendation fetches the next race's **current Fantasy roster and prices**. With no imported team, it assumes a new team with a $100m starting budget. Output includes budget, qualifying/Sprint/race estimates, Boost, net transfers and their penalties. Future prices are assumed unchanged until the next run. Always check the Fantasy website's team-lock deadline; the session start displayed by the CLI is not a verified lock time.
 
+The optimizer solves for the **maximum total predicted points across the selected races**, including Boost and transfer penalties; it does not discount later weekends. This is the maximum under the model's forecasts and fixed future-price assumption, not a guarantee of actual race results. The production solver is a mixed-integer optimizer, not an exhaustive enumeration of all teams.
+
 If the next race-week feed is empty, you can preview with the last completed race's official prices:
 
 ```sh
@@ -64,12 +66,15 @@ f1fantasy backtest --races 4 --lookback 5 --compare-telemetry
 
 The model uses recent current-season Fantasy scores, FastF1 classification and grid form, earlier visits to each venue, and—when preloaded—circuit similarity and teammate-relative telemetry pace. Missing telemetry leaves the results-based forecast in place. `backtest` compares its point errors on regular and Sprint weekends; `recommend --no-telemetry` shows the results-only alternative. Past information is cut off before the predicted weekend. Estimated points are uncertain, especially for future bonus awards and changing car performance.
 
+Race predictions now separate ordinary finishes from severe-negative outcomes (approximated from earlier Fantasy race penalties). Their chance is shrunk toward the current team and field history, and unusually high past race scores are capped when estimating typical finish points. Sprint scores are shrunk toward race form when only a few Sprints are available. Use `recommend --no-risk` to compare with the original averaging approach. These are still fixed, interpretable rules; the V2 training command is **planned, not implemented**.
+
 Current-season FastF1 form has more influence than previous-season form (4× versus 1×, with older history weighted 0.5×). Current-season official Fantasy points remain the main scoring signal; older same-circuit evidence has a smaller adjustment. These are fixed weights, not a self-trained model.
 
 ### Inspect scores and use JSON output
 
 ```sh
 f1fantasy backtest --races 4 --lookback 5 --show-points
+f1fantasy backtest --races 6 --compare-risk
 f1fantasy backtest --races 4 --compare-telemetry --format json \
   | jq '.data.rows[] | {race: .event.name, driver_mae: .mae_points.drivers}'
 f1fantasy recommend --races 3 --format json \
@@ -79,13 +84,15 @@ f1fantasy statistics --format json | jq '.data.entries | sort_by(.season_points)
 
 `--show-points` lists **predicted and actual qualifying, Sprint, race and total points for every driver and constructor** in each selected historical weekend. MAE means *mean absolute error*, measured in Fantasy points: e.g. a driver MAE of 9.6 means the average driver's weekend prediction missed their actual total by 9.6 points, regardless of direction. Constructor MAE uses only constructors; qualifying, Sprint and race MAEs each include both drivers and constructors. These session MAEs do not necessarily add up to the total MAE because prediction errors can cancel between sessions. `--races` selects how many recent finalized weekends to replay.
 
+Each backtest also reports **signed bias** (predicted minus actual, so positive means overprediction) and driver race MAE versus a simple average of up to the previous three completed races. This baseline comparison uses the same drivers on each side. `--compare-risk` compares race and Sprint error with/without the severe-negative adjustment; `backtest --no-risk` selects the older method. Current racing errors remain significant, so small improvements over a few weekends should not be mistaken for proof of general accuracy.
+
 Every V1 command (`init`, `clear-team`, `prices`, `statistics`, `recommend`, `backtest`, `preload`, including `preload --status`) accepts `--format json` after the command. Text remains the default. JSON success is one versioned document on stdout, with timestamps, warnings, data-source status and numeric point fields; prices use **integer tenths of a million** (`price_tenths_m`). Progress/logging goes to stderr. On failure the CLI exits nonzero and writes a JSON error to stderr, leaving stdout empty; a partial preload reports its unavailable sessions as JSON and exits nonzero. `jq` is optional and only needed for the examples above.
 
 ## Roadmap and data sources
 
-- [Simplified roadmap](roadmap.md) — V1 status and future V2/V3 milestones.
+- [Simplified roadmap](roadmap.md) — V1 status, planned V2 training, V3 account automation and V4 F1 Predict.
 - [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs) — roster, scoring, Boost, chips and transfers.
 - [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
 - [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics) — independent current-price and season-point verification and terminal rankings.
 - [FastF1 documentation](https://docs.fastf1.dev/) — session results, laps, car telemetry and weather.
-- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V3.
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V4.
