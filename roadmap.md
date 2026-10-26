@@ -12,8 +12,8 @@
 ## V2 — model learning and evaluation (initial calibration implemented)
 
 - Build point-in-time driver and constructor training examples using only data available before each weekend, with separate qualifying, Sprint and race targets.
-- Split completed weekends **chronologically**: fit weights on earlier races, choose among candidates on later validation races, and measure improvement once on a final untouched test block. Use walk-forward validation as more races become available.
-- `f1fantasy train` now learns versioned, conservative blends of the fixed race forecast, earlier risk model and last-three-race average. It reports regular/Sprint errors and keeps the baseline when validation or test results worsen; the first live 2026 candidate was **not** promoted.
+- Train on the prior season, then test each current-season race before adding its result and refitting for the next race. Report the prequential comparison with the fixed model; keep subsequent new weekends for independent forward checks.
+- `f1fantasy train` now warms up on labelled previous-season races (user-imported official scores or an explicitly approximate FastF1 proxy), then tests each current-season race before adding it to training. It reports per-round prequential MAE and keeps the fixed model if replay errors do not improve; the first live 2025→2026 proxy replay was **not** promoted.
 - Next: tune the underlying current-season, circuit and telemetry feature weights on cached point-in-time examples, with rollback and a genuinely new held-out test block after additional races. The existing fixed model remains the fallback.
 - Consider an **opt-in** cache-compaction command that retains verified prediction features and the results data needed by the CLI while reclaiming bulky raw telemetry after preloading is complete.
 

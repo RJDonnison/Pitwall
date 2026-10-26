@@ -169,6 +169,34 @@ def test_train_reuses_versioned_artifact_until_new_round(tmp_path, monkeypatch):
         training.train(2026, directory=tmp_path, now=now, lookback=3)
 
 
+def test_official_prior_import_replaces_approximate_source(tmp_path, monkeypatch):
+    current, older = synthetic_rows()
+    monkeypatch.setattr(
+        training, "season_weekends", lambda _: [r.weekend for r in current]
+    )
+    monkeypatch.setattr(
+        training,
+        "run_backtest",
+        lambda *_args, use_risk=True, **_kwargs: current if use_risk else older,
+    )
+    monkeypatch.setattr(
+        training,
+        "load_previous_season",
+        lambda *_args, official_file=None, **_kwargs: (
+            prior_weeks(),
+            "imported_official" if official_file else "fastf1_proxy",
+        ),
+    )
+    now = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    proxy = training.train(2026, directory=tmp_path, now=now)
+    imported = training.train(
+        2026, directory=tmp_path, now=now, prior_scores_file=tmp_path / "official.json"
+    )
+    assert proxy["prior_source"] == "fastf1_proxy"
+    assert imported["prior_source"] == "imported_official"
+    assert imported["prior_example_weight"] > proxy["prior_example_weight"]
+
+
 def test_invalid_weights_never_activate(tmp_path):
     path = training.model_path(2026, tmp_path)
     path.write_text(
