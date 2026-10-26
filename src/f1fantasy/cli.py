@@ -16,6 +16,7 @@ from .optimizer import optimize
 from .output import asset as asset_output
 from .output import backtest_row, envelope, event as event_output
 from .projections import estimate_assets
+from .training import model_path, train
 
 DEFAULT_STATE = Path(".f1fantasy/team.json")
 
@@ -174,7 +175,20 @@ def _parser() -> argparse.ArgumentParser:
     warm.add_argument("--year", type=int)
     warm.add_argument("--round", type=int)
     warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
-    for command in (init, prices, statistics, clear_team, recommend, backtest, warm):
+    training = commands.add_parser(
+        "train", help="Fit and validate forecast weights on completed races"
+    )
+    training.add_argument("--lookback", type=int, default=5)
+    for command in (
+        init,
+        prices,
+        statistics,
+        clear_team,
+        recommend,
+        backtest,
+        warm,
+        training,
+    ):
         command.add_argument(
             "--format",
             choices=("text", "json"),
@@ -220,6 +234,33 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: {exc}", file=sys.stderr)
         return 2
     try:
+        if args.command == "train":
+            if not 1 <= args.lookback <= 10:
+                raise DataError("--lookback must be between 1 and 10")
+            report = train(args.season, lookback=args.lookback)
+            path = str(model_path(args.season))
+            if args.format == "json":
+                _json_output("train", {"model_path": path, "model": report})
+            else:
+                print(
+                    f"Model: {path} ({'active' if report['active'] else 'baseline retained'})"
+                )
+                print(
+                    f"Train rounds: {report['trained_rounds']}; validation: "
+                    f"{report['validation_rounds']}; untouched test: {report['test_rounds']}"
+                )
+                for kind, phases in report["metrics"].items():
+                    for phase, metrics in phases.items():
+                        if "test" in metrics:
+                            print(
+                                f"  {kind} {phase}: validation "
+                                f"{metrics['validation']['baseline_mae']:.1f} → "
+                                f"{metrics['validation']['candidate_mae']:.1f}; "
+                                f"test {metrics['test']['baseline_mae']:.1f} → "
+                                f"{metrics['test']['candidate_mae']:.1f}; "
+                                f"{'promoted' if metrics['promoted'] else 'not promoted'}"
+                            )
+            return 0
         if args.command == "clear-team":
             removed = args.state.exists() or args.state.is_symlink()
             if removed:
