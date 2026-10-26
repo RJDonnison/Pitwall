@@ -5,7 +5,7 @@ This Python CLI recommends an F1 Fantasy team of five drivers and two constructo
 ## Requirements
 
 - Python 3.11 or newer and an internet connection for F1 Fantasy and FastF1 data.
-- Disk space for a local historical cache if using `preload`; loading all completed sessions across three seasons can take considerable time and space.
+- Disk space for a local historical cache if using `preload`; expect roughly 0.1–1 GB for three seasons in the default compact mode (estimates vary by season and session coverage). Allow extra temporary space while one session loads.
 - No F1 account is required for recommendations. You can manually import your existing team to plan transfers.
 
 ## Usage
@@ -56,7 +56,7 @@ f1fantasy preload --status
 f1fantasy backtest --races 4 --lookback 5 --compare-telemetry
 ```
 
-`preload` covers completed sessions in the current and previous two seasons, persists FastF1's raw cache plus compact, versioned telemetry features, and resumes already processed sessions. Missing sessions are reported. To try one session first: `f1fantasy preload --seasons 2 --year 2025 --round 20 --session Qualifying`. Use `--refresh` to rebuild selected features. This historical cache **never replaces** the fresh Fantasy price and roster fetch on recommendations.
+`preload` covers completed sessions in the current and previous two seasons and resumes already processed sessions. By default it saves compact, versioned telemetry features and small parsed FastF1 results, then removes each session's bulky parsed car/position data after verifying the features. Raw HTTP responses are not cached. Missing sessions are reported. To try one session first: `f1fantasy preload --seasons 2 --year 2025 --round 20 --session Qualifying`. Use `--refresh` to rebuild selected features; that session's telemetry must then be downloaded again. A full three-season preload is estimated to take around 2–5 hours depending on the connection and missing sessions, versus roughly 2–4 hours with the previous full cache. The old cache could use about 10–25 GB; compact storage is estimated at 0.1–1 GB after completion. These are estimates, not limits. This historical cache **never replaces** the fresh Fantasy price and roster fetch on recommendations.
 
 The model uses recent current-season Fantasy scores, FastF1 classification and grid form, earlier visits to each venue, and—when preloaded—circuit similarity and teammate-relative telemetry pace. Missing telemetry leaves the results-based forecast in place. `backtest` compares its point errors on regular and Sprint weekends; `recommend --no-telemetry` shows the results-only alternative. Past information is cut off before the predicted weekend. Estimated points are uncertain, especially for future bonus awards and changing car performance.
 

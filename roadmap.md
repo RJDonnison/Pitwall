@@ -4,7 +4,7 @@
 
 - CLI recommends five drivers, two constructors and a 2× Boost under the budget, with net transfers and one-week carry-over.
 - Uses current-season Fantasy points and prices, FastF1 results, earlier visits to each circuit, and regular/Sprint weekend scoring.
-- `preload --seasons 3` caches completed FastF1 sessions from the current and previous two seasons. Cached telemetry helps compare track characteristics and teammate-relative pace; missing data falls back to the results-based forecast.
+- `preload --seasons 3` summarizes completed FastF1 sessions from the current and previous two seasons, retaining compact telemetry features and small results caches. Cached telemetry helps compare track characteristics and teammate-relative pace; missing data falls back to the results-based forecast.
 - `backtest --compare-telemetry` compares historical prediction errors. Prices and eligible roster are fetched again for each recommendation. `--allow-old-prices` gives an explicitly provisional preview when the upcoming feed is unpublished.
 
 ## V2 — Fantasy account automation (planned)

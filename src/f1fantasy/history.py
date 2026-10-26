@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from statistics import median
 from typing import Any
 
@@ -22,9 +22,25 @@ def configure_cache(root: Path = DEFAULT_CACHE) -> None:
     path = root / "fastf1"
     path.mkdir(parents=True, exist_ok=True)
     if hasattr(fastf1.Cache, "configure"):
-        fastf1.Cache.configure(cache_dir=str(path))
+        fastf1.Cache.configure(cache_dir=str(path), use_requests_cache=False)
     else:
-        fastf1.Cache.enable_cache(str(path))
+        fastf1.Cache.enable_cache(str(path), use_requests_cache=False)
+
+
+def _compact_session(root: Path, session: Any) -> None:
+    """Discard large parsed telemetry after its verified summary is saved."""
+    parts = PurePosixPath(session.api_path).parts
+    if parts[:2] != ("/", "static") or ".." in parts[2:]:
+        raise DataError(f"Cannot locate FastF1 session cache: {session.api_path}")
+    cache = (root / "fastf1").resolve()
+    directory = cache.joinpath(*parts[2:]).resolve()
+    if not directory.is_relative_to(cache):
+        raise DataError(f"FastF1 session cache is outside {cache}")
+    for name in ("car_data.ff1pkl", "position_data.ff1pkl"):
+        path = directory / name
+        if path.is_symlink():
+            raise DataError(f"Refusing to remove symlinked cache file: {path}")
+        path.unlink(missing_ok=True)
 
 
 def feature_path(
@@ -190,7 +206,7 @@ def preload(
     target_round: int | None = None,
     session_name: str | None = None,
 ) -> tuple[int, int, list[str]]:
-    """Download and summarize all *completed* sessions; safely resume existing work."""
+    """Summarize completed sessions, retaining only small parsed FastF1 data."""
     if seasons not in (1, 2, 3):
         raise ValueError("--seasons must be 1, 2 or 3")
     now = now or datetime.now(timezone.utc)
@@ -257,6 +273,8 @@ def preload(
                     temporary = path.with_suffix(".tmp")
                     temporary.write_text(json.dumps(data, allow_nan=False))
                     temporary.replace(path)
+                    load_features(year, round_number, identifier, now, root)
+                    _compact_session(root, session)
                     stored += 1
                 except Exception as exc:
                     gaps.append(f"{year} round {round_number} {name}: {exc}")

@@ -119,9 +119,14 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
 
     class Session:
         name = "Qualifying"
+        api_path = "/static/2026/Monaco/Qualifying/"
 
         def load(self, **kwargs):
             calls.append(kwargs)
+            cache = tmp_path / "fastf1/2026/Monaco/Qualifying"
+            cache.mkdir(parents=True, exist_ok=True)
+            for name in ("car_data", "position_data", "driver_info"):
+                (cache / f"{name}.ff1pkl").write_bytes(b"cached")
 
     calls = []
     monkeypatch.setattr(history.fastf1, "get_session", lambda *_: Session())
@@ -140,6 +145,10 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
     )
     now = datetime(2026, 6, 1, tzinfo=timezone.utc)
     assert history.preload(1, root=tmp_path, now=now) == (1, 0, [])
+    cache = tmp_path / "fastf1/2026/Monaco/Qualifying"
+    assert not (cache / "car_data.ff1pkl").exists()
+    assert not (cache / "position_data.ff1pkl").exists()
+    assert (cache / "driver_info.ff1pkl").read_bytes() == b"cached"
     assert calls == [
         {"laps": True, "telemetry": True, "weather": True, "messages": True}
     ]
@@ -150,6 +159,25 @@ def test_preload_resumes_and_refuses_future_features(tmp_path, monkeypatch):
         history.load_features(
             2026, 1, 1, datetime(2026, 1, 1, tzinfo=timezone.utc), tmp_path
         )
+
+
+def test_configure_cache_disables_raw_http_cache(tmp_path, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        history.fastf1.Cache, "configure", lambda **kwargs: calls.append(kwargs)
+    )
+    history.configure_cache(tmp_path)
+    assert calls == [
+        {"cache_dir": str(tmp_path / "fastf1"), "use_requests_cache": False}
+    ]
+
+
+def test_compaction_refuses_outside_cache(tmp_path):
+    class Session:
+        api_path = "/static/2026/../outside/"
+
+    with pytest.raises(DataError, match="Cannot locate"):
+        history._compact_session(tmp_path, Session())
 
 
 def test_clean_laps_excludes_deleted_laps():
