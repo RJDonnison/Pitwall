@@ -20,6 +20,11 @@ from .projections import estimate_assets
 DEFAULT_STATE = Path(".f1fantasy/team.json")
 
 
+class CLIParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        raise DataError(message)
+
+
 def _money(value: object) -> int:
     try:
         amount = Decimal(str(value)) * 10
@@ -83,12 +88,12 @@ def _validate_state(
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Read-only F1 Fantasy team recommendations"
-    )
+    parser = CLIParser(description="Read-only F1 Fantasy team recommendations")
     parser.add_argument("--season", type=int, default=datetime.now(timezone.utc).year)
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
-    commands = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(
+        dest="command", required=True, parser_class=CLIParser
+    )
     init = commands.add_parser("init", help="Import your existing Fantasy team")
     source = init.add_mutually_exclusive_group(required=True)
     source.add_argument(
@@ -177,7 +182,28 @@ def _json_output(
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    raw = sys.argv[1:] if argv is None else argv
+    try:
+        args = _parser().parse_args(raw)
+    except DataError as exc:
+        json_mode = any(
+            raw[index : index + 2] == ["--format", "json"]
+            for index in range(len(raw) - 1)
+        )
+        if json_mode:
+            print(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "status": "error",
+                        "error": {"code": "invalid_arguments", "message": str(exc)},
+                    }
+                ),
+                file=sys.stderr,
+            )
+        else:
+            print(f"Error: {exc}", file=sys.stderr)
+        return 2
     try:
         if args.command == "clear-team":
             removed = args.state.exists() or args.state.is_symlink()

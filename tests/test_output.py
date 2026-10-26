@@ -149,6 +149,10 @@ def test_backtest_details_preload_and_error_json(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert captured.out == ""
     assert json.loads(captured.err)["status"] == "error"
+    assert cli.main(["prices", "--format", "json", "--bad-flag"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert json.loads(captured.err)["error"]["code"] == "invalid_arguments"
 
 
 def test_clear_team_is_offline_idempotent_and_only_removes_selected_state(
