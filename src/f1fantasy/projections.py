@@ -408,13 +408,25 @@ def estimate_assets(
             and model["active"]
             and model["last_completed_round"] < first.round
         ):
-            legacy = estimate_assets(
-                assets,
-                weekends,
-                lookback,
-                use_telemetry=use_telemetry,
-                use_risk=False,
-                use_model=False,
+            from .feature_training import apply as apply_feature_model
+            from .component_training import apply as apply_component_model
+
+            needs_legacy = any(
+                abs(model["weights"][kind][phase][1]) > 1e-9
+                for kind in ("DRIVER", "CONSTRUCTOR")
+                for phase in ("qualifying", "sprint", "race")
+            )
+            legacy = (
+                estimate_assets(
+                    assets,
+                    weekends,
+                    lookback,
+                    use_telemetry=use_telemetry,
+                    use_risk=False,
+                    use_model=False,
+                )
+                if needs_legacy
+                else output
             )
             for index, _weekend in enumerate(weekends):
                 for asset in assets:
@@ -426,13 +438,39 @@ def estimate_assets(
                         if naive_values
                         else current.race
                     )
-                    output[index, asset.id] = Estimate(
-                        weights["qualifying"][0] * current.qualifying
-                        + weights["qualifying"][1] * older.qualifying,
-                        weights["sprint"][0] * current.sprint
-                        + weights["sprint"][1] * older.sprint,
-                        weights["race"][0] * current.race
-                        + weights["race"][1] * older.race
-                        + weights["race"][2] * naive,
-                    )
+                    predicted = {}
+                    for phase in ("qualifying", "sprint", "race"):
+                        base = getattr(current, phase)
+                        if (
+                            phase == "race"
+                            and asset.kind == "DRIVER"
+                            and model.get("component_active")
+                        ):
+                            predicted[phase] = apply_component_model(
+                                base,
+                                features[index, asset.id][phase],
+                                model["component_weights"],
+                            )
+                            continue
+                        feature_score = (
+                            model.get("feature_metrics", {})
+                            .get(asset.kind, {})
+                            .get(phase, {})
+                        )
+                        if feature_score.get("promoted"):
+                            predicted[phase] = apply_feature_model(
+                                base,
+                                features[index, asset.id][phase],
+                                phase,
+                                model["feature_weights"][asset.kind][phase],
+                            )
+                        else:
+                            values = [base, getattr(older, phase)]
+                            if phase == "race":
+                                values.append(naive)
+                            predicted[phase] = sum(
+                                weight * value
+                                for weight, value in zip(weights[phase], values)
+                            )
+                    output[index, asset.id] = Estimate(**predicted)
     return (output, features) if return_features else output

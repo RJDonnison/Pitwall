@@ -12,11 +12,13 @@ import numpy as np
 from scipy.optimize import linprog
 
 from .backtest import BacktestRow, run_backtest
+from .component_training import replay as component_replay
 from .data import DataError, season_weekends
+from .feature_training import from_backtests, prior_features, replay as feature_replay
 from .prior_history import PriorWeek, load_previous_season
 from .risk import expected_session_points
 
-MODEL_VERSION = 3
+MODEL_VERSION = 5
 DEFAULT_MODEL_DIR = Path(".f1fantasy/models")
 
 
@@ -411,6 +413,26 @@ def load_model(season: int, directory: Path = DEFAULT_MODEL_DIR) -> dict | None:
                     or abs(sum(weights) - 1) > 1e-6
                 ):
                     raise DataError("Invalid saved calibration weights")
+        if result.get("feature_names") is not None:
+            from .feature_training import FEATURE_NAMES
+
+            if tuple(result["feature_names"]) != FEATURE_NAMES:
+                raise DataError("Invalid saved feature model schema")
+            for kind in ("DRIVER", "CONSTRUCTOR"):
+                for phase in ("qualifying", "sprint", "race"):
+                    vector = result["feature_weights"][kind][phase]
+                    if len(vector) != len(FEATURE_NAMES) or any(
+                        not isfinite(float(value)) or abs(float(value)) > 8
+                        for value in vector
+                    ):
+                        raise DataError("Invalid saved feature weights")
+        if result.get("component_weights") is not None:
+            weights = result["component_weights"]
+            if (
+                not 0.5 <= float(weights["probability_scale"]) <= 2.0
+                or not -5 <= float(weights["classified_bias"]) <= 5
+            ):
+                raise DataError("Invalid saved reliability weights")
         return result
     except (OSError, KeyError, TypeError, ValueError) as exc:
         raise DataError(f"Cannot verify saved model {path}: {exc}") from exc
@@ -453,6 +475,7 @@ def train(
             now=now,
             use_risk=True,
             use_model=False,
+            capture_features=True,
         )
         if complete
         else []
@@ -472,6 +495,33 @@ def train(
     report = replay_calibration(
         warm_start, observations(current, legacy), season, source
     )
+    previous_features, current_features = (
+        prior_features(warm_start),
+        from_backtests(current),
+    )
+    report.update(feature_replay(previous_features, current_features))
+    report.update(component_replay(previous_features, current_features))
+    if (
+        report["component_active"]
+        and report["feature_metrics"]["DRIVER"]["race"]["promoted"]
+    ):
+        if (
+            report["feature_metrics"]["DRIVER"]["race"]["feature_mae"]
+            < report["component_metrics"]["component_race_mae"]
+        ):
+            report["component_active"] = False
+            report["component_metrics"]["promoted"] = False
+        else:
+            report["feature_metrics"]["DRIVER"]["race"]["promoted"] = False
+            report["feature_weights"]["DRIVER"]["race"] = [0.0] * len(
+                report["feature_names"]
+            )
+            report["feature_active"] = any(
+                metrics["promoted"]
+                for kinds in report["feature_metrics"].values()
+                for metrics in kinds.values()
+            )
+    report["active"] |= report["feature_active"] or report["component_active"]
     report["lookback"] = lookback
     path = model_path(season, directory)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -25,6 +25,26 @@ def synthetic_rows():
         )
 
         def row(driver_race):
+            def features(q_points, sprint_points, race_points, prior_form):
+                return {
+                    phase: {
+                        "baseline": baseline,
+                        "fastf1_form": baseline,
+                        "official_form": prior_form,
+                        "recent3": prior_form,
+                        "team_form": prior_form,
+                        "circuit_form": baseline,
+                        "telemetry_delta": 0,
+                        "severe_probability": 0,
+                        "classified_points": prior_form,
+                    }
+                    for phase, baseline in (
+                        ("qualifying", q_points),
+                        ("sprint", sprint_points),
+                        ("race", race_points),
+                    )
+                }
+
             assets = (
                 BacktestAsset(
                     "d",
@@ -33,6 +53,7 @@ def synthetic_rows():
                     Estimate(3, 2 if event.sprint else 0, driver_race),
                     Estimate(3, 4 if event.sprint else 0, 20),
                     20,
+                    features(3, 2 if event.sprint else 0, driver_race, 20),
                 ),
                 BacktestAsset(
                     "c",
@@ -41,6 +62,7 @@ def synthetic_rows():
                     Estimate(6, 3 if event.sprint else 0, driver_race + 10),
                     Estimate(6, 6 if event.sprint else 0, 30),
                     30,
+                    features(6, 3 if event.sprint else 0, driver_race + 10, 30),
                 ),
             )
             return BacktestRow(
@@ -200,7 +222,7 @@ def test_official_prior_import_replaces_approximate_source(tmp_path, monkeypatch
 def test_invalid_weights_never_activate(tmp_path):
     path = training.model_path(2026, tmp_path)
     path.write_text(
-        '{"version":3,"season":2026,"active":true,"last_completed_round":10,'
+        '{"version":5,"season":2026,"active":true,"last_completed_round":10,'
         '"weights":{"DRIVER":{"race":[2,0,0],"sprint":[1,0],"qualifying":[1,0]},'
         '"CONSTRUCTOR":{"race":[1,0,0],"sprint":[1,0],"qualifying":[1,0]}}}'
     )
