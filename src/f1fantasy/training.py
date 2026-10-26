@@ -235,6 +235,10 @@ def train(
         )
     previous = load_model(season, directory)
     if previous is not None and previous["last_completed_round"] >= complete[-1].round:
+        if previous.get("lookback", 5) != lookback:
+            raise DataError(
+                "A model for these completed races already uses a different lookback; wait for another finalized race before retuning"
+            )
         return previous
     current = run_backtest(
         season,
@@ -253,6 +257,7 @@ def train(
         use_model=False,
     )
     report = fit_calibration(observations(current, legacy), season)
+    report["lookback"] = lookback
     path = model_path(season, directory)
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")

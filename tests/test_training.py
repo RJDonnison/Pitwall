@@ -83,6 +83,8 @@ def test_train_reuses_versioned_artifact_until_new_round(tmp_path, monkeypatch):
     assert training.load_model(2026, tmp_path)["active"] == first["active"]
     assert training.train(2026, directory=tmp_path, now=now) == first
     assert calls == [True, False]
+    with pytest.raises(DataError, match="different lookback"):
+        training.train(2026, directory=tmp_path, now=now, lookback=3)
 
 
 def test_invalid_weights_never_activate(tmp_path):
