@@ -33,7 +33,7 @@ def optimize(
     carry: int = 0,
     allow_penalties: bool = False,
 ) -> list[Lineup]:
-    """Maximize discounted points with net incoming transfers and carry-over.
+    """Maximize total predicted points with net transfers and carry-over.
 
     Prices are held fixed for hypothetical later races; the next CLI run fetches
     real prices and re-optimizes. Budget is measured in $0.1m increments.
@@ -82,14 +82,13 @@ def optimize(
         x: dict[str, int] = {}
         b: dict[str, int] = {}
         z: dict[str, int] = {}
-        weight = 0.85**t
         for asset in assets:
             score = estimates.get((t, asset.id))
             if score is None or not np.isfinite(score.total):
                 raise DataError(f"Missing forecast for {asset.name} at {weekend.name}")
-            x[asset.id] = var(-weight * score.total)
+            x[asset.id] = var(-score.total)
             if asset.kind == "DRIVER":
-                b[asset.id] = var(-weight * score.total)
+                b[asset.id] = var(-score.total)
                 row({b[asset.id]: 1, x[asset.id]: -1}, high=0)
         row({x[a.id]: 1 for a in drivers}, low=5, high=5)
         row({x[a.id]: 1 for a in constructors}, low=2, high=2)
@@ -117,7 +116,7 @@ def optimize(
             else:
                 row({z[asset.id]: 1}, high=1 - prior)
         incoming.append(z)
-        penalty = var(10 * weight, ub=7 if allow_penalties else 0)
+        penalty = var(10, ub=7 if allow_penalties else 0)
         extra.append(penalty)
         available = carried[t - 1] if t else None
         next_carry = var() if t < len(weekends) - 1 else None
@@ -147,7 +146,7 @@ def optimize(
         integrality=np.asarray(integer),
         bounds=Bounds(np.zeros(len(objective)), np.asarray(upper)),
         constraints=LinearConstraint(matrix, lower_rows, upper_rows),
-        options={"time_limit": 60, "mip_rel_gap": 0.005},
+        options={"time_limit": 60, "mip_rel_gap": 0},
     )
     if result.x is None or result.status != 0:
         raise DataError(f"No verified optimal team (solver: {result.message})")
