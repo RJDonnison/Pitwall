@@ -26,6 +26,8 @@ def test_sprint_uses_prior_results_only(monkeypatch):
             return pd.Timestamp("2026-03-05")
 
     monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "configure_cache", lambda: None)
+    monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
     monkeypatch.setattr(projections, "season_weekends", lambda _: [])
     monkeypatch.setattr(
         projections,
@@ -95,6 +97,8 @@ def test_official_bonuses_use_only_earlier_completed_races(monkeypatch):
         datetime(2026, 3, 4, tzinfo=timezone.utc),
     )
     monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "configure_cache", lambda: None)
+    monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
     monkeypatch.setattr(projections, "season_weekends", lambda _: [previous, target])
     monkeypatch.setattr(projections, "_track_form", lambda weekends, cutoff: {0: {}})
     monkeypatch.setattr(
@@ -194,6 +198,8 @@ def test_track_form_changes_only_matched_weekend_forecast(monkeypatch):
             return pd.Timestamp("2026-07-25")
 
     monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "configure_cache", lambda: None)
+    monkeypatch.setattr(projections, "telemetry_adjustments", lambda *_: {})
     monkeypatch.setattr(projections, "season_weekends", lambda _: [])
     monkeypatch.setattr(
         projections.fastf1, "get_event", lambda *_: Event(EventFormat="conventional")
@@ -208,3 +214,42 @@ def test_track_form_changes_only_matched_weekend_forecast(monkeypatch):
     forecast = projections.estimate_assets(assets, weekends, lookback=1)
     assert forecast[0, "a"].race > forecast[1, "a"].race
     assert forecast[0, "b"].race == forecast[1, "b"].race
+
+
+def test_telemetry_adjustment_flows_into_driver_and_constructor(monkeypatch):
+    assets = (
+        Asset("a", "A", "DRIVER", "team", 50, "AAA"),
+        Asset("b", "B", "DRIVER", "team", 50, "BBB"),
+        Asset("c", "Team", "CONSTRUCTOR", "team", 50),
+    )
+    target = Weekend(
+        2026, 2, "Sprint", 2, datetime(2026, 5, 1, tzinfo=timezone.utc), True, False
+    )
+
+    class Event(dict):
+        def get_session_date(self, *_args, **_kwargs):
+            return pd.Timestamp("2026-04-01")
+
+    monkeypatch.setattr(projections, "configure_cache", lambda: None)
+    monkeypatch.setattr(projections, "fastf1_weekend", lambda _: None)
+    monkeypatch.setattr(projections, "season_weekends", lambda _: [])
+    monkeypatch.setattr(
+        projections.fastf1, "get_event_schedule", lambda *_: {"RoundNumber": [0]}
+    )
+    monkeypatch.setattr(
+        projections.fastf1, "get_event", lambda *_: Event(EventFormat="sprint")
+    )
+    monkeypatch.setattr(projections, "_session_scores", lambda *_: {"AAA": 5, "BBB": 5})
+    monkeypatch.setattr(projections, "_track_form", lambda *_: {0: {}})
+    monkeypatch.setattr(
+        projections, "telemetry_adjustments", lambda *_: {(0, "a"): (2, 1, 4)}
+    )
+    result = projections.estimate_assets(assets, [target], lookback=1)
+    assert result[0, "a"].qualifying == 7
+    assert result[0, "a"].sprint == 6
+    assert result[0, "c"].race == 14
+    baseline = projections.estimate_assets(
+        assets, [target], lookback=1, use_telemetry=False
+    )
+    assert baseline[0, "a"].qualifying == 5
+    assert baseline[0, "c"].race == 10

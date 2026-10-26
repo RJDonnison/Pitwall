@@ -17,6 +17,8 @@ from .data import (
     fastf1_weekend,
     season_weekends,
 )
+from .history import configure_cache
+from .telemetry_model import adjustments as telemetry_adjustments
 
 QUALIFYING = {position: 11 - position for position in range(1, 11)}
 RACE = {
@@ -130,7 +132,11 @@ def _track_form(
 
 
 def estimate_assets(
-    assets: tuple[Asset, ...], weekends: list[Weekend], lookback: int = 5
+    assets: tuple[Asset, ...],
+    weekends: list[Weekend],
+    lookback: int = 5,
+    *,
+    use_telemetry: bool = True,
 ) -> dict[tuple[int, str], Estimate]:
     """Use completed rounds strictly before the first predicted weekend.
 
@@ -139,6 +145,7 @@ def estimate_assets(
     """
     if not weekends or lookback < 1:
         raise ValueError("Need upcoming weekends and at least one historical race")
+    configure_cache()
     for weekend in weekends:
         fastf1_weekend(weekend)
     first = weekends[0]
@@ -190,6 +197,7 @@ def estimate_assets(
     if not any(h.get("R") for h in history.values()):
         raise DataError("No completed race results available before the weekend")
     track = _track_form(weekends, first.first_session)
+    telemetry = telemetry_adjustments(assets, weekends) if use_telemetry else {}
 
     def mean(values: list[float], default: float) -> float:
         if not values:
@@ -237,6 +245,10 @@ def estimate_assets(
                 if weekend.sprint
                 else 0.0
             )
+            q_delta, s_delta, r_delta = telemetry.get(
+                (index, driver.id), (0.0, 0.0, 0.0)
+            )
+            q, s, r = q + q_delta, s + s_delta, r + r_delta
             output[index, driver.id] = Estimate(q, s, r)
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [

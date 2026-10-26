@@ -37,7 +37,7 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     monkeypatch.setattr(
         backtest,
         "estimate_assets",
-        lambda a, w, lookback: {
+        lambda a, w, lookback, use_telemetry: {
             (0, "d"): Estimate(2, 3 if w[0].sprint else 0, 5),
             (0, "c"): Estimate(3, 4 if w[0].sprint else 0, 6),
         },
@@ -60,6 +60,13 @@ def test_rolling_evaluation_splits_sprint_and_regular(monkeypatch, capsys):
     assert cli.main(["--season", "2026", "backtest", "--races", "2"]) == 0
     printed = capsys.readouterr().out
     assert "Sprint (1 weekends)" in printed and "regular (1 weekends)" in printed
+    assert (
+        cli.main(
+            ["--season", "2026", "backtest", "--races", "2", "--compare-telemetry"]
+        )
+        == 0
+    )
+    assert "telemetry comparison" in capsys.readouterr().out
 
 
 def test_backtest_requires_completed_race(monkeypatch):

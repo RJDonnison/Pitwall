@@ -24,7 +24,7 @@ def test_cli_import_and_recommendation(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(
         cli,
         "estimate_assets",
-        lambda a, w: {(0, item.id): Estimate(2, 3, 5) for item in a},
+        lambda a, w, **kwargs: {(0, item.id): Estimate(2, 3, 5) for item in a},
     )
     state_file = tmp_path / "team.json"
     import_file = tmp_path / "import.json"

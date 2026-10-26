@@ -114,6 +114,11 @@ def _parser() -> argparse.ArgumentParser:
         )
     recommend.add_argument("--races", type=int, default=3)
     recommend.add_argument(
+        "--no-telemetry",
+        action="store_true",
+        help="Use the results-only forecast for comparison",
+    )
+    recommend.add_argument(
         "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
     )
     backtest = commands.add_parser(
@@ -121,12 +126,20 @@ def _parser() -> argparse.ArgumentParser:
     )
     backtest.add_argument("--races", type=int, default=4)
     backtest.add_argument("--lookback", type=int, default=5)
+    backtest.add_argument(
+        "--compare-telemetry",
+        action="store_true",
+        help="Compare point errors with and without cached telemetry",
+    )
     warm = commands.add_parser(
         "preload", help="Cache completed sessions for this season and the previous two"
     )
     warm.add_argument("--seasons", type=int, default=3)
     warm.add_argument("--refresh", action="store_true")
     warm.add_argument("--status", action="store_true")
+    warm.add_argument("--year", type=int)
+    warm.add_argument("--round", type=int)
+    warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
     return parser
 
 
@@ -138,7 +151,13 @@ def main(argv: list[str] | None = None) -> int:
                 for year, count in sorted(cache_status().items()):
                     print(f"{year}: {count} processed sessions")
                 return 0
-            stored, skipped, gaps = preload(seasons=args.seasons, refresh=args.refresh)
+            stored, skipped, gaps = preload(
+                seasons=args.seasons,
+                refresh=args.refresh,
+                target_year=args.year,
+                target_round=args.round,
+                session_name=args.session,
+            )
             print(
                 f"Processed {stored} sessions; reused {skipped}; unavailable {len(gaps)}"
             )
@@ -173,6 +192,22 @@ def main(argv: list[str] | None = None) -> int:
                         f"constructor MAE "
                         f"{sum(r.constructor_error * r.constructors for r in group) / constructors:.1f}"
                     )
+            if args.compare_telemetry:
+                baseline = run_backtest(
+                    args.season,
+                    count=args.races,
+                    lookback=args.lookback,
+                    use_telemetry=False,
+                )
+                for label, group in (("regular", False), ("Sprint", True)):
+                    actual = [r for r in rows if r.weekend.sprint == group]
+                    old = [r for r in baseline if r.weekend.sprint == group]
+                    if actual:
+                        print(
+                            f"{label} telemetry comparison (driver MAE): "
+                            f"{sum(r.driver_error for r in old) / len(old):.1f} baseline → "
+                            f"{sum(r.driver_error for r in actual) / len(actual):.1f} telemetry"
+                        )
             return 0
         if args.command == "recommend" and not 1 <= args.races <= 5:
             raise DataError("--races must be between 1 and 5")
@@ -224,7 +259,9 @@ def main(argv: list[str] | None = None) -> int:
         else:
             previous, budget, carry = _validate_state(state, live.assets, args.season)
         horizon = weekends[: args.races]
-        forecasts = estimate_assets(live.assets, horizon)
+        forecasts = estimate_assets(
+            live.assets, horizon, use_telemetry=not args.no_telemetry
+        )
         lineups = optimize(
             live.assets,
             horizon,

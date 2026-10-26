@@ -184,6 +184,9 @@ def preload(
     root: Path = DEFAULT_CACHE,
     refresh: bool = False,
     now: datetime | None = None,
+    target_year: int | None = None,
+    target_round: int | None = None,
+    session_name: str | None = None,
 ) -> tuple[int, int, list[str]]:
     """Download and summarize all *completed* sessions; safely resume existing work."""
     if seasons not in (1, 2, 3):
@@ -191,10 +194,19 @@ def preload(
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         raise DataError("Preload cutoff must include a timezone")
+    if (
+        target_year is not None
+        and not now.year - seasons + 1 <= target_year <= now.year
+    ):
+        raise ValueError("--year must be within the selected seasons")
+    if target_round is not None and (target_year is None or target_round < 1):
+        raise ValueError("--round requires --year and must be positive")
     configure_cache(root)
     stored = skipped = 0
     gaps: list[str] = []
     for year in range(now.year - seasons + 1, now.year + 1):
+        if target_year is not None and year != target_year:
+            continue
         try:
             schedule = fastf1.get_event_schedule(year)
         except Exception as exc:
@@ -204,10 +216,17 @@ def preload(
             round_number = int(listing["RoundNumber"])
             if round_number < 1:
                 continue
+            if target_round is not None and round_number != target_round:
+                continue
             event = fastf1.get_event(year, round_number)
             for identifier in range(1, 6):
                 name = event.get(f"Session{identifier}")
                 if not isinstance(name, str) or not name.strip():
+                    continue
+                if (
+                    session_name is not None
+                    and name.casefold() != session_name.casefold()
+                ):
                     continue
                 date = event.get_session_date(identifier, utc=True)
                 if date is None or pd.isna(date):
@@ -253,3 +272,29 @@ def cache_status(root: Path = DEFAULT_CACHE) -> dict[int, int]:
         for folder in directory.iterdir()
         if folder.is_dir() and folder.name.isdigit()
     }
+
+
+def historical_features(
+    cutoff: datetime, root: Path = DEFAULT_CACHE
+) -> list[dict[str, Any]]:
+    """Read cached features from the three relevant seasons before a weekend."""
+    directory = root / "features" / f"v{SCHEMA}"
+    if not directory.exists():
+        return []
+    features = []
+    for year in range(cutoff.year - 2, cutoff.year + 1):
+        for path in sorted((directory / str(year)).glob("*.json")):
+            try:
+                number, session = map(int, path.stem.split("-"))
+                raw = json.loads(path.read_text())
+                date = datetime.fromisoformat(raw["completed_at"])
+                if date.tzinfo is None:
+                    raise DataError(f"Telemetry cache has no UTC timestamp: {path}")
+                if date >= cutoff:
+                    continue
+                verified = load_features(year, number, session, cutoff, root)
+                if verified is not None:
+                    features.append(verified)
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                raise DataError(f"Cannot verify telemetry cache {path}: {exc}") from exc
+    return features
