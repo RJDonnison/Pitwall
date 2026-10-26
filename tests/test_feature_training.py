@@ -56,3 +56,33 @@ def test_feature_vector_is_validated_and_predictions_are_bounded():
     values["severe_probability"] = float("nan")
     with pytest.raises(DataError, match="Non-finite"):
         feature_training.vector(values)
+
+
+def test_replay_reports_pre_result_unbudgeted_ranking_and_boost():
+    week = []
+    for kind, count in (("DRIVER", 6), ("CONSTRUCTOR", 3)):
+        for index in range(count):
+            id_ = f"{kind}{index}"
+            score = 10 - index
+            actual = 15 if index == count - 1 else score
+            for phase in ("qualifying", "race"):
+                week.append(
+                    feature_training.Example(
+                        1,
+                        kind,
+                        phase,
+                        actual if phase == "race" else 0,
+                        score if phase == "race" else 0,
+                        (1.0,) + (0.0,) * (len(feature_training.FEATURE_NAMES) - 1),
+                        asset_id=id_,
+                    )
+                )
+    fitted = {
+        (kind, phase): [0.0] * len(feature_training.FEATURE_NAMES)
+        for kind in ("DRIVER", "CONSTRUCTOR")
+        for phase in ("qualifying", "race")
+    }
+    ranking = feature_training.ranking_diagnostics(week, fitted)
+    assert ranking["baseline"]["drivers"]["top_pick_overlap"] == 4
+    assert ranking["baseline"]["drivers"]["unbudgeted_points_regret"] > 0
+    assert "boost_regret_within_predicted_five" in ranking["trained"]["drivers"]

@@ -222,7 +222,7 @@ def test_official_prior_import_replaces_approximate_source(tmp_path, monkeypatch
 def test_invalid_weights_never_activate(tmp_path):
     path = training.model_path(2026, tmp_path)
     path.write_text(
-        '{"version":5,"season":2026,"active":true,"last_completed_round":10,'
+        '{"version":6,"season":2026,"active":true,"last_completed_round":10,'
         '"weights":{"DRIVER":{"race":[2,0,0],"sprint":[1,0],"qualifying":[1,0]},'
         '"CONSTRUCTOR":{"race":[1,0,0],"sprint":[1,0],"qualifying":[1,0]}}}'
     )

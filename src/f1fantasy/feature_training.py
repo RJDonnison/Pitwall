@@ -7,8 +7,10 @@ from math import isfinite
 
 import numpy as np
 
-from .backtest import BacktestRow
+from .backtest import BacktestAsset, BacktestRow
 from .data import DataError
+from .evaluation import selection_metrics
+from .projections import Estimate
 
 FEATURE_NAMES = (
     "bias",
@@ -32,6 +34,7 @@ class Example:
     baseline: float
     vector: tuple[float, ...]
     source: str = "current_official"
+    asset_id: str = ""
 
 
 def vector(values: dict[str, float]) -> tuple[float, ...]:
@@ -73,6 +76,7 @@ def from_backtests(rows: list[BacktestRow]) -> list[Example]:
                         getattr(asset.actual, phase),
                         getattr(asset.predicted, phase),
                         vector(asset.features[phase]),
+                        asset_id=asset.id,
                     )
                 )
     return result
@@ -150,6 +154,46 @@ def apply(
     return predict(example, weights)
 
 
+def ranking_diagnostics(
+    week: list[Example], fitted: dict[tuple[str, str], list[float]]
+) -> dict | None:
+    if not week or any(not item.asset_id for item in week):
+        return None
+    assets: dict[str, dict] = {}
+    for item in week:
+        record = assets.setdefault(
+            item.asset_id,
+            {"kind": item.kind, "baseline": {}, "trained": {}, "actual": {}},
+        )
+        record["baseline"][item.phase] = item.baseline
+        record["trained"][item.phase] = predict(item, fitted[item.kind, item.phase])
+        record["actual"][item.phase] = item.actual
+    output = {}
+    for label in ("baseline", "trained"):
+        rows = tuple(
+            BacktestAsset(
+                id_,
+                id_,
+                record["kind"],
+                Estimate(
+                    *(
+                        record[label].get(phase, 0.0)
+                        for phase in ("qualifying", "sprint", "race")
+                    )
+                ),
+                Estimate(
+                    *(
+                        record["actual"].get(phase, 0.0)
+                        for phase in ("qualifying", "sprint", "race")
+                    )
+                ),
+            )
+            for id_, record in assets.items()
+        )
+        output[label] = selection_metrics(rows)
+    return output
+
+
 def replay(prior: list[Example], current: list[Example]) -> dict:
     """Refit only after each round's forecasts have been scored."""
     pool = list(prior)
@@ -159,6 +203,7 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
     for round_number in rounds:
         week = [item for item in current if item.round == round_number]
         measurements = {}
+        fitted = {}
         for kind in ("DRIVER", "CONSTRUCTOR"):
             for phase in ("qualifying", "sprint", "race"):
                 target = [
@@ -173,6 +218,7 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
                     3 if phase == "sprint" else 5
                 )
                 weights = fit(historic) if available else [0.0] * len(FEATURE_NAMES)
+                fitted[kind, phase] = weights
                 plain = sum(abs(item.baseline - item.actual) for item in target) / len(
                     target
                 )
@@ -185,7 +231,13 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
                     "feature_mae": trained,
                     "prior_examples": len(historic),
                 }
-        weekly.append({"round": round_number, "errors": measurements})
+        weekly.append(
+            {
+                "round": round_number,
+                "errors": measurements,
+                "ranking": ranking_diagnostics(week, fitted),
+            }
+        )
         pool.extend(week)
     active = False
     for kind in ("DRIVER", "CONSTRUCTOR"):
@@ -215,10 +267,53 @@ def replay(prior: list[Example], current: list[Example]) -> dict:
                 "promoted": promoted,
             }
             active |= promoted
+    ranking_summary = {}
+    for kind, label in (("DRIVER", "drivers"), ("CONSTRUCTOR", "constructors")):
+        scored = [
+            entry["ranking"]
+            for entry in weekly
+            if entry["ranking"] is not None
+            and entry["ranking"]["baseline"].get(label)
+            and entry["ranking"]["trained"].get(label)
+        ]
+        if not scored:
+            continue
+        recent = scored[len(scored) // 2 :]
+        avg = lambda rows, version, key: (
+            sum(row[version][label][key] for row in rows) / len(rows)
+        )
+        baseline = avg(recent, "baseline", "unbudgeted_points_regret")
+        candidate = avg(recent, "trained", "unbudgeted_points_regret")
+        boosts = (
+            (
+                avg(recent, "baseline", "boost_regret_within_predicted_five"),
+                avg(recent, "trained", "boost_regret_within_predicted_five"),
+            )
+            if kind == "DRIVER"
+            else None
+        )
+        worsened = candidate > baseline + 2.0 or (
+            boosts is not None and boosts[1] > boosts[0] + 2.0
+        )
+        ranking_summary[label] = {
+            "weekends": len(scored),
+            "recent_baseline_unbudgeted_regret": baseline,
+            "recent_candidate_unbudgeted_regret": candidate,
+            "recent_boost_regret": boosts,
+            "blocked_promotion": worsened,
+        }
+        if worsened:
+            for phase in ("qualifying", "sprint", "race"):
+                metrics[kind][phase]["promoted"] = False
+                coefficients[kind][phase] = [0.0] * len(FEATURE_NAMES)
+    active = any(
+        metric["promoted"] for group in metrics.values() for metric in group.values()
+    )
     return {
         "feature_names": list(FEATURE_NAMES),
         "feature_weights": coefficients,
         "feature_metrics": metrics,
         "feature_weekly": weekly,
         "feature_active": active,
+        "ranking_summary": ranking_summary,
     }
