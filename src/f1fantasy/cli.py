@@ -189,6 +189,11 @@ def _parser() -> argparse.ArgumentParser:
         "train", help="Fit and validate forecast weights on completed races"
     )
     training.add_argument("--lookback", type=int, default=5)
+    training.add_argument(
+        "--prior-season-scores",
+        type=Path,
+        help="Import verified prior-season Fantasy scores instead of FastF1 proxies",
+    )
     for command in (
         init,
         prices,
@@ -247,7 +252,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "train":
             if not 1 <= args.lookback <= 10:
                 raise DataError("--lookback must be between 1 and 10")
-            report = train(args.season, lookback=args.lookback)
+            report = train(
+                args.season,
+                lookback=args.lookback,
+                prior_scores_file=args.prior_season_scores,
+            )
             path = str(model_path(args.season))
             if args.format == "json":
                 _json_output("train", {"model_path": path, "model": report})
@@ -256,18 +265,19 @@ def main(argv: list[str] | None = None) -> int:
                     f"Model: {path} ({'active' if report['active'] else 'baseline retained'})"
                 )
                 print(
-                    f"Train rounds: {report['trained_rounds']}; validation: "
-                    f"{report['validation_rounds']}; untouched test: {report['test_rounds']}"
+                    f"Warm-start: {report['prior_season']} ({report['prior_source']}, "
+                    f"{report['prior_examples']} examples); "
+                    f"replayed current-season rounds: {report['replay_rounds']}"
                 )
                 for kind, phases in report["metrics"].items():
                     for phase, metrics in phases.items():
-                        if "test" in metrics:
+                        if "replay_mae" in metrics:
                             print(
-                                f"  {kind} {phase}: validation "
-                                f"{metrics['validation']['baseline_mae']:.1f} → "
-                                f"{metrics['validation']['candidate_mae']:.1f}; "
-                                f"test {metrics['test']['baseline_mae']:.1f} → "
-                                f"{metrics['test']['candidate_mae']:.1f}; "
+                                f"  {kind} {phase}: walk-forward MAE "
+                                f"{metrics['baseline_mae']:.1f} baseline → "
+                                f"{metrics['replay_mae']:.1f} trained; "
+                                f"recent half {metrics['recent_baseline_mae']:.1f} → "
+                                f"{metrics['recent_replay_mae']:.1f}; "
                                 f"{'promoted' if metrics['promoted'] else 'not promoted'}"
                             )
             return 0

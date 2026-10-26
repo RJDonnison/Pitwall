@@ -13,8 +13,10 @@ from scipy.optimize import linprog
 
 from .backtest import BacktestRow, run_backtest
 from .data import DataError, season_weekends
+from .prior_history import PriorWeek, load_previous_season
+from .risk import expected_session_points
 
-MODEL_VERSION = 1
+MODEL_VERSION = 3
 DEFAULT_MODEL_DIR = Path(".f1fantasy/models")
 
 
@@ -25,6 +27,13 @@ class Observation:
     session: str
     actual: float
     signals: tuple[float, ...]
+    source: str = "current_official"
+
+
+def _source_weight(source: str) -> float:
+    return {"fastf1_proxy": 0.2, "imported_official": 0.65, "current_official": 1.0}[
+        source
+    ]
 
 
 def model_path(season: int, directory: Path = DEFAULT_MODEL_DIR) -> Path:
@@ -91,7 +100,10 @@ def chronological_split(rounds: list[int]) -> tuple[list[int], list[int], list[i
 def _fit(samples: list[Observation], count: int) -> list[float]:
     """Minimize absolute error with nonnegative weights and a baseline prior."""
     n = len(samples)
-    objective = np.array([-0.3] + [0.0] * (count - 1) + [1 / n] * n)
+    sources = [_source_weight(sample.source) for sample in samples]
+    objective = np.array(
+        [-0.3] + [0.0] * (count - 1) + [weight / sum(sources) for weight in sources]
+    )
     constraints, limits = [], []
     for index, sample in enumerate(samples):
         positive = list(sample.signals) + [0.0] * n
@@ -187,6 +199,196 @@ def fit_calibration(items: list[Observation], season: int) -> dict:
     return report
 
 
+def prior_observations(
+    weeks: list[PriorWeek], source: str = "fastf1_proxy"
+) -> list[Observation]:
+    """Generate warm-start examples; never use a weekend as its own feature."""
+    output: list[Observation] = []
+    history: dict[str, dict[str, list[float]]] = {}
+    for week in weeks:
+        drivers = [asset for asset in week.assets if asset.kind == "DRIVER"]
+        for asset in week.assets:
+            past = history.get(asset.id, {})
+            if len(past.get("R", [])) < 3:
+                continue
+            race = past["R"]
+            legacy_race = sum(
+                value * index for index, value in enumerate(race, 1)
+            ) / sum(range(1, len(race) + 1))
+            naive_race = sum(race[-3:]) / 3
+            risk_race = (
+                expected_session_points(asset, "R", history, drivers, legacy_race)
+                if asset.kind == "DRIVER"
+                else legacy_race
+            )
+            old_q = past.get("Q", [])
+            q_forecast = sum(old_q[-3:]) / len(old_q[-3:]) if old_q else 0.0
+            actual = week.scores[asset.id]
+            output.append(
+                Observation(
+                    week.weekend.round,
+                    asset.kind,
+                    "qualifying",
+                    actual.qualifying,
+                    (q_forecast, q_forecast),
+                    source,
+                )
+            )
+            output.append(
+                Observation(
+                    week.weekend.round,
+                    asset.kind,
+                    "race",
+                    actual.race,
+                    (risk_race, legacy_race, naive_race),
+                    source,
+                )
+            )
+            if week.weekend.sprint:
+                sprint_history = past.get("S", [])
+                legacy_sprint = (
+                    sum(sprint_history) / len(sprint_history)
+                    if sprint_history
+                    else max(0, legacy_race) * 0.35
+                )
+                risk_sprint = (
+                    expected_session_points(
+                        asset,
+                        "S",
+                        history,
+                        drivers,
+                        legacy_sprint,
+                        race_finish_reference=risk_race,
+                    )
+                    if asset.kind == "DRIVER"
+                    else legacy_sprint
+                )
+                output.append(
+                    Observation(
+                        week.weekend.round,
+                        asset.kind,
+                        "sprint",
+                        actual.sprint,
+                        (risk_sprint, legacy_sprint),
+                        source,
+                    )
+                )
+        for asset in week.assets:
+            points = week.scores[asset.id]
+            record = history.setdefault(asset.id, {})
+            for phase, value in (
+                ("Q", points.qualifying),
+                ("S", points.sprint),
+                ("R", points.race),
+            ):
+                if phase != "S" or week.weekend.sprint:
+                    record.setdefault(phase, []).append(value)
+    if len({item.round for item in output}) < 5:
+        raise DataError("Previous season lacks enough completed race examples")
+    return output
+
+
+def replay_calibration(
+    prior: list[Observation], current: list[Observation], season: int, source: str
+) -> dict:
+    """Test current-season round N, then add N to training before round N+1."""
+    rounds = sorted({item.round for item in current})
+    if len(rounds) < 3:
+        raise DataError("Need at least three finalized current-season races for replay")
+    pool = list(prior)
+    weekly = []
+    recorded: dict[tuple[str, str], list[tuple[int, float, float]]] = {}
+    for round_number in rounds:
+        target = [item for item in current if item.round == round_number]
+        errors: dict[str, dict] = {}
+        for kind in ("DRIVER", "CONSTRUCTOR"):
+            for phase in ("qualifying", "sprint", "race"):
+                sample = [
+                    item
+                    for item in target
+                    if item.kind == kind and item.session == phase
+                ]
+                if not sample:
+                    continue
+                historical = [
+                    item for item in pool if item.kind == kind and item.session == phase
+                ]
+                count = len(sample[0].signals)
+                base = [1.0] + [0.0] * (count - 1)
+                distinct = len({item.round for item in historical})
+                # A few prior Sprints cannot justify independent tuning.
+                weights = (
+                    _fit(historical, count)
+                    if distinct >= (3 if phase == "sprint" else 5)
+                    else base
+                )
+                old_error, new_error = _mae(sample, base), _mae(sample, weights)
+                recorded.setdefault((kind, phase), []).append(
+                    (round_number, old_error, new_error)
+                )
+                errors[f"{kind}.{phase}"] = {
+                    "baseline_mae": old_error,
+                    "replay_mae": new_error,
+                    "weights_before_race": weights,
+                    "prior_examples": len(historical),
+                }
+        weekly.append({"round": round_number, "errors": errors})
+        pool.extend(target)  # never let the tested round leak into its own fit
+    report: dict = {
+        "version": MODEL_VERSION,
+        "mode": "prequential",
+        "season": season,
+        "prior_season": season - 1,
+        "prior_source": source,
+        "prior_examples": len(prior),
+        "prior_example_weight": _source_weight(source),
+        "replay_rounds": rounds,
+        "weekly": weekly,
+        "last_completed_round": rounds[-1],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "weights": {},
+        "metrics": {},
+        "active": False,
+    }
+    for kind in ("DRIVER", "CONSTRUCTOR"):
+        report["weights"][kind], report["metrics"][kind] = {}, {}
+        for phase in ("qualifying", "sprint", "race"):
+            observations_for_phase = [
+                item for item in pool if item.kind == kind and item.session == phase
+            ]
+            count = 3 if phase == "race" else 2
+            base = [1.0] + [0.0] * (count - 1)
+            comparisons = recorded.get((kind, phase), [])
+            if len(comparisons) < (3 if phase == "sprint" else 5):
+                report["weights"][kind][phase] = base
+                report["metrics"][kind][phase] = {
+                    "reason": "insufficient replay races",
+                    "promoted": False,
+                }
+                continue
+            baseline = sum(item[1] for item in comparisons) / len(comparisons)
+            replay = sum(item[2] for item in comparisons) / len(comparisons)
+            recent = comparisons[len(comparisons) // 2 :]
+            baseline_recent = sum(item[1] for item in recent) / len(recent)
+            replay_recent = sum(item[2] for item in recent) / len(recent)
+            promoted = (
+                replay + 0.05 < baseline and replay_recent + 0.05 < baseline_recent
+            )
+            report["weights"][kind][phase] = (
+                _fit(observations_for_phase, count) if promoted else base
+            )
+            report["metrics"][kind][phase] = {
+                "promoted": promoted,
+                "weekends": len(comparisons),
+                "baseline_mae": baseline,
+                "replay_mae": replay,
+                "recent_baseline_mae": baseline_recent,
+                "recent_replay_mae": replay_recent,
+            }
+            report["active"] |= promoted
+    return report
+
+
 def load_model(season: int, directory: Path = DEFAULT_MODEL_DIR) -> dict | None:
     path = model_path(season, directory)
     if not path.exists():
@@ -220,26 +422,30 @@ def train(
     directory: Path = DEFAULT_MODEL_DIR,
     lookback: int = 5,
     now: datetime | None = None,
+    prior_scores_file: Path | None = None,
 ) -> dict:
     now = now or datetime.now(timezone.utc)
     complete = [
         w
         for w in season_weekends(season)
-        if w.last_session is not None
-        and w.last_session + timedelta(days=1) < now
-        and w.round >= 5
+        if w.last_session is not None and w.last_session + timedelta(days=1) < now
     ]
-    if len(complete) < 8:
-        raise DataError(
-            "At least eight finalized weekends after round four are required"
-        )
+    if len(complete) < 3:
+        raise DataError("Need at least three finalized current-season weekends")
     previous = load_model(season, directory)
-    if previous is not None and previous["last_completed_round"] >= complete[-1].round:
+    desired_source = "imported_official" if prior_scores_file else "fastf1_proxy"
+    if (
+        previous is not None
+        and previous["last_completed_round"] >= complete[-1].round
+        and previous.get("prior_source") == desired_source
+    ):
         if previous.get("lookback", 5) != lookback:
             raise DataError(
                 "A model for these completed races already uses a different lookback; wait for another finalized race before retuning"
             )
         return previous
+    prior_weeks, source = load_previous_season(season, official_file=prior_scores_file)
+    warm_start = prior_observations(prior_weeks, source)
     current = run_backtest(
         season,
         count=len(complete),
@@ -256,7 +462,9 @@ def train(
         use_risk=False,
         use_model=False,
     )
-    report = fit_calibration(observations(current, legacy), season)
+    report = replay_calibration(
+        warm_start, observations(current, legacy), season, source
+    )
     report["lookback"] = lookback
     path = model_path(season, directory)
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -5,7 +5,8 @@ import pytest
 from f1fantasy import training
 from f1fantasy import cli
 from f1fantasy.backtest import BacktestAsset, BacktestRow
-from f1fantasy.data import DataError, Weekend
+from f1fantasy.data import Asset, DataError, Weekend
+from f1fantasy.prior_history import PriorWeek
 from f1fantasy.projections import Estimate
 
 
@@ -51,23 +52,104 @@ def synthetic_rows():
     return modern, legacy
 
 
-def test_split_and_learned_weights_improve_unseen_races():
+def prior_weeks():
+    asset = Asset("d", "Driver", "DRIVER", "team", 30, "DDD")
+    team = Asset("c", "Team", "CONSTRUCTOR", "team", 30)
+    return [
+        PriorWeek(
+            Weekend(
+                2025,
+                round_number,
+                f"Prior {round_number}",
+                round_number,
+                datetime(2025, 4, round_number, tzinfo=timezone.utc),
+                False,
+                True,
+            ),
+            (asset, team),
+            {"d": Estimate(3, 0, 20), "c": Estimate(6, 0, 30)},
+        )
+        for round_number in range(1, 9)
+    ]
+
+
+def test_previous_season_seed_then_test_each_current_race_before_learning_it():
     current, older = synthetic_rows()
-    entries = training.observations(current, older)
-    artifact = training.fit_calibration(entries, 2026)
-    assert artifact["trained_rounds"] == list(range(5, 11))
-    assert artifact["validation_rounds"] == [11, 12, 13]
-    assert artifact["test_rounds"] == [14, 15, 16]
+    prior = training.prior_observations(prior_weeks())
+    artifact = training.replay_calibration(
+        prior, training.observations(current, older), 2026, "fastf1_proxy"
+    )
+    assert artifact["prior_season"] == 2025
+    assert artifact["replay_rounds"] == list(range(5, 17))
+    first = artifact["weekly"][0]["errors"]["DRIVER.race"]
+    second = artifact["weekly"][1]["errors"]["DRIVER.race"]
+    assert first["prior_examples"] == 5  # no current-season result before first test
+    assert first["replay_mae"] > second["replay_mae"]
+    assert second["prior_examples"] == 6  # first test added only afterwards
     assert artifact["active"]
     assert artifact["weights"]["DRIVER"]["race"][0] < 1
-    assert artifact["metrics"]["DRIVER"]["race"]["test"]["candidate_mae"] < 10
     assert artifact["metrics"]["DRIVER"]["sprint"]["promoted"] is False
+
+
+def test_first_race_is_predicted_before_it_can_train_second_race():
+    current, legacy = [], []
+    for number in (1, 2, 3):
+        event = Weekend(
+            2026,
+            number,
+            f"Round {number}",
+            number,
+            datetime(2026, 3, number, tzinfo=timezone.utc),
+            False,
+            True,
+        )
+
+        def row(driver_race):
+            assets = (
+                BacktestAsset(
+                    "d",
+                    "Driver",
+                    "DRIVER",
+                    Estimate(3, 0, driver_race),
+                    Estimate(3, 0, 20),
+                    20,
+                ),
+                BacktestAsset(
+                    "c",
+                    "Team",
+                    "CONSTRUCTOR",
+                    Estimate(6, 0, driver_race + 10),
+                    Estimate(6, 0, 30),
+                    30,
+                ),
+            )
+            return BacktestRow(event, 1, 1, 10, 10, 0, None, 10, assets)
+
+        current.append(row(10))
+        legacy.append(row(20))
+    result = training.replay_calibration(
+        training.prior_observations(prior_weeks()),
+        training.observations(current, legacy),
+        2026,
+        "fastf1_proxy",
+    )
+    assert result["replay_rounds"] == [1, 2, 3]
+    first = result["weekly"][0]["errors"]["DRIVER.race"]
+    second = result["weekly"][1]["errors"]["DRIVER.race"]
+    assert first["prior_examples"] == 5
+    assert second["prior_examples"] == 6
+    assert first["replay_mae"] > second["replay_mae"]
 
 
 def test_train_reuses_versioned_artifact_until_new_round(tmp_path, monkeypatch):
     current, older = synthetic_rows()
     monkeypatch.setattr(
         training, "season_weekends", lambda _: [r.weekend for r in current]
+    )
+    monkeypatch.setattr(
+        training,
+        "load_previous_season",
+        lambda *_args, **_kwargs: (prior_weeks(), "fastf1_proxy"),
     )
     calls = []
 
@@ -90,7 +172,7 @@ def test_train_reuses_versioned_artifact_until_new_round(tmp_path, monkeypatch):
 def test_invalid_weights_never_activate(tmp_path):
     path = training.model_path(2026, tmp_path)
     path.write_text(
-        '{"version":1,"season":2026,"active":true,"last_completed_round":10,'
+        '{"version":3,"season":2026,"active":true,"last_completed_round":10,'
         '"weights":{"DRIVER":{"race":[2,0,0],"sprint":[1,0],"qualifying":[1,0]},'
         '"CONSTRUCTOR":{"race":[1,0,0],"sprint":[1,0],"qualifying":[1,0]}}}'
     )
@@ -98,17 +180,38 @@ def test_invalid_weights_never_activate(tmp_path):
         training.load_model(2026, tmp_path)
 
 
-def test_needs_chronological_train_validation_and_test_blocks():
-    with pytest.raises(DataError, match="eight completed"):
-        training.chronological_split([5, 6, 7, 8, 9, 10, 11])
+def test_replay_requires_earlier_training_events():
+    with pytest.raises(DataError, match="three finalized"):
+        training.replay_calibration(
+            [],
+            [training.Observation(1, "DRIVER", "race", 5, (4, 4, 4))],
+            2026,
+            "fastf1_proxy",
+        )
+
+
+def test_current_official_scores_outweigh_approximate_prior_labels():
+    samples = [
+        training.Observation(n, "DRIVER", "race", 10, (0, 10), "fastf1_proxy")
+        for n in range(4)
+    ]
+    samples.append(training.Observation(1, "DRIVER", "race", 10, (10, 0)))
+    assert training._fit(samples, 2)[0] > 0.9
 
 
 def test_cli_train_outputs_machine_readable_model(monkeypatch, capsys):
     import json
 
-    report = training.fit_calibration(training.observations(*synthetic_rows()), 2026)
-    monkeypatch.setattr(cli, "train", lambda season, lookback: report)
+    report = training.replay_calibration(
+        training.prior_observations(prior_weeks()),
+        training.observations(*synthetic_rows()),
+        2026,
+        "fastf1_proxy",
+    )
+    monkeypatch.setattr(
+        cli, "train", lambda season, lookback, prior_scores_file: report
+    )
     assert cli.main(["--season", "2026", "train", "--format", "json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["data"]["model"]["active"]
-    assert payload["data"]["model"]["test_rounds"] == [14, 15, 16]
+    assert payload["data"]["model"]["replay_rounds"] == list(range(5, 17))
