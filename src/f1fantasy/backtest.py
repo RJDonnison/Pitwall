@@ -6,6 +6,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from .data import DataError, Weekend, completed_scores, load_assets, season_weekends
+from .evaluation import selection_metrics
+from .optimizer import optimize
+from .price_history import DEFAULT_PRICE_DIR, load_verified
 from .projections import Estimate, estimate_assets
 
 
@@ -43,6 +46,7 @@ class BacktestRow:
     baseline_driver_race_error: float | None = None
     model_driver_race_error_on_baseline: float | None = None
     baseline_driver_count: int = 0
+    selection: dict | None = None
 
 
 def run_backtest(
@@ -54,6 +58,7 @@ def run_backtest(
     use_risk: bool = True,
     use_model: bool = True,
     capture_features: bool = False,
+    price_dir=None,
 ) -> list[BacktestRow]:
     """Replay completed weekends; inputs for each forecast end before its start.
 
@@ -130,6 +135,38 @@ def run_backtest(
                     model_driver_on_baseline.append(abs(expected.race - r))
             else:
                 constructor_race.append(abs(expected.race - r))
+        selection = selection_metrics(tuple(details))
+        archived = load_verified(target, price_dir or DEFAULT_PRICE_DIR)
+        if archived is not None:
+            if all(a.id in actual and (0, a.id) in forecasts for a in archived):
+                predicted_team = optimize(archived, [target], forecasts, 1000)[0]
+                actual_estimates = {
+                    (0, a.id): Estimate(*actual[a.id]) for a in archived
+                }
+                best = optimize(archived, [target], actual_estimates, 1000)[0]
+                selected = predicted_team.drivers + predicted_team.constructors
+                realized = (
+                    sum(actual_estimates[0, a.id].total for a in selected)
+                    + actual_estimates[0, predicted_team.boost.id].total
+                )
+                selection["budgeted_initial_team"] = {
+                    "budget_tenths_m": 1000,
+                    "picked_actual_points": realized,
+                    "hindsight_best_points": best.expected_points,
+                    "regret_points": max(0.0, best.expected_points - realized),
+                    "selected_ids": [a.id for a in selected],
+                    "boost_driver_id": predicted_team.boost.id,
+                }
+            else:
+                selection["budgeted_initial_team"] = None
+                selection["budgeted_unavailable_reason"] = (
+                    "Archived roster lacks some official outcomes"
+                )
+        else:
+            selection["budgeted_initial_team"] = None
+            selection["budgeted_unavailable_reason"] = (
+                "No verified pre-lock Fantasy price snapshot"
+            )
         rows.append(
             BacktestRow(
                 target,
@@ -155,6 +192,7 @@ def run_backtest(
                     else None
                 ),
                 len(baseline_driver),
+                selection,
             )
         )
     return rows

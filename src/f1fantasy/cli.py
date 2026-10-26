@@ -13,6 +13,7 @@ from .backtest import run_backtest
 from .data import DataError, load_statistics, snapshot
 from .history import cache_status, preload
 from .optimizer import optimize
+from .price_history import save_verified
 from .output import asset as asset_output
 from .output import backtest_row, envelope, event as event_output
 from .projections import estimate_assets
@@ -530,6 +531,22 @@ def main(argv: list[str] | None = None) -> int:
                         f"model {row.model_driver_race_error_on_baseline:.1f}, "
                         f"naive {row.baseline_driver_race_error:.1f}"
                     )
+                if row.selection and row.selection.get("drivers"):
+                    choices = row.selection["drivers"]
+                    print(
+                        f"  Unbudgeted top-5 overlap: {choices['top_pick_overlap']}/5; "
+                        f"points regret: {choices['unbudgeted_points_regret']:.1f}; "
+                        f"Boost regret within those five: "
+                        f"{choices['boost_regret_within_predicted_five']:.1f}"
+                    )
+                if row.selection and row.selection.get("budgeted_initial_team"):
+                    comparison = row.selection["budgeted_initial_team"]
+                    print(
+                        f"  $100m initial-team regret with verified pre-lock prices: "
+                        f"{comparison['regret_points']:.1f} pts "
+                        f"({comparison['picked_actual_points']:.1f} vs "
+                        f"hindsight {comparison['hindsight_best_points']:.1f})"
+                    )
                 if args.show_points:
                     for kind in ("DRIVER", "CONSTRUCTOR"):
                         print(f"  {kind} points (predicted → actual; signed error):")
@@ -694,6 +711,7 @@ def main(argv: list[str] | None = None) -> int:
             carry,
             args.allow_penalties,
         )
+        price_snapshot_saved = save_verified(live)
         lineup_data = []
         for index, lineup in enumerate(lineups):
             selected = lineup.drivers + lineup.constructors
@@ -783,6 +801,7 @@ def main(argv: list[str] | None = None) -> int:
                         sum(l.expected_points for l in lineups)
                     ),
                     "future_prices_assumed_constant": True,
+                    "verified_prelock_price_snapshot_saved": price_snapshot_saved,
                 },
                 warnings,
             )
