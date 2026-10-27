@@ -25,6 +25,38 @@ def stages(state, catalog, proposal, chip="x3"):
     return middle, final
 
 
+@pytest.mark.parametrize("chip", ["autopilot", "no_negative", "x3"])
+def test_completed_chip_apply_is_reconfirmed_before_new_planning(
+    tmp_path, monkeypatch, state, catalog, proposal, chip
+):
+    middle, final = stages(state, catalog, proposal, chip)
+    session = install(monkeypatch, tmp_path, [state, middle, final, final], catalog)
+    saved = account.apply(tmp_path, 2026, proposal)
+    repeated = account.recover(tmp_path, 2026)
+    assert repeated["apply_status"] == "verified"
+    assert repeated["idempotency_key"] == saved["idempotency_key"]
+    assert repeated["active_chip"] == chip
+    assert len(session.posts) == 2
+
+
+@pytest.mark.parametrize("change", ["boost", "event", "chip"])
+def test_completed_chip_apply_does_not_confirm_changed_live_state(
+    tmp_path, monkeypatch, state, catalog, proposal, change
+):
+    middle, final = stages(state, catalog, proposal)
+    changed = deepcopy(final)
+    if change == "boost":
+        changed["boost_driver_id"] = "3"
+    elif change == "event":
+        changed["gameday_id"] += 1
+    else:
+        changed["active_chip"] = None
+    session = install(monkeypatch, tmp_path, [state, middle, final, changed], catalog)
+    account.apply(tmp_path, 2026, proposal)
+    assert account.recover(tmp_path, 2026) is None
+    assert len(session.posts) == 2
+
+
 @pytest.mark.parametrize(
     "chip,endpoint",
     [

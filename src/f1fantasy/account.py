@@ -727,15 +727,27 @@ def recover(directory: Path, season: int) -> dict | None:
 
     Chip activation can make an ordinary new plan ineligible. Recovery uses the
     durable plan, verifying uncertain writes before continuing unsent steps.
+    A completed chip apply is returned again only if fresh state still matches.
     """
     with _locked(directory) as directory:
         binding = _binding(directory, season)
         rows = _ledger(directory)
         pending = [row for row in rows if row["status"] != "verified"]
-        if not pending:
+        completed_chip = (
+            rows[-1] if rows and rows[-1]["expected"].get("active_chip") else None
+        )
+        if not pending and completed_chip is None:
             return None
         with _browser(directory) as session:
             state, roster = _snapshot(session, binding)
+            if not pending:
+                if _matches(state, completed_chip["expected"]):
+                    return dict(
+                        state,
+                        apply_status="verified",
+                        idempotency_key=completed_chip["key"],
+                    )
+                return None
             for row in pending:
                 if "steps" in row:
                     state = _run_combined(
