@@ -192,6 +192,27 @@ def test_normalized_budget_is_cap_not_unspent_balance(state):
     assert "teamname" not in state and "guid" not in state
 
 
+@pytest.mark.parametrize("empty_booster", [None, ""])
+def test_empty_booster_when_chip_history_confirms_none_active(
+    raw, fixture, catalog, history, empty_booster
+):
+    raw["boosterid"] = empty_booster
+    # A previously used chip does not imply an active chip this weekend.
+    raw.update(isautopilottaken=1, autopilottakengd=18)
+    result = account._normalize(raw, fixture, catalog, history, None)
+    assert result["active_chip"] is None
+    assert "autopilot" not in result["available_chips"]
+
+
+@pytest.mark.parametrize("empty_booster", [None, ""])
+def test_active_chip_rejects_empty_booster(
+    raw, fixture, catalog, history, empty_booster
+):
+    raw.update(boosterid=empty_booster, isautopilottaken=1, autopilottakengd=19)
+    with pytest.raises(account.AccountError, match="Unverified active booster"):
+        account._normalize(raw, fixture, catalog, history, None)
+
+
 @pytest.mark.parametrize("chip", account.CHIP_FIELDS)
 @pytest.mark.parametrize("empty_day", [None, ""])
 def test_unused_chip_accepts_empty_activation_day(

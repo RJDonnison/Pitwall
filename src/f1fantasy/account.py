@@ -536,7 +536,11 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         if len(active) > 1:
             raise AccountError("Multiple active chips")
         active_chip = active[0] if active else None
-        booster = _integer(raw["boosterid"], "active booster")
+        booster = (
+            0
+            if active_chip is None and raw["boosterid"] in (None, "")
+            else _integer(raw["boosterid"], "active booster")
+        )
         if booster != (CHIPS[active_chip] if active_chip else 0):
             raise AccountError("Ambiguous active versus historical chip identity")
         x3 = str(raw["mgcapplayerid"]) if active_chip == "x3" else None
