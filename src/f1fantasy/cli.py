@@ -5,6 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import io
+import signal
+import subprocess
+import threading
+from contextlib import redirect_stdout
 import sys
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
@@ -212,6 +217,7 @@ def _account_command(args):
                 print(json.dumps(result, indent=2))
             return 0
         state = account.show(directory, args.season)
+        _scheduled_state(args, state)
         live, weekends = snapshot(args.season)
         if state["gameday_id"] != live.weekend.gameday_id:
             raise DataError(
@@ -231,6 +237,8 @@ def _account_command(args):
             "baseline_ids": state["baseline_ids"],
             "expected_transfer_penalty": first.transfer_penalty,
         }
+        if getattr(args, "scheduled", None):
+            proposal["scheduled"] = args.scheduled
         result = account.apply(directory, args.season, proposal, args.allow_penalties)
     if args.format == "json":
         _json_output("account " + action, result)
@@ -289,6 +297,7 @@ def _account_final_fix(args):
 
     context = account.final_fix_context(args.account_dir, args.season)
     state, assets, weekend = context["state"], context["assets"], context["weekend"]
+    _scheduled_state(args, state)
     if not context["eligible"]:
         raise DataError("Final Fix is not eligible in the authoritative server window")
     forecasts = estimate_assets(
@@ -363,7 +372,132 @@ def _account_final_fix(args):
         "window": context["window"],
         "retained_points": state["retained_points"],
     }
+    if getattr(args, "scheduled", None):
+        proposal["scheduled"] = args.scheduled
     return result, proposal
+
+
+def _scheduled_state(args, state):
+    job = getattr(args, "scheduler_job", None)
+    if job is not None and any(
+        state[key] != job[key]
+        for key in ("season", "team_number", "gameday_id", "phase_id")
+    ):
+        raise DataError("Scheduled account event/team/session changed; no action")
+
+
+def _daemon_command(args):
+    from . import account, scheduler
+
+    action = args.daemon_action
+    if action in {"status", "audit"}:
+        result = scheduler.status(args.account_dir)
+        if action == "audit":
+            result = {"events": result["events"]}
+    elif action in {"retry", "cancel"}:
+        result = scheduler.change_job(args.account_dir, args.job_id, action)
+    else:
+        policy = {
+            key: getattr(args, key)
+            for key in (
+                "early_hours",
+                "final_minutes",
+                "safety_seconds",
+                "poll_seconds",
+                "races",
+                "chips",
+                "chip",
+                "chip_reserve",
+                "allow_penalties",
+                "no_telemetry",
+                "no_risk",
+                "final_fix_enabled",
+            )
+        }
+        scheduler.validate(policy)
+        stopped = threading.Event()
+        old_handlers = {
+            sig: signal.signal(sig, lambda *_: stopped.set())
+            for sig in (signal.SIGINT, signal.SIGTERM)
+        }
+        old_headless = os.environ.get("F1FANTASY_HEADLESS")
+        os.environ["F1FANTASY_HEADLESS"] = "1"
+
+        def execute(job):
+            options = argparse.Namespace(**vars(args))
+            for key, value in job["policy"].items():
+                setattr(options, key, value)
+            options.account_action, options.format, options.replan = (
+                "apply",
+                "json",
+                True,
+            )
+            options.final_fix = job["stage"] == "final_fix"
+            options.scheduler_job = job
+            options.scheduled = {
+                "team_number": job["team_number"],
+                "phase_id": job["phase_id"],
+                "account_binding": job["binding"],
+            }
+            if not options.final_fix:
+                options.scheduled.update(
+                    deadline=job["deadline"], cutoff=job["cutoff_at"]
+                )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                _account_command(options)
+            return json.loads(output.getvalue())["data"]
+
+        def notify(event):
+            print(json.dumps(event), file=sys.stderr, flush=True)
+            if args.notify_command:
+                try:
+                    subprocess.run(
+                        [args.notify_command],
+                        input=json.dumps(event),
+                        text=True,
+                        capture_output=True,
+                        timeout=15,
+                        check=True,
+                    )
+                except (subprocess.SubprocessError, OSError):
+                    raise RuntimeError("Notification delivery failed") from None
+
+        try:
+            with account._locked(scheduler.directory(args.account_dir)) as root:
+                while not stopped.is_set():
+                    result = scheduler._tick(
+                        root,
+                        args.account_dir,
+                        args.season,
+                        policy,
+                        lambda: account.show(args.account_dir, args.season),
+                        execute,
+                        notify,
+                    )
+                    if args.format == "json":
+                        _json_output("daemon run", result)
+                    else:
+                        print(
+                            f"Scheduler {result['status']}: {result.get('reason') or 'watching verified lock deadlines and Final Fix windows'}",
+                            flush=True,
+                        )
+                    if args.once:
+                        return 1 if result["status"] == "blocked" else 0
+                    stopped.wait(args.poll_seconds)
+        finally:
+            for sig, handler in old_handlers.items():
+                signal.signal(sig, handler)
+            if old_headless is None:
+                os.environ.pop("F1FANTASY_HEADLESS", None)
+            else:
+                os.environ["F1FANTASY_HEADLESS"] = old_headless
+        return 0
+    if args.format == "json":
+        _json_output("daemon " + action, result)
+    else:
+        print(json.dumps(result, indent=2))
+    return 0
 
 
 def _final_fix_preview(args, state):
@@ -599,6 +733,44 @@ def _parser() -> argparse.ArgumentParser:
         help="Generate a new plan instead of confirming a completed chip apply; pending recovery still runs first",
     )
     audit = actions.add_parser("audit", help="Show durable apply outcomes offline")
+    daemon = commands.add_parser(
+        "daemon", help="Schedule verified submissions for the connected team"
+    )
+    daemon_actions = daemon.add_subparsers(
+        dest="daemon_action", required=True, parser_class=CLIParser
+    )
+    daemon_run = daemon_actions.add_parser(
+        "run", help="Run unattended early/final and Final Fix jobs"
+    )
+    _planning_options(daemon_run)
+    daemon_run.add_argument("--early-hours", type=float, default=24)
+    daemon_run.add_argument("--final-minutes", type=float, default=15)
+    daemon_run.add_argument("--safety-seconds", type=float, default=90)
+    daemon_run.add_argument("--poll-seconds", type=float, default=60)
+    daemon_run.add_argument(
+        "--final-fix-enabled", action=argparse.BooleanOptionalAction, default=True
+    )
+    daemon_run.add_argument(
+        "--once", action="store_true", help="Inspect and run due jobs once, then exit"
+    )
+    daemon_run.add_argument(
+        "--notify-command",
+        help="Executable receiving sanitized JSON notification on stdin (no shell)",
+    )
+    daemon_status = daemon_actions.add_parser(
+        "status", help="Show persisted scheduler status offline"
+    )
+    daemon_audit = daemon_actions.add_parser(
+        "audit", help="Show durable scheduler events offline"
+    )
+    daemon_retry = daemon_actions.add_parser(
+        "retry", help="Allow a failed job to reconcile/resume on the next polling cycle"
+    )
+    daemon_retry.add_argument("job_id")
+    daemon_cancel = daemon_actions.add_parser(
+        "cancel", help="Cancel a scheduler job without changing the account journal"
+    )
+    daemon_cancel.add_argument("job_id")
     _planning_options(recommend)
     _planning_options(apply)
     for command in (init, prices, recommend):
@@ -654,6 +826,11 @@ def _parser() -> argparse.ArgumentParser:
         show,
         apply,
         audit,
+        daemon_run,
+        daemon_status,
+        daemon_audit,
+        daemon_retry,
+        daemon_cancel,
     ):
         command.add_argument(
             "--format",
@@ -700,6 +877,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: {exc}", file=sys.stderr)
         return 2
     try:
+        if args.command == "daemon":
+            return _daemon_command(args)
         if args.command == "account":
             return _account_command(args)
         if args.command == "chips":

@@ -254,7 +254,13 @@ transfers, allowance, remaining transfers and penalty. HTTP success or a success
 toast alone is insufficient. A timeout/rejected response still triggers read-back
 because the write may have committed. A read failure/mismatch retains `unknown`;
 a process interruption leaves `prepared`, with the same no-replay semantics.
-`audit()` does not launch the browser. No scheduling is implemented.
+`audit()` does not launch the browser. The [scheduler](scheduling.md) uses these
+same operations and journal, with a separate durable job history. Scheduled
+proposals additionally bind team/session, exact observed lock deadline and safety
+cutoff; these are rechecked after forecasting and immediately before sending
+each step. Scheduled pre-lock writes require a verified timestamp even though
+manual apply can use fresh lock flags alone. The daemon's headless browser reuses
+the dedicated profile; interactive login remains a separate headed operation.
 
 The CLI calls `recover()` before forecasting a new apply. Single-operation
 recovery checks expected postconditions and never posts again. Combined recovery

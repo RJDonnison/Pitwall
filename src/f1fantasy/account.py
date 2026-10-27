@@ -266,6 +266,22 @@ def _binding(directory: Path, season: int) -> dict:
     return result
 
 
+def _binding_fingerprint(binding: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            {key: binding[key] for key in ("guid", "season", "team_number")},
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+
+
+def _scheduled_binding(proposal: dict, binding: dict) -> None:
+    if proposal.get("scheduled") and proposal["scheduled"][
+        "account_binding"
+    ] != _binding_fingerprint(binding):
+        raise AccountError("Scheduled account binding changed; no submission")
+
+
 class _Session:
     def __init__(self, context):
         self.context = context
@@ -417,7 +433,7 @@ def _browser(directory: Path):
     profile = directory / "browser"
     _private_directory(profile)
     with sync_playwright() as playwright:
-        options = {"headless": False}
+        options = {"headless": os.environ.get("F1FANTASY_HEADLESS") == "1"}
         executable = (
             os.environ.get("PLAYWRIGHT_CHROMIUM_PATH")
             or shutil.which("chromium")
@@ -1093,6 +1109,27 @@ def _proposal(proposal: dict) -> dict:
         # Selection order is not an idempotency distinction.
         result["drivers"] = sorted(result["drivers"])
         result["constructors"] = sorted(result["constructors"])
+        if "scheduled" in proposal:
+            guard = proposal["scheduled"]
+            if not isinstance(guard, dict):
+                raise AccountError("Malformed scheduled apply guard")
+            result["scheduled"] = {
+                key: _integer(guard.get(key), key, 1)
+                for key in ("team_number", "phase_id")
+            }
+            fingerprint = guard.get("account_binding")
+            if not isinstance(fingerprint, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", fingerprint
+            ):
+                raise AccountError("Malformed scheduled account binding")
+            result["scheduled"]["account_binding"] = fingerprint
+            if result["chip"] != "final_fix":
+                for key in ("deadline", "cutoff"):
+                    result["scheduled"][key] = _timestamp(guard.get(key)).isoformat()
+                if _timestamp(guard["cutoff"]) >= _timestamp(guard["deadline"]):
+                    raise AccountError(
+                        "Scheduled safety cutoff must precede lock deadline"
+                    )
         if result["chip"] == "final_fix":
             if not all(
                 key in proposal
@@ -1138,6 +1175,7 @@ def _proposal(proposal: dict) -> dict:
 def _plan(
     state: dict, roster: dict, proposal: dict, allow_penalties: bool
 ) -> tuple[str | None, dict, dict]:
+    _scheduled_guard(state, proposal)
     if (
         proposal["season"] != state["season"]
         or proposal["gameday_id"] != state["gameday_id"]
@@ -1413,6 +1451,22 @@ def _combined_steps(state: dict, roster: dict, proposal: dict, allow_penalties: 
     return steps
 
 
+def _scheduled_guard(state: dict, proposal: dict) -> None:
+    guard = proposal.get("scheduled")
+    if guard is None:
+        return
+    if any(state[key] != guard[key] for key in ("team_number", "phase_id")):
+        raise AccountError("Scheduled team/session changed; no submission")
+    if proposal["chip"] != "final_fix" and (
+        state.get("lock_deadline_utc") is None
+        or _timestamp(state["lock_deadline_utc"]) != _timestamp(guard["deadline"])
+        or _now() >= _timestamp(guard["cutoff"])
+    ):
+        raise AccountError(
+            "Scheduled deadline changed or safety cutoff passed; no submission"
+        )
+
+
 def _preflight(session, state: dict, *, final_fix: bool = False) -> None:
     if final_fix:
         session.check_final_fix(state)
@@ -1435,6 +1489,7 @@ def _run_combined(directory, rows, row, session, binding, state, roster) -> dict
                         "Previous step outcome conflicts with fresh read-back; no replay"
                     )
             else:
+                _scheduled_binding(step["proposal"], binding)
                 if not _matches(state, step["before"]):
                     raise AccountError(
                         "Account changed between combined apply steps; no new write"
@@ -1449,6 +1504,11 @@ def _run_combined(directory, rows, row, session, binding, state, roster) -> dict
                 _preflight(session, state)
                 step.update(status="prepared", prepared_at=_now().isoformat())
                 _save_ledger(directory, rows)
+                try:
+                    _scheduled_guard(state, step["proposal"])
+                except AccountError:
+                    step["status"] = "ready"
+                    raise
                 deadline = state["lock_deadline_utc"]
                 if deadline is not None and _timestamp(deadline) <= _now():
                     # No request has been sent, so this step remains safe to resume.
@@ -1504,6 +1564,7 @@ def apply(
         raise AccountError("Proposal season differs from requested account season")
     with _locked(directory) as directory:
         binding = _binding(directory, season)
+        _scheduled_binding(proposal, binding)
         key = hashlib.sha256(
             json.dumps(
                 {"binding": binding, "proposal": proposal}, sort_keys=True
@@ -1579,6 +1640,7 @@ def apply(
             rows.append(row)
             _save_ledger(directory, rows)
             # Recheck after durable prepare, immediately before sending.
+            _scheduled_guard(state, proposal)
             if (
                 proposal["chip"] != "final_fix"
                 and deadline is not None
