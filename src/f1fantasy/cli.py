@@ -1,23 +1,321 @@
-"""Read-only F1 Fantasy command line interface."""
+"""Fantasy recommendations and explicit one-team account actions."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from .backtest import run_backtest
+from .chips import CHIPS, PREWEEK_CHIPS, final_fix, load_chip_values
 from .data import DataError, load_statistics, snapshot
 from .history import cache_status, preload
-from .optimizer import optimize
+from .optimizer import Lineup, optimize
 from .output import asset as asset_output
 from .output import backtest_row, envelope, event as event_output
-from .projections import estimate_assets
+from .projections import Estimate, estimate_assets
 
 DEFAULT_STATE = Path(".f1fantasy/team.json")
+DEFAULT_ACCOUNT = (
+    Path(os.environ.get("XDG_STATE_HOME", str(Path.home() / ".local/state")))
+    / "f1fantasy/account"
+)
+# Explicit heuristic opportunity costs, not fitted chip forecasts.
+DEFAULT_RESERVE = {
+    "autopilot": 15.0,
+    "x3": 40.0,
+    "no_negative": 25.0,
+    "wildcard": 20.0,
+    "limitless": 80.0,
+}
+
+
+def _planning_options(parser):
+    parser.add_argument("--races", type=int, default=3)
+    parser.add_argument("--no-telemetry", action="store_true")
+    parser.add_argument("--no-risk", action="store_true")
+    parser.add_argument("--allow-penalties", action="store_true")
+    parser.add_argument(
+        "--chips",
+        action="store_true",
+        help="Use verified or explicitly imported remaining chip inventory",
+    )
+    parser.add_argument(
+        "--chip",
+        choices=sorted(PREWEEK_CHIPS),
+        help="Force this chip on the first planned race",
+    )
+    parser.add_argument(
+        "--chip-reserve",
+        action="append",
+        default=[],
+        metavar="CHIP=POINTS",
+        help="Opportunity cost of spending instead of saving beyond the horizon",
+    )
+
+
+def _plan(args, live, weekends, state):
+    """Shared fresh forecast path for recommendations and explicit apply."""
+    if not 1 <= args.races <= 5:
+        raise DataError("--races must be between 1 and 5")
+    if state is None:
+        previous, budget, carry = None, 1000, 0
+    else:
+        previous, budget, carry = _validate_state(state, live.assets, args.season)
+        if "baseline_ids" in state:
+            previous = frozenset(str(id_) for id_ in state["baseline_ids"])
+        if state.get("active_chip"):
+            raise DataError(
+                "An active chip needs account-specific continuation; inspect account show before planning"
+            )
+        if state.get("unlimited_transfers"):
+            previous, carry = None, 0
+    horizon = weekends[: args.races]
+    forecasts = estimate_assets(
+        live.assets,
+        horizon,
+        use_telemetry=not args.no_telemetry,
+        use_risk=not args.no_risk,
+    )
+    enabled = args.chips or args.chip is not None
+    available = (
+        frozenset(state.get("available_chips", []))
+        if enabled and state
+        else frozenset()
+    )
+    if enabled and (state is None or "available_chips" not in state):
+        raise DataError(
+            "Chip planning needs remaining available_chips inventory in an import or recommend --account"
+        )
+    if not available <= CHIPS:
+        raise DataError("Unknown chip in remaining inventory")
+    reserve = dict(DEFAULT_RESERVE)
+    if len(weekends) <= args.races:
+        reserve = {name: 0.0 for name in reserve}
+    reserve.update(state.get("chip_reserve", {}) if state else {})
+    for item in args.chip_reserve:
+        try:
+            name, value = item.split("=", 1)
+            reserve[name] = float(value)
+        except ValueError as exc:
+            raise DataError("Use --chip-reserve CHIP=POINTS") from exc
+    # Local imports must explicitly attest first-weekend eligibility; remote
+    # state carries the official selected team's eligible inventory.
+    eligibility = {}
+    for index, weekend in enumerate(horizon):
+        names = available & PREWEEK_CHIPS
+        if index == 0:
+            if state and "eligible_chips" in state:
+                names &= frozenset(state["eligible_chips"])
+            elif not state or state.get("completed_first_weekend") is not True:
+                names -= {"limitless", "wildcard"}
+        eligibility[index] = names
+    empirical = any(
+        names & {"autopilot", "no_negative"} for names in eligibility.values()
+    )
+    values = load_chip_values(live.assets, horizon, forecasts) if empirical else None
+    lineups = optimize(
+        live.assets,
+        horizon,
+        forecasts,
+        budget,
+        previous,
+        carry,
+        args.allow_penalties,
+        available_chips=available,
+        eligible_chips=eligibility,
+        chip_values=values,
+        chip_reserve=reserve,
+        forced_chip=args.chip,
+    )
+    history = (
+        {
+            "sample_gamedays": values.history_gamedays,
+            "skipped_null_score_gamedays": values.skipped_history_gamedays,
+        }
+        if values is not None
+        else None
+    )
+    return (
+        lineups,
+        forecasts,
+        previous,
+        budget,
+        carry,
+        reserve if enabled else {},
+        history,
+    )
+
+
+def _account_command(args):
+    from . import account
+
+    directory = args.account_dir
+    action = args.account_action
+    if action == "connect":
+        if args.format == "text":
+            print(
+                "Sign in and complete MFA in the dedicated browser, then open My Team.",
+                file=sys.stderr,
+            )
+        result = account.connect(directory, args.season, args.team, args.timeout)
+    elif action == "show":
+        result = account.show(directory, args.season)
+    elif action == "audit":
+        result = {"entries": account.audit(directory)}
+    else:
+        recovered = account.recover(directory, args.season)
+        if recovered is not None:
+            if args.format == "json":
+                _json_output("account apply", recovered)
+            else:
+                print(json.dumps(recovered, indent=2))
+            return 0
+        state = account.show(directory, args.season)
+        live, weekends = snapshot(args.season)
+        if state["gameday_id"] != live.weekend.gameday_id:
+            raise DataError(
+                "Account event differs from the freshly fetched planning event"
+            )
+        lineups, _, previous, budget, _, _, _ = _plan(args, live, weekends, state)
+        first = lineups[0]
+        proposal = {
+            "season": args.season,
+            "gameday_id": first.weekend.gameday_id,
+            "drivers": [a.id for a in first.drivers],
+            "constructors": [a.id for a in first.constructors],
+            "boost_driver_id": first.boost.id,
+            "chip": first.chip,
+            "x3_driver_id": first.x3.id if first.x3 else None,
+            "budget_tenths_m": budget,
+            "baseline_ids": state["baseline_ids"],
+            "expected_transfer_penalty": first.transfer_penalty,
+        }
+        result = account.apply(directory, args.season, proposal, args.allow_penalties)
+    if args.format == "json":
+        _json_output("account " + action, result)
+    else:
+        print(json.dumps(result, indent=2))
+    return 0
+
+
+def _chips_command(args):
+    if args.account:
+        from . import account
+
+        state = account.show(args.account_dir, args.season)
+    else:
+        state = _read_state(args.state) if args.state.exists() else {}
+    if args.final_fix:
+        if args.account:
+            raise DataError(
+                "Live Final Fix window/read-back is not yet verified; use an explicit provisional input"
+            )
+        result = _final_fix_preview(args, state)
+    else:
+        available = state.get("available_chips")
+        if available is not None and (
+            not isinstance(available, list) or not set(available) <= CHIPS
+        ):
+            raise DataError("Invalid remaining chip inventory")
+        result = {
+            "inventory_verified": args.account,
+            "available_chips": available,
+            "eligible_chips": state.get("eligible_chips"),
+            "reserve_points": dict(DEFAULT_RESERVE, **state.get("chip_reserve", {})),
+            "rules": {
+                "one_per_weekend": True,
+                "once_per_season": True,
+                "final_fix": "separate remaining-session-only decision",
+            },
+        }
+    if args.format == "json":
+        _json_output("chips", result)
+    else:
+        print(json.dumps(result, indent=2))
+    return 0
+
+
+def _final_fix_preview(args, state):
+    """Explicit what-if preview; never substitutes a user window for remote authority."""
+    from .data import season_weekends, load_assets, load_statistics
+
+    spec = _read_state(args.final_fix)
+    now = datetime.now(timezone.utc)
+    start = datetime.fromisoformat(spec["window_open_utc"])
+    end = datetime.fromisoformat(spec["window_close_utc"])
+    if start.tzinfo is None or end.tzinfo is None or not start <= now < end:
+        raise DataError(
+            "Final Fix preview requires an explicit currently open timezone-aware window"
+        )
+    weekend = next(
+        (w for w in season_weekends(args.season) if w.gameday_id == spec["gameday_id"]),
+        None,
+    )
+    if weekend is None:
+        raise DataError("Unknown Final Fix event")
+    assets, _ = load_assets(weekend.gameday_id)
+    load_statistics(args.season, assets)
+    _, budget, _ = _validate_state(state, assets, args.season)
+    known = {a.id: a for a in assets}
+    drivers = tuple(known[str(id_)] for id_ in state["drivers"])
+    constructors = tuple(known[str(id_)] for id_ in state["constructors"])
+    boost = known[str(state["boost_driver_id"])]
+    original = Lineup(
+        weekend,
+        drivers,
+        constructors,
+        boost,
+        sum(a.price for a in drivers + constructors),
+        0,
+        0,
+        0,
+        state.get("active_chip"),
+    )
+    remaining = {
+        id_: Estimate(**points) for id_, points in spec["remaining_points"].items()
+    }
+    sessions = spec["remaining_sessions"]
+    if (
+        not isinstance(sessions, list)
+        or not sessions
+        or not set(sessions) <= {"sprint", "race"}
+    ):
+        raise DataError(
+            "Final Fix remaining_sessions must explicitly list only unscored Sprint/race sessions"
+        )
+    if any(
+        p.qualifying != 0
+        or ("sprint" not in sessions and p.sprint != 0)
+        or ("race" not in sessions and p.race != 0)
+        for p in remaining.values()
+    ):
+        raise DataError("Final Fix input includes an elapsed session")
+    decision = final_fix(
+        original,
+        assets,
+        remaining,
+        budget,
+        available="final_fix" in state.get("available_chips", []),
+        eligible=True,
+        accrued_points=float(spec["accrued_points"]),
+    )
+    return {
+        "provisional": True,
+        "window_source": "user_supplied_not_account_verified",
+        "remaining_sessions": sessions,
+        "out_id": decision.outgoing.id if decision.outgoing else None,
+        "in_id": decision.incoming.id if decision.incoming else None,
+        "boost_driver_id": decision.boost.id,
+        "accrued_points": decision.accrued_points,
+        "remaining_expected_points": decision.remaining_points.total,
+        "expected_total_points": decision.expected_points,
+        "original_team_restored_after_weekend": True,
+    }
 
 
 class CLIParser(argparse.ArgumentParser):
@@ -88,9 +386,12 @@ def _validate_state(
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = CLIParser(description="Read-only F1 Fantasy team recommendations")
+    parser = CLIParser(
+        description="F1 Fantasy team planner and manual account management"
+    )
     parser.add_argument("--season", type=int, default=datetime.now(timezone.utc).year)
     parser.add_argument("--state", type=Path, default=DEFAULT_STATE)
+    parser.add_argument("--account-dir", type=Path, default=DEFAULT_ACCOUNT)
     commands = parser.add_subparsers(
         dest="command", required=True, parser_class=CLIParser
     )
@@ -120,26 +421,45 @@ def _parser() -> argparse.ArgumentParser:
     recommend = commands.add_parser(
         "recommend", help="Recommend lineup, transfers and 2x Boost"
     )
+    recommend.add_argument(
+        "--account",
+        action="store_true",
+        help="Refresh the one connected account team before planning",
+    )
+    chips = commands.add_parser(
+        "chips", help="Show remaining chips, reserves and Final Fix previews"
+    )
+    chips.add_argument("--account", action="store_true")
+    chips.add_argument(
+        "--final-fix",
+        type=Path,
+        help="Provisional remaining-session input JSON; never submits",
+    )
+    account = commands.add_parser(
+        "account", help="Manage one explicitly connected account team"
+    )
+    actions = account.add_subparsers(
+        dest="account_action", required=True, parser_class=CLIParser
+    )
+    connect = actions.add_parser(
+        "connect", help="Sign in manually using a persistent private browser"
+    )
+    connect.add_argument("--team", type=int, choices=(1, 2, 3), required=True)
+    connect.add_argument("--timeout", type=int, default=300)
+    show = actions.add_parser("show", help="Read fresh selected-team state")
+    apply = actions.add_parser(
+        "apply",
+        help="Reforecast, submit one team's next lineup and verify live read-back",
+    )
+    audit = actions.add_parser("audit", help="Show durable apply outcomes offline")
+    _planning_options(recommend)
+    _planning_options(apply)
     for command in (init, prices, recommend):
         command.add_argument(
             "--allow-old-prices",
             action="store_true",
             help="If the next roster is unpublished, preview with the latest complete official feed",
         )
-    recommend.add_argument("--races", type=int, default=3)
-    recommend.add_argument(
-        "--no-telemetry",
-        action="store_true",
-        help="Use the results-only forecast for comparison",
-    )
-    recommend.add_argument(
-        "--no-risk",
-        action="store_true",
-        help="Use the original race/Sprint average for comparison",
-    )
-    recommend.add_argument(
-        "--allow-penalties", action="store_true", help="Allow -10 per extra transfer"
-    )
     backtest = commands.add_parser(
         "backtest", help="Evaluate historical regular and Sprint forecasts"
     )
@@ -174,7 +494,20 @@ def _parser() -> argparse.ArgumentParser:
     warm.add_argument("--year", type=int)
     warm.add_argument("--round", type=int)
     warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
-    for command in (init, prices, statistics, clear_team, recommend, backtest, warm):
+    for command in (
+        init,
+        prices,
+        statistics,
+        clear_team,
+        recommend,
+        backtest,
+        warm,
+        chips,
+        connect,
+        show,
+        apply,
+        audit,
+    ):
         command.add_argument(
             "--format",
             choices=("text", "json"),
@@ -220,6 +553,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: {exc}", file=sys.stderr)
         return 2
     try:
+        if args.command == "account":
+            return _account_command(args)
+        if args.command == "chips":
+            return _chips_command(args)
         if args.command == "clear-team":
             removed = args.state.exists() or args.state.is_symlink()
             if removed:
@@ -570,45 +907,45 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 print(f"Imported one team into {args.state}")
             return 0
-        state = _read_state(args.state) if args.state.exists() else None
-        if state is None:
-            previous, budget, carry = None, 1000, 0
-            if args.format == "text":
-                print("Initial team: $100.0m budget, unlimited first-race changes")
+        if args.account:
+            from . import account
+
+            state = account.show(args.account_dir, args.season)
+            if state["gameday_id"] != live.weekend.gameday_id:
+                raise DataError("Account event differs from the planning event")
         else:
-            previous, budget, carry = _validate_state(state, live.assets, args.season)
-        horizon = weekends[: args.races]
-        forecasts = estimate_assets(
-            live.assets,
-            horizon,
-            use_telemetry=not args.no_telemetry,
-            use_risk=not args.no_risk,
+            state = _read_state(args.state) if args.state.exists() else None
+        lineups, forecasts, previous, budget, carry, reserves, chip_history = _plan(
+            args, live, weekends, state
         )
-        lineups = optimize(
-            live.assets,
-            horizon,
-            forecasts,
-            budget,
-            previous,
-            carry,
-            args.allow_penalties,
-        )
+        if state is None and args.format == "text":
+            print("Initial team: $100.0m budget, unlimited first-race changes")
+        if reserves:
+            warnings.append(
+                "Chip reserve points are explicit heuristic opportunity costs beyond the horizon; empirical Autopilot/No Negative forecasts are small-sample approximations."
+            )
+            if args.format == "text":
+                print(warnings[-1])
+                print(
+                    "Chip saving costs (points): "
+                    + ", ".join(f"{name}={value:g}" for name, value in reserves.items())
+                )
+        if chip_history is not None:
+            coverage = "Chip history samples per planned weekend: " + ", ".join(
+                str(len(ids)) for ids in chip_history["sample_gamedays"].values()
+            )
+            if chip_history["skipped_null_score_gamedays"]:
+                coverage += "; excluded official null-score game days: " + ", ".join(
+                    str(id_) for id_ in chip_history["skipped_null_score_gamedays"]
+                )
+            warnings.append(coverage)
+            if args.format == "text":
+                print(coverage)
         lineup_data = []
         for index, lineup in enumerate(lineups):
             selected = lineup.drivers + lineup.constructors
-            qualifying = sum(forecasts[index, a.id].qualifying for a in selected)
-            sprint = sum(forecasts[index, a.id].sprint for a in selected)
-            race = sum(forecasts[index, a.id].race for a in selected)
-            boost = forecasts[index, lineup.boost.id]
-            before = (
-                previous
-                if index == 0
-                else {
-                    a.id
-                    for a in lineups[index - 1].drivers
-                    + lineups[index - 1].constructors
-                }
-            )
+            session = lineup.session_points
+            before = previous
             after = {a.id for a in selected}
             transfers = {
                 "net": int(lineup.transfers),
@@ -622,16 +959,20 @@ def main(argv: list[str] | None = None) -> int:
                     "drivers": [asset_output(a) for a in lineup.drivers],
                     "constructors": [asset_output(a) for a in lineup.constructors],
                     "boost_driver_id": lineup.boost.id,
+                    "chip": lineup.chip,
+                    "x3_driver_id": lineup.x3.id if lineup.x3 else None,
                     "cost_tenths_m": int(lineup.cost),
                     "expected_points": float(lineup.expected_points),
                     "session_points_including_boost": {
-                        "qualifying": float(qualifying + boost.qualifying),
-                        "sprint": float(sprint + boost.sprint),
-                        "race": float(race + boost.race),
+                        "qualifying": float(session.qualifying),
+                        "sprint": float(session.sprint),
+                        "race": float(session.race),
                     },
                     "transfers": transfers,
                 }
             )
+            if lineup.chip != "limitless":
+                previous = frozenset(after)
             if args.format == "json":
                 continue
             print(
@@ -641,14 +982,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  Drivers: {', '.join(a.name for a in lineup.drivers)}")
             print(f"  Constructors: {', '.join(a.name for a in lineup.constructors)}")
             print(f"  2x Boost: {lineup.boost.name}")
+            if lineup.chip:
+                print(
+                    f"  Chip: {lineup.chip}"
+                    + (f"; 3x Boost: {lineup.x3.name}" if lineup.x3 else "")
+                )
             print(
                 f"  Cost: ${lineup.cost / 10:.1f}m / ${budget / 10:.1f}m; projected: {lineup.expected_points:.1f} pts"
             )
             print(
-                f"  Sessions (including 2x Boost): qualifying {qualifying + boost.qualifying:.1f}, "
-                f"Sprint {sprint + boost.sprint:.1f}, race {race + boost.race:.1f}"
+                f"  Sessions (including Boost/chip): qualifying {session.qualifying:.1f}, "
+                f"Sprint {session.sprint:.1f}, race {session.race:.1f}"
             )
-            if previous is not None or index:
+            if before is not None:
                 print(
                     f"  Net transfers: {lineup.transfers}; penalty: -{lineup.transfer_penalty} pts"
                 )
@@ -665,7 +1011,10 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "season": args.season,
                     "price_source": price_source,
-                    "current_team_imported": previous is not None,
+                    "current_team_imported": state is not None,
+                    "account_synced": args.account,
+                    "chip_reserve_points": reserves,
+                    "chip_history": chip_history,
                     "budget_tenths_m": budget,
                     "carried_transfer": carry,
                     "telemetry_enabled": not args.no_telemetry,
@@ -690,7 +1039,7 @@ def main(argv: list[str] | None = None) -> int:
                 "PROVISIONAL ONLY: Re-run without --allow-old-prices before applying this team."
             )
         return 0
-    except (DataError, OSError, ValueError) as exc:
+    except (DataError, OSError, ValueError, KeyError, TypeError) as exc:
         if args.format == "json":
             print(
                 json.dumps(

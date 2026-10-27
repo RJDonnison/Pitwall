@@ -5,12 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "f1-fantasy-planner"
 version = "0.1.0"
-description = "Read-only F1 Fantasy team recommendations"
+description = "F1 Fantasy chip-aware recommendations and manual one-team account management"
 requires-python = ">=3.11"
 dependencies = ["fastf1>=3.6,<4", "requests>=2.32,<3", "scipy>=1.13,<2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10"]
+account = ["playwright>=1.50,<2"]
 
 [project.scripts]
 f1fantasy = "f1fantasy.cli:main"

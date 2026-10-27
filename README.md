@@ -1,6 +1,8 @@
 # F1 Fantasy planner
 
-This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses a 2× Boost driver, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. It recommends changes for you to make; it does not sign in or submit a team.
+This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses Boost and chips, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. An optional persistent-browser integration connects one account team and provides an explicit manual apply path with live read-back.
+
+**Account integration is not yet live-verified.** The researched website exposes a countdown but no verified explicit lock timestamp, so `account apply` currently blocks writes when that evidence is missing. Final Fix has a provisional future-only preview; live activation is blocked pending its window/read-back contract. Scheduling is excluded from this build.
 
 ## Requirements
 
@@ -52,6 +54,49 @@ Alternatively, `f1fantasy init --import-file my-team.json` accepts `{"season": 2
 
 `f1fantasy clear-team` removes only the **locally imported** team; it works offline and does not change an F1 Fantasy account. After clearing, the next recommendation treats you as a new $100m team. Pass `--state PATH` **before** the command if you imported into a custom location.
 
+### Plan chips
+
+Add optional fields to your team import: `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and `chip_reserve` (an optional name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied; `--account` refreshes it remotely.
+
+```sh
+f1fantasy chips
+f1fantasy recommend --chips --races 3
+f1fantasy recommend --chip x3 --chip-reserve limitless=90 --races 3
+```
+
+The optimizer allows one chip per weekend and each once per season. It keeps 2×/3× drivers distinct, values Autopilot using each scenario's best whole-weekend selected driver, and uses official category-adjusted No Negative history including constructors and Boost. Wildcard keeps the budget cap; Limitless temporarily removes it, restores the original roster for subsequent transfers, and clears carried transfers.
+
+Saving costs beyond the horizon are explicit **heuristics**: Autopilot 15, x3 40, No Negative 25, Wildcard 20, Limitless 80 points. Override with `chip_reserve` or repeatable `--chip-reserve NAME=POINTS`; zero is allowed. Defaults become zero when the horizon reaches season end. Within-horizon timing is jointly optimized. Empirical chip inputs use up to five completed same-format current-season weekends strictly before the forecast; missing common history fails closed. See [chip model details](docs/chips.md).
+
+Final Fix is a separate **provisional** preview:
+
+```sh
+f1fantasy chips --final-fix remaining.json --format json
+```
+
+The imported team needs `boost_driver_id` and unused `final_fix`. Supply `gameday_id`, timezone-aware `window_open_utc`/`window_close_utc` enclosing now, multiplier-adjusted `accrued_points`, `remaining_sessions` (e.g. `["race"]`), and `remaining_points` keyed by **every active asset ID**, each with numeric `qualifying`, `sprint`, `race` fields. Elapsed sessions must be zero. The preview labels your window/forecasts as unverified, preserves accrued points, inherits Boost on replacement, and retains the original roster for restoration. It does not activate a chip.
+
+Official null-score weekends are excluded from the empirical joint sample for all assets. Recommendations report contributing game days and sample counts plus excluded game days; no complete common history fails closed.
+
+### Connect one account team and apply manually
+
+```sh
+.venv/bin/python -m pip install -e '.[account]'
+.venv/bin/python -m playwright install chromium
+f1fantasy account connect --team 1
+f1fantasy account show --format json
+f1fantasy chips --account
+f1fantasy recommend --account --chips --races 3
+f1fantasy account apply --races 3
+f1fantasy account audit --format json
+```
+
+`connect --team 1` explicitly binds the official one-based team number. Sign in and complete MFA in the dedicated browser, then open My Team. No password is collected; the browser session persists. Set `PLAYWRIGHT_CHROMIUM_PATH` for a nonstandard executable. Private session/binding/journal storage defaults to `$XDG_STATE_HOME/f1fantasy/account` or `~/.local/state/f1fantasy/account`, outside the repository. Override with global `--account-dir PATH` **before** the command. An exclusive operation lock prevents concurrent profile use. Expired sessions require reconnecting.
+
+`account apply` recomputes forecasts and checks live event, roster/prices/statistics, budget, net-transfer penalties, chip eligibility and actual deadline before a single-request mutation and fresh read-back. Add `--chips` or `--chip NAME` to select a chip. Text/JSON output reports success or nonzero failure; the offline audit records prepared/unknown/verified outcomes. On restart, apply reconciles a pending outcome before forecasting or writing again; uncertainty blocks further writes.
+
+**Current live gates:** public research found no verified explicit lock timestamp, so missing deadline evidence blocks writes. Final Fix activation is blocked pending its authoritative window/read-back contract. Combined transfers plus Autopilot/No Negative/x3 activation are rejected because no atomic contract was established. Active chips currently block new CLI planning. Authenticated schemas, session restoration and saves still require verification with your session. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
+
 ### Preload history and compare forecasts
 
 ```sh
@@ -79,7 +124,7 @@ f1fantasy statistics --format json | jq '.data.entries | sort_by(.season_points)
 
 `--show-points` lists **predicted and actual qualifying, Sprint, race and total points for every driver and constructor** in each selected historical weekend. MAE means *mean absolute error*, measured in Fantasy points: e.g. a driver MAE of 9.6 means the average driver's weekend prediction missed their actual total by 9.6 points, regardless of direction. Constructor MAE uses only constructors; qualifying, Sprint and race MAEs each include both drivers and constructors. These session MAEs do not necessarily add up to the total MAE because prediction errors can cancel between sessions. `--races` selects how many recent finalized weekends to replay.
 
-Every V1 command (`init`, `clear-team`, `prices`, `statistics`, `recommend`, `backtest`, `preload`, including `preload --status`) accepts `--format json` after the command. Text remains the default. JSON success is one versioned document on stdout, with timestamps, warnings, data-source status and numeric point fields; prices use **integer tenths of a million** (`price_tenths_m`). Progress/logging goes to stderr. On failure the CLI exits nonzero and writes a JSON error to stderr, leaving stdout empty; a partial preload reports its unavailable sessions as JSON and exits nonzero. `jq` is optional and only needed for the examples above.
+Every command accepts `--format json` after the command (after the action for `account`, e.g. `account show --format json`). Text remains the default. JSON success is one versioned document on stdout, with timestamps, warnings, data-source status and numeric point fields; prices use **integer tenths of a million** (`price_tenths_m`). Progress/logging goes to stderr. On failure the CLI exits nonzero and writes a JSON error to stderr, leaving stdout empty; a partial preload reports its unavailable sessions as JSON and exits nonzero. `jq` is optional and only needed for the examples above.
 
 ## Roadmap and data sources
 
@@ -88,4 +133,4 @@ Every V1 command (`init`, `clear-team`, `prices`, `statistics`, `recommend`, `ba
 - [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
 - [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics) — independent current-price and season-point verification and terminal rankings.
 - [FastF1 documentation](https://docs.fastf1.dev/) — session results, laps, car telemetry and weather.
-- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V3.
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V4.
