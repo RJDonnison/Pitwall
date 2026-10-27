@@ -157,16 +157,23 @@ and transport retries disabled. There is no credential replay/session-login
 endpoint implementation. Ordinary and Wildcard payloads contain all seven IDs,
 positions and fresh roster skills. Limitless uses the observed distinct `position`
 and `skill` keys. Standalone x3 can carry its two explicit multiplier selections.
-Other chip activations mixed with lineup changes are rejected before mutation;
-Autopilot/No Negative mixed with a Boost change are also rejected. Active chips
-cannot be cancelled or replaced. Already-active Limitless editing is unverified
-and rejected. These are single HTTP operations; no server transactional or
-idempotency guarantee has been established.
+Combined lineup/Boost changes and new Autopilot/No Negative/x3 activation use a
+durable two-step plan. Both operations are validated before any mutation. First
+the ordinary lineup/Boost is saved and fully read back; only then is the chip
+activated and read back. x3 may name an incoming driver after that driver has
+been verified in the saved lineup. A Boost-only change plus x3 remains one chip
+request, since that endpoint supports both multiplier allocations directly.
+Active chips cannot be cancelled or replaced. Already-active Limitless editing
+is unverified and rejected. No server transaction/idempotency guarantee has been
+established; partial completion is possible and is explicitly reported.
 
 Authenticated UI inspection confirmed that selecting No Negative in a transfer
 draft issues `applynonegative` separately, before the eventual `transferteam`
 request. Both requests were aborted during inspection. A `boosterId` on the later
 transfer payload therefore does not prove it can atomically activate the chip.
+Our staged implementation saves the lineup first to avoid consuming a chip
+before the lineup has been verified. This order uses the separately observed
+endpoints but the combined sequence has not yet been verified live.
 
 Read-back conservatively requires the same verified cost cap and balance equal
 to cap minus current roster cost (a signed balance is accepted only for active
@@ -182,7 +189,10 @@ further writes, rather than pretending the chip save was verified.
 entry records proposal/binding hash, an integrity checksum, operation name, timestamps, status and the
 expected normalized read-back. Account GUIDs, raw payloads and responses are not
 stored in the journal. Writes use a private temporary file, fsync, atomic replace
-and directory fsync. A prepare entry is durable **before** the mutation.
+and directory fsync. A prepare entry is durable **before** the mutation. Combined
+entries additionally retain the normalized target proposals, original penalty
+permission, per-step preconditions/expected states and ready/prepared/unknown/
+verified progress. The public audit includes progress but omits stored proposals.
 
 Proposal ID ordering is canonicalized for idempotency. A repeat or unresolved
 prepare first obtains fresh account state. If every expected postcondition
@@ -200,10 +210,18 @@ because the write may have committed. A read failure/mismatch retains `unknown`;
 a process interruption leaves `prepared`, with the same no-replay semantics.
 `audit()` does not launch the browser. No scheduling is implemented.
 
-The CLI calls `recover()` before forecasting a new apply. It checks pending
-expected postconditions against a fresh account read, marks matching entries
-verified without posting, or blocks on conflict. This also works after a chip
-activation has made ordinary new planning ineligible.
+The CLI calls `recover()` before forecasting a new apply. Single-operation
+recovery checks expected postconditions and never posts again. Combined recovery
+first reconciles any prepared/unknown step against fresh read-back without
+reposting it, then may send a subsequent **ready (never sent)** step from the
+original durable plan. It revalidates current prices/accounting, event/phase,
+chip eligibility, transfer permission and locks before that step. External edits
+or ambiguous read-back block continuation. A lock between steps leaves the
+verified lineup saved and chip step ready; rerunning apply can resume it only
+while the same event/session remains eligible and unlocked. There is no automatic
+rollback or chip cancellation. Errors identify completed operations, and audit
+exposes each step's status. Recovery also works after chip activation makes
+ordinary new planning ineligible; changing flags does not replace a pending plan.
 
 ## Research provenance and verification gaps
 

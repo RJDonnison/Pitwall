@@ -213,6 +213,23 @@ def _ledger(directory: Path) -> list[dict]:
     for row in result:
         if row.get("checksum") != _checksum(row):
             raise AccountError("Account journal integrity check failed; no replay")
+        if "steps" in row and (
+            not isinstance(row.get("allow_penalties"), bool)
+            or not isinstance(row["steps"], list)
+            or not row["steps"]
+            or any(
+                not isinstance(step, dict)
+                or step.get("status")
+                not in {"ready", "prepared", "unknown", "verified"}
+                or any(
+                    not isinstance(step.get(key), dict)
+                    for key in ("proposal", "before", "expected")
+                )
+                or not isinstance(step.get("operation"), str)
+                for step in row["steps"]
+            )
+        ):
+            raise AccountError("Unrecognized combined apply journal; no replay")
     return result
 
 
@@ -703,8 +720,8 @@ def show(directory: Path, season: int) -> dict:
 def recover(directory: Path, season: int) -> dict | None:
     """Reconcile an interrupted write before the CLI attempts a new forecast.
 
-    Chip activation can make an ordinary new plan ineligible. Recovery therefore
-    uses the durable expected state directly and never sends another POST.
+    Chip activation can make an ordinary new plan ineligible. Recovery uses the
+    durable plan, verifying uncertain writes before continuing unsent steps.
     """
     with _locked(directory) as directory:
         binding = _binding(directory, season)
@@ -713,14 +730,19 @@ def recover(directory: Path, season: int) -> dict | None:
         if not pending:
             return None
         with _browser(directory) as session:
-            state, _ = _snapshot(session, binding)
-        if any(not _matches(state, row["expected"]) for row in pending):
-            raise AccountError(
-                "Previous apply outcome conflicts with fresh read-back; no replay or new write"
-            )
-        for row in pending:
-            row.update(status="verified", verified_at=_now().isoformat())
-        _save_ledger(directory, rows)
+            state, roster = _snapshot(session, binding)
+            for row in pending:
+                if "steps" in row:
+                    state = _run_combined(
+                        directory, rows, row, session, binding, state, roster
+                    )
+                else:
+                    if not _matches(state, row["expected"]):
+                        raise AccountError(
+                            "Previous apply outcome conflicts with fresh read-back; no replay or new write"
+                        )
+                    row.update(status="verified", verified_at=_now().isoformat())
+                    _save_ledger(directory, rows)
         return dict(state, apply_status="verified", idempotency_key=pending[-1]["key"])
 
 
@@ -847,8 +869,7 @@ def _plan(
         changed or (chip != "x3" and boost_changed)
     ):
         raise AccountError(
-            "Non-atomic chip plus lineup/Boost changes are blocked; "
-            "use account apply --no-chips to save the lineup without activating a chip"
+            "Non-atomic chip plus lineup/Boost changes require staged apply"
         )
     if _matches(state, expected):
         return None, {}, expected
@@ -927,14 +948,122 @@ def _matches(state: dict, expected: dict) -> bool:
     return True
 
 
+def _combined_steps(state: dict, roster: dict, proposal: dict, allow_penalties: bool):
+    """Validate both operations before making any change; spend the chip last."""
+    chip = proposal["chip"]
+    changed = set(proposal["drivers"] + proposal["constructors"]) != set(
+        state["drivers"] + state["constructors"]
+    )
+    boost_changed = proposal["boost_driver_id"] != state["boost_driver_id"]
+    if not (
+        state["active_chip"] is None
+        and chip in {"autopilot", "no_negative", "x3"}
+        and (changed or (chip != "x3" and boost_changed))
+    ):
+        return None
+    lineup = dict(proposal, chip=None, x3_driver_id=None)
+    steps = []
+    for target in (lineup, proposal):
+        path, _, expected = _plan(state, roster, target, allow_penalties)
+        before = {
+            key: sorted(state[key]) if isinstance(value, list) else state[key]
+            for key, value in expected.items()
+        }
+        steps.append(
+            {
+                "proposal": target,
+                "before": before,
+                "expected": expected,
+                "operation": path.rsplit("/", 1)[-1],
+                "status": "ready",
+            }
+        )
+        state = dict(state, **expected)
+    return steps
+
+
+def _preflight(session, state: dict) -> None:
+    deadline = state["lock_deadline_utc"]
+    if state["locked"] or (deadline is not None and _timestamp(deadline) <= _now()):
+        raise AccountError("Fantasy team is locked or the verified deadline has passed")
+    session.check_lock(state["season"], state["gameday_id"], state["phase_id"])
+
+
+def _run_combined(directory, rows, row, session, binding, state, roster) -> dict:
+    """Resume only unsent operations; an ambiguous sent operation is never replayed."""
+    try:
+        for step in row["steps"]:
+            if step["status"] == "verified":
+                continue
+            if step["status"] in {"prepared", "unknown"}:
+                if not _matches(state, step["expected"]):
+                    raise AccountError(
+                        "Previous step outcome conflicts with fresh read-back; no replay"
+                    )
+            else:
+                if not _matches(state, step["before"]):
+                    raise AccountError(
+                        "Account changed between combined apply steps; no new write"
+                    )
+                path, payload, expected = _plan(
+                    state, roster, step["proposal"], row["allow_penalties"]
+                )
+                if expected != step["expected"]:
+                    raise AccountError(
+                        "Combined apply prices or accounting changed; no new write"
+                    )
+                _preflight(session, state)
+                step.update(status="prepared", prepared_at=_now().isoformat())
+                _save_ledger(directory, rows)
+                deadline = state["lock_deadline_utc"]
+                if deadline is not None and _timestamp(deadline) <= _now():
+                    # No request has been sent, so this step remains safe to resume.
+                    step["status"] = "ready"
+                    raise AccountError(
+                        "Deadline passed before sending combined apply step"
+                    )
+                try:
+                    session.post(path, _numeric_payload(payload))
+                except AccountError:
+                    pass
+                try:
+                    state, roster = _snapshot(session, binding)
+                    if not _matches(state, expected):
+                        raise AccountError("Read-back mismatch")
+                except Exception:
+                    step["status"] = "unknown"
+                    raise AccountError(
+                        "Step read-back unverified; no automatic retry"
+                    ) from None
+            step.update(status="verified", verified_at=_now().isoformat())
+            _save_ledger(directory, rows)
+        if not _matches(state, row["expected"]):
+            raise AccountError("Final combined apply read-back conflicts; no new write")
+    except AccountError as exc:
+        row["status"] = "unknown"
+        _save_ledger(directory, rows)
+        completed = [
+            step["operation"] for step in row["steps"] if step["status"] == "verified"
+        ]
+        progress = ", ".join(completed) if completed else "none verified"
+        raise AccountError(
+            f"Combined apply incomplete (completed: {progress}): {exc}. "
+            "Run account apply again to reconcile/resume the saved plan"
+        ) from None
+    row.update(status="verified", verified_at=_now().isoformat())
+    _save_ledger(directory, rows)
+    return state
+
+
 def apply(
     directory: Path, season: int, proposal: dict, allow_penalties: bool = False
 ) -> dict:
-    """Validate a fresh proposal, journal before one write, then verify read-back.
+    """Validate a fresh proposal and verify each journaled operation by read-back.
 
     An unresolved journal entry is never submitted again, even if read-back still
     shows the old team. Main must recompute forecasts before calling after a
-    conflict; this layer validates live state/prices, not forecast quality.
+    conflict; this layer validates live state/prices, not forecast quality. Combined
+    lineup/chip saves resume only operations that were never sent.
     """
     proposal = _proposal(proposal)
     if proposal["season"] != season:
@@ -952,6 +1081,13 @@ def apply(
             # Recovery precedes ordinary preflight (deadline/eligibility may have passed).
             for row in rows:
                 if row["status"] != "verified" or row["key"] == key:
+                    if row["status"] != "verified" and "steps" in row:
+                        after = _run_combined(
+                            directory, rows, row, session, binding, state, roster
+                        )
+                        return dict(
+                            after, apply_status="verified", idempotency_key=row["key"]
+                        )
                     if not _matches(state, row["expected"]):
                         raise AccountError(
                             "Previous apply outcome conflicts with fresh read-back; no replay or new write"
@@ -960,6 +1096,23 @@ def apply(
                     _save_ledger(directory, rows)
                     if row["key"] == key:
                         return dict(state, apply_status="verified", idempotency_key=key)
+            steps = _combined_steps(state, roster, proposal, allow_penalties)
+            if steps is not None:
+                row = {
+                    "key": key,
+                    "status": "prepared",
+                    "operation": "combined",
+                    "prepared_at": _now().isoformat(),
+                    "expected": steps[-1]["expected"],
+                    "allow_penalties": bool(allow_penalties),
+                    "steps": steps,
+                }
+                rows.append(row)
+                _save_ledger(directory, rows)
+                after = _run_combined(
+                    directory, rows, row, session, binding, state, roster
+                )
+                return dict(after, apply_status="verified", idempotency_key=key)
             path, payload, expected = _plan(state, roster, proposal, allow_penalties)
             if path is None:
                 rows.append(
@@ -975,13 +1128,7 @@ def apply(
                 _save_ledger(directory, rows)
                 return dict(state, apply_status="unchanged", idempotency_key=key)
             deadline = state["lock_deadline_utc"]
-            if state["locked"] or (
-                deadline is not None and _timestamp(deadline) <= _now()
-            ):
-                raise AccountError(
-                    "Fantasy team is locked or the verified deadline has passed"
-                )
-            session.check_lock(season, state["gameday_id"], state["phase_id"])
+            _preflight(session, state)
             row = {
                 "key": key,
                 "status": "prepared",
@@ -1032,7 +1179,7 @@ def audit(directory: Path) -> list[dict]:
     """Read the sanitized durable apply journal; never launches a browser."""
     with _locked(directory) as directory:
         rows = _ledger(directory)
-        return [
+        entries = [
             {
                 key: value
                 for key, value in row.items()
@@ -1048,3 +1195,21 @@ def audit(directory: Path) -> list[dict]:
             }
             for row in rows
         ]
+        for entry, row in zip(entries, rows):
+            if "steps" in row:
+                entry["steps"] = [
+                    {
+                        key: value
+                        for key, value in step.items()
+                        if key
+                        in {
+                            "operation",
+                            "status",
+                            "prepared_at",
+                            "verified_at",
+                            "expected",
+                        }
+                    }
+                    for step in row["steps"]
+                ]
+        return entries
