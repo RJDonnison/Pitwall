@@ -107,6 +107,13 @@ class FakeSession:
     def __init__(self):
         self.posts = []
         self.post_error = False
+        self.lock_checks = []
+        self.lock_error = None
+
+    def check_lock(self, season, gameday, phase):
+        self.lock_checks.append((season, gameday, phase))
+        if self.lock_error:
+            raise self.lock_error
 
     def post(self, path, payload):
         self.posts.append((path, payload))
@@ -535,9 +542,9 @@ def test_unknown_prior_outcome_blocks_different_proposal(
 
 @pytest.mark.parametrize(
     "deadline,locked",
-    [(None, False), ("2000-01-01T00:00:00Z", False), ("2099-01-01T00:00:00Z", True)],
+    [("2000-01-01T00:00:00Z", False), (None, True), ("2099-01-01T00:00:00Z", True)],
 )
-def test_no_deadline_or_locked_state_never_posts(
+def test_expired_deadline_or_locked_state_never_posts(
     tmp_path, monkeypatch, state, catalog, proposal, deadline, locked
 ):
     state.update(lock_deadline_utc=deadline, locked=locked)
@@ -546,6 +553,72 @@ def test_no_deadline_or_locked_state_never_posts(
         account.apply(tmp_path, 2026, proposal)
     assert session.posts == []
     assert account.audit(tmp_path) == []
+
+
+def test_live_unlocked_status_allows_save_without_timestamp(
+    tmp_path, monkeypatch, state, catalog, proposal
+):
+    state["lock_deadline_utc"] = None
+    after = after_state(state, catalog, proposal)
+    session = install(monkeypatch, tmp_path, [state, after], catalog)
+    assert account.apply(tmp_path, 2026, proposal)["apply_status"] == "verified"
+    assert session.lock_checks == [(2026, 19, 1)]
+    assert len(session.posts) == 1
+
+
+def test_lock_changed_since_snapshot_never_prepares_or_posts(
+    tmp_path, monkeypatch, state, catalog, proposal
+):
+    session = install(monkeypatch, tmp_path, [state], catalog)
+    session.lock_error = account.AccountError(
+        "Fantasy team is locked by the current server session"
+    )
+    with pytest.raises(account.AccountError, match="locked"):
+        account.apply(tmp_path, 2026, proposal)
+    assert session.posts == []
+    assert account.audit(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("GDIsLocked", 1),
+        ("MDIsLocked", 1),
+        ("MHIsLocked", 1),
+        ("GDIsLocked", None),
+        ("MDIsCurrent", 0),
+        ("GamedayId", 20),
+        ("PhaseId", 2),
+        ("IsPostponed", 1),
+    ],
+)
+def test_fresh_lock_check_rejects_locked_unknown_or_changed_session(
+    fixture, field, value
+):
+    fixture[field] = value
+    session = account._Session.__new__(account._Session)
+    session.get = lambda path: {"Data": {"fixtures": [fixture]}}
+    with pytest.raises(account.AccountError):
+        session.check_lock(2026, 19, 1)
+
+
+def test_fresh_lock_check_uses_current_official_flags_not_session_time(fixture):
+    fixture["SessionStartDateISO8601"] = "2000-01-01T00:00:00Z"
+    session = account._Session.__new__(account._Session)
+    calls = []
+    session.get = lambda path: calls.append(path) or {"Data": {"fixtures": [fixture]}}
+    session.check_lock(2026, 19, 1)
+    assert calls == ["/feeds/v2/schedule/raceday_en.json"]
+
+
+@pytest.mark.parametrize("status", [1, 2, 3])
+def test_started_team_session_blocks_ordinary_changes(
+    raw, fixture, catalog, history, status
+):
+    history[0]["mddetails"]["19"]["mds"] = status
+    normalized = account._normalize(raw, fixture, catalog, history, None)
+    assert normalized["locked"] is True
+    assert normalized["eligible_chips"] == []
 
 
 def test_auth_expiry_before_write_cannot_prepare(

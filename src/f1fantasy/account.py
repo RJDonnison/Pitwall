@@ -342,6 +342,25 @@ class _Session:
                 "Save outcome requires read-back; no automatic retry"
             ) from None
 
+    def check_lock(self, season: int, gameday: int, phase: int) -> None:
+        """Re-read the server's current session and lock flags before preparing a save."""
+        try:
+            fixtures = self.get("/feeds/v2/schedule/raceday_en.json")["Data"][
+                "fixtures"
+            ]
+            fixture = _current_fixture(fixtures, season, gameday, phase)
+            if any(
+                _flag(fixture[key], key)
+                for key in ("GDIsLocked", "MDIsLocked", "MHIsLocked")
+            ):
+                raise AccountError(
+                    "Fantasy team is locked by the current server session"
+                )
+        except (KeyError, TypeError, ValueError) as exc:
+            if isinstance(exc, AccountError):
+                raise
+            raise AccountError("Cannot verify fresh Fantasy lock status") from None
+
     def deadline(self) -> str | None:
         # Only explicit, timezone-bearing remote markup in the deadline region.
         # Current public UI has only a countdown, so this intentionally yields None.
@@ -414,27 +433,32 @@ def _selected(value, team_number: int) -> dict:
     return selected[0]
 
 
+def _current_fixture(fixtures, season: int, gameday: int, phase: int) -> dict:
+    current = [
+        row
+        for row in fixtures
+        if _integer(row["Season"], "fixture season") == season
+        and _integer(row["GamedayId"], "fixture gameday") == gameday
+        and _integer(row["PhaseId"], "fixture phase") == phase
+        and _flag(row["GDIsCurrent"], "current gameday")
+        and _flag(row["MDIsCurrent"], "current session")
+    ]
+    if len(current) != 1:
+        raise AccountError(
+            "Cannot establish a unique current bound-season event/session"
+        )
+    fixture = current[0]
+    if _flag(fixture["IsPostponed"], "postponed session"):
+        raise AccountError("Current session is postponed")
+    return fixture
+
+
 def _public(
     session: _Session, season: int, gameday: int, phase: int
 ) -> tuple[dict, dict]:
     try:
         fixtures = session.get("/feeds/v2/schedule/raceday_en.json")["Data"]["fixtures"]
-        current = [
-            row
-            for row in fixtures
-            if _integer(row["Season"], "fixture season") == season
-            and _integer(row["GamedayId"], "fixture gameday") == gameday
-            and _integer(row["PhaseId"], "fixture phase") == phase
-            and _flag(row["GDIsCurrent"], "current gameday")
-            and _flag(row["MDIsCurrent"], "current session")
-        ]
-        if len(current) != 1:
-            raise AccountError(
-                "Cannot establish a unique current bound-season event/session"
-            )
-        fixture = current[0]
-        if _flag(fixture["IsPostponed"], "postponed session"):
-            raise AccountError("Current session is postponed")
+        fixture = _current_fixture(fixtures, season, gameday, phase)
         assets, published = data.load_assets(gameday)
         previous_ends = [
             _timestamp(row["SessionEndDateISO8601"])
@@ -570,7 +594,7 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         state = _integer(detail.get("mds"), "team session status")
         if state not in (0, 1, 2, 3):
             raise AccountError("Unknown team session status")
-        locked = any(
+        locked = state != 0 or any(
             _flag(fixture[key], key)
             for key in ("GDIsLocked", "MDIsLocked", "MHIsLocked")
         )
@@ -822,7 +846,10 @@ def _plan(
     if chip in {"autopilot", "no_negative", "x3"} and (
         changed or (chip != "x3" and boost_changed)
     ):
-        raise AccountError("Non-atomic chip plus lineup/Boost changes are blocked")
+        raise AccountError(
+            "Non-atomic chip plus lineup/Boost changes are blocked; "
+            "use account apply --no-chips to save the lineup without activating a chip"
+        )
     if _matches(state, expected):
         return None, {}, expected
     if chip == "limitless":
@@ -948,14 +975,13 @@ def apply(
                 _save_ledger(directory, rows)
                 return dict(state, apply_status="unchanged", idempotency_key=key)
             deadline = state["lock_deadline_utc"]
-            if deadline is None:
-                raise AccountError(
-                    "Apply blocked: no verified explicit remote lock deadline; countdown/session start is insufficient"
-                )
-            if state["locked"] or _timestamp(deadline) <= _now():
+            if state["locked"] or (
+                deadline is not None and _timestamp(deadline) <= _now()
+            ):
                 raise AccountError(
                     "Fantasy team is locked or the verified deadline has passed"
                 )
+            session.check_lock(season, state["gameday_id"], state["phase_id"])
             row = {
                 "key": key,
                 "status": "prepared",
@@ -966,7 +992,7 @@ def apply(
             rows.append(row)
             _save_ledger(directory, rows)
             # Recheck after durable prepare, immediately before sending.
-            if _timestamp(deadline) <= _now():
+            if deadline is not None and _timestamp(deadline) <= _now():
                 row["status"] = "unknown"
                 _save_ledger(directory, rows)
                 raise AccountError(

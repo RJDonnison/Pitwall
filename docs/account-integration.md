@@ -1,8 +1,10 @@
 # One-team browser account integration
 
 This module uses private contracts in the official shipped Fantasy web client.
-It has **offline contract tests, not live authenticated verification**. There
-were no credentials available during research and no team/chip was submitted.
+Authenticated Team 2 reads, persistent session restoration and unchanged-lineup
+apply have been verified. The official edit flow's ordinary save request was
+captured with every non-read service request aborted; no team/chip was submitted.
+Changed-lineup POST/read-back and chip accounting remain live-unverified.
 Unexpected schemas and missing evidence are errors, not fabricated defaults.
 
 ## API for the CLI owner
@@ -109,21 +111,26 @@ step rather than resubmitting the old recommendation. This module has no model
 callback and makes no claim to validate forecast quality. Apply refreshes account,
 prices/statistics and roster itself before any mutation.
 
-## Deadlines and current live limitation
+## Fresh server lock checks
 
-Apply requires an explicit timezone-bearing remote lock timestamp. The browser
-adapter accepts a unique `time[datetime]` inside the official
-`section[aria-label="team lock deadline"]` region. This is a narrow, optional
-evidence probe, **not a claim that this markup was observed**. Public research
-found only days/hours/minutes countdown markup, so the current researched UI
-yields `lock_deadline_utc: null` and **blocks writes**. No session-start fallback,
-countdown reconstruction or hardcoded buffer is used. Show/connect may succeed
-with a null deadline if the other required authenticated fields are verified.
+Apply re-fetches the official schedule immediately before preparing a write.
+It requires exactly one current, non-postponed fixture matching the bound season,
+Fantasy game day and phase, and verified false `GDIsLocked`, `MDIsLocked` and
+`MHIsLocked` flags. Missing/unknown flags, changed event/session or a locked flag
+stop the write before journal preparation. A nonzero authenticated team session
+status also blocks ordinary changes. The server remains authoritative if the
+lock changes between preflight and receipt; only matching read-back proves success.
+
+An explicit timezone-bearing remote timestamp, when present, is additionally
+checked before and after journal preparation. The optional markup probe accepts
+a unique `time[datetime]` inside `section[aria-label="team lock deadline"]`.
+This markup has not been observed: the current authenticated page exposes only
+days/hours/minutes countdown labels, so `lock_deadline_utc` may remain null.
+No session-start fallback, countdown reconstruction or hardcoded buffer is used.
 
 The shipped countdown adds 40 seconds to session start. This is not proof of the
 server lock boundary. `NextMatchDeadline: "0"` is not an authoritative timestamp.
-Fixture lock flags are checked independently. An authenticated, event-scoped
-deadline source must be established before enabling apply on the current UI.
+Fresh event/session lock flags are used directly rather than inventing a timestamp.
 
 Final Fix remains explicitly blocked: authoritative session/window semantics and
 the historical outgoing/incoming-player read-back contract were not verified.
@@ -155,6 +162,11 @@ Autopilot/No Negative mixed with a Boost change are also rejected. Active chips
 cannot be cancelled or replaced. Already-active Limitless editing is unverified
 and rejected. These are single HTTP operations; no server transactional or
 idempotency guarantee has been established.
+
+Authenticated UI inspection confirmed that selecting No Negative in a transfer
+draft issues `applynonegative` separately, before the eventual `transferteam`
+request. Both requests were aborted during inspection. A `boosterId` on the later
+transfer payload therefore does not prove it can atomically activate the chip.
 
 Read-back conservatively requires the same verified cost cap and balance equal
 to cap minus current roster cost (a signed balance is accepted only for active
