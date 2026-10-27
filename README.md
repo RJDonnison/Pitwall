@@ -98,7 +98,7 @@ The launcher automatically uses `chromium` or `chromium-browser` from your PATH,
 
 Combined transfers/Boost changes plus Autopilot, No Negative or x3 activation work with the same `account apply` command. Both steps are validated up front; the lineup is saved and read back **before spending the chip**, then the chip is activated and read back. Each step re-checks the live lock and account state. These are separate server requests, not an atomic transaction. If the second step fails, the command reports the saved lineup and incomplete chip step. Run `account apply` again to reconcile the original saved plan and resume only an unsent step; a possibly sent chip activation is never blindly retried. Inspect progress with `account audit --format json`. Pending recovery runs before generating a new recommendation, even if you change planning flags.
 
-**Current live gates:** Final Fix activation is blocked pending its authoritative window/read-back contract. Active chips block new CLI planning except recovery of a pending apply. Changed-lineup saves, the combined sequence and chip accounting still require live verification. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
+**Current live gates:** Final Fix activation is blocked pending its authoritative window/read-back contract. Active chips block new CLI planning except recovery of a pending apply. A combined transfer/x3 activation has been verified on the connected Team 2; other chip activation/accounting branches remain live-unverified. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
 
 ### Preload history and compare forecasts
 

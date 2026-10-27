@@ -75,6 +75,40 @@ def test_combined_save_verifies_lineup_before_activating_chip(
     assert "proposal" not in account.audit(tmp_path)[0]["steps"][0]
 
 
+def test_activated_x3_identity_readback_recovers_without_another_post(
+    tmp_path, monkeypatch, state, catalog, proposal, raw, fixture, history
+):
+    middle, _ = stages(state, catalog, proposal)
+    session = install(
+        monkeypatch,
+        tmp_path,
+        [state, middle, account.AccountError("Unknown isextradrstaken flag")],
+        catalog,
+    )
+    with pytest.raises(account.AccountError, match="completed: transferteam"):
+        account.apply(tmp_path, 2026, proposal)
+    raw["playerid"] = [
+        {"id": int(id_), "playerpostion": index + 1}
+        for index, id_ in enumerate(proposal["drivers"] + proposal["constructors"])
+    ]
+    raw.update(
+        capplayerid=2,
+        mgcapplayerid=6,
+        boosterid=6,
+        isextradrstaken=6,
+        extradrstakengd=19,
+    )
+    raw["team_info"]["userSubsleft"] = 1
+    normalized = account._normalize(raw, fixture, catalog, history, None)
+    assert account._matches(normalized, account._ledger(tmp_path)[0]["expected"])
+    monkeypatch.setattr(account, "_snapshot", lambda *_args: (normalized, catalog))
+    result = account.recover(tmp_path, 2026)
+    assert result["active_chip"] == "x3"
+    assert result["x3_driver_id"] == "6"
+    assert len(session.posts) == 2
+    assert account.audit(tmp_path)[0]["status"] == "verified"
+
+
 @pytest.mark.parametrize("chip", ["autopilot", "no_negative"])
 def test_boost_only_then_chip(tmp_path, monkeypatch, state, catalog, proposal, chip):
     proposal["drivers"] = state["drivers"]

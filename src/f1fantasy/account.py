@@ -562,13 +562,18 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         late = _flag(raw["islateonboard"], "late onboarding")
         used, active = {}, []
         for chip, (flag, day) in CHIP_FIELDS.items():
-            used[chip] = _flag(raw[flag], flag)
+            usage = raw[flag]
+            # The service can store the chip's identity here (observed x3: 6),
+            # rather than a boolean 1. Other chips' identities remain invalid.
+            if not isinstance(usage, bool) and _integer(usage, flag) == CHIPS[chip]:
+                usage = 1
+            used[chip] = _flag(usage, flag)
             # An unused chip has no activation game day; the service may leave
             # that field null or empty rather than returning the zero sentinel.
             taken_day = (
                 0
                 if not used[chip] and raw[day] in (None, "")
-                else _integer(raw[day], day)
+                else _integer(raw[day], day, 1 if used[chip] else 0)
             )
             if taken_day == gameday:
                 if not used[chip]:

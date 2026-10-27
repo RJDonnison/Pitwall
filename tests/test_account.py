@@ -177,6 +177,35 @@ def test_recover_activated_chip_without_new_proposal(
     assert account.audit(tmp_path)[0]["status"] == "verified"
 
 
+@pytest.mark.parametrize("chip", account.CHIPS)
+@pytest.mark.parametrize("as_string", [False, True])
+@pytest.mark.parametrize("day", [18, 19])
+def test_chip_usage_accepts_own_identity_without_losing_activation_history(
+    raw, fixture, catalog, history, chip, as_string, day
+):
+    flag, activation_day = account.CHIP_FIELDS[chip]
+    raw[flag] = str(account.CHIPS[chip]) if as_string else account.CHIPS[chip]
+    raw[activation_day] = day
+    raw["boosterid"] = account.CHIPS[chip] if day == 19 else 0
+    raw["mgcapplayerid"] = 2 if chip == "x3" else 0
+    result = account._normalize(raw, fixture, catalog, history, None)
+    assert chip not in result["available_chips"]
+    assert result["active_chip"] == (chip if day == 19 else None)
+    assert result["x3_driver_id"] == ("2" if chip == "x3" and day == 19 else None)
+
+
+@pytest.mark.parametrize("usage", [2, 3, 4, 5, 7, "7", 6.0])
+def test_chip_usage_rejects_other_identities_and_nonintegral_types(
+    raw, fixture, catalog, history, usage
+):
+    raw["isextradrstaken"] = usage
+    raw["extradrstakengd"] = 19
+    raw["boosterid"] = 6
+    raw["mgcapplayerid"] = 2
+    with pytest.raises(account.AccountError, match="isextradrstaken"):
+        account._normalize(raw, fixture, catalog, history, None)
+
+
 def test_recover_conflicting_unknown_blocks_without_post(
     tmp_path, monkeypatch, state, catalog, proposal
 ):
@@ -881,3 +910,12 @@ def test_browser_uses_system_chromium_or_explicit_override(
         assert calls[0][1]["headless"] is False
         assert calls[0][1].get("executable_path") == expected
     assert calls[-1] == "closed"
+
+
+@pytest.mark.parametrize("day", [0, "0"])
+def test_used_chip_requires_positive_activation_day(
+    raw, fixture, catalog, history, day
+):
+    raw.update(isextradrstaken=6, extradrstakengd=day)
+    with pytest.raises(account.AccountError, match="extradrstakengd"):
+        account._normalize(raw, fixture, catalog, history, None)

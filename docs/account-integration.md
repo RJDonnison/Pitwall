@@ -4,7 +4,12 @@ This module uses private contracts in the official shipped Fantasy web client.
 Authenticated Team 2 reads, persistent session restoration and unchanged-lineup
 apply have been verified. The official edit flow's ordinary save request was
 captured with every non-read service request aborted; no team/chip was submitted.
-Changed-lineup POST/read-back and chip accounting remain live-unverified.
+The connected Team 2 subsequently completed a combined transfer and x3 activation;
+fresh authenticated read-back matched every journaled postcondition. The service
+returned `isextradrstaken: 6` (its chip ID), not boolean `1`. Chip usage fields
+accept boolean-style values or their own known chip ID, and used chips must carry
+a positive activation game day. Other chip identities are rejected. Other chip
+activation/accounting branches remain live-unverified.
 Unexpected schemas and missing evidence are errors, not fabricated defaults.
 
 ## API for the CLI owner
@@ -173,7 +178,8 @@ request. Both requests were aborted during inspection. A `boosterId` on the late
 transfer payload therefore does not prove it can atomically activate the chip.
 Our staged implementation saves the lineup first to avoid consuming a chip
 before the lineup has been verified. This order uses the separately observed
-endpoints but the combined sequence has not yet been verified live.
+endpoints. The combined transfer/x3 sequence has since been verified against the
+connected Team 2's saved roster, multipliers, chip history and transfer accounting.
 
 Read-back conservatively requires the same verified cost cap and balance equal
 to cap minus current roster cost (a signed balance is accepted only for active
