@@ -62,6 +62,8 @@ def test_cli_import_and_recommendation(tmp_path, monkeypatch, capsys):
                 "--state",
                 str(state_file),
                 "recommend",
+                "--no-account",
+                "--no-chips",
                 "--races",
                 "1",
             ]
@@ -92,6 +94,8 @@ def test_cli_import_and_recommendation(tmp_path, monkeypatch, capsys):
                 "--state",
                 str(state_file),
                 "recommend",
+                "--no-account",
+                "--no-chips",
                 "--races",
                 "1",
                 "--allow-old-prices",

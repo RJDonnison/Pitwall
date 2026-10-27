@@ -41,8 +41,9 @@ def _planning_options(parser):
     parser.add_argument("--allow-penalties", action="store_true")
     parser.add_argument(
         "--chips",
-        action="store_true",
-        help="Use verified or explicitly imported remaining chip inventory",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use remaining chip inventory (default: enabled)",
     )
     parser.add_argument(
         "--chip",
@@ -423,13 +424,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     recommend.add_argument(
         "--account",
-        action="store_true",
-        help="Refresh the one connected account team before planning",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Refresh the connected account team (default: enabled)",
     )
     chips = commands.add_parser(
         "chips", help="Show remaining chips, reserves and Final Fix previews"
     )
-    chips.add_argument("--account", action="store_true")
+    chips.add_argument(
+        "--account",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Refresh the connected account team (default: enabled)",
+    )
     chips.add_argument(
         "--final-fix",
         type=Path,

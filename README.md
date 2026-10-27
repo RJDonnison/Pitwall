@@ -8,7 +8,7 @@ This Python CLI recommends an F1 Fantasy team of five drivers and two constructo
 
 - Python 3.11 or newer and an internet connection for F1 Fantasy and FastF1 data.
 - Disk space for a local historical cache if using `preload`; expect roughly 0.1–1 GB for three seasons in the default compact mode (estimates vary by season and session coverage). Allow extra temporary space while one session loads.
-- No F1 account is required for recommendations. You can manually import your existing team to plan transfers.
+- Recommendations default to your connected F1 account and chip inventory. For local previews without an account, use `--no-account`; add `--no-chips` if your import has no chip inventory.
 
 ## Usage
 
@@ -29,12 +29,12 @@ f1fantasy prices
 f1fantasy recommend --races 3
 ```
 
-Each recommendation fetches the next race's **current Fantasy roster and prices**. With no imported team, it assumes a new team with a $100m starting budget. Output includes budget, qualifying/Sprint/race estimates, Boost, net transfers and their penalties. Future prices are assumed unchanged until the next run. Always check the Fantasy website's team-lock deadline; the session start displayed by the CLI is not a verified lock time.
+Each recommendation refreshes your connected team and fetches the next race's **current Fantasy roster and prices**, with chip planning enabled. Connect first using `account connect --team NUMBER` (see below). For local planning, use `recommend --no-account`; without a chip inventory, also use `--no-chips`. With no imported team in local mode, it assumes a new team with a $100m starting budget. Output includes budget, qualifying/Sprint/race estimates, Boost, net transfers and their penalties. Future prices are assumed unchanged until the next run. Always check the Fantasy website's team-lock deadline; the session start displayed by the CLI is not a verified lock time.
 
 If the next race-week feed is empty, you can preview with the last completed race's official prices:
 
 ```sh
-f1fantasy recommend --races 3 --allow-old-prices
+f1fantasy recommend --no-account --no-chips --races 3 --allow-old-prices
 ```
 
 This is labelled **provisional** because upcoming prices and driver availability have not been verified. Re-run without the flag before applying a lineup.
@@ -47,20 +47,20 @@ Find active Fantasy IDs using `f1fantasy prices` (or `prices --allow-old-prices`
 
 ```sh
 f1fantasy init --drivers ID1 ID2 ID3 ID4 ID5 --constructors TEAM1 TEAM2 --budget 102.4 --carry 1
-f1fantasy recommend --races 3
+f1fantasy recommend --no-account --no-chips --races 3
 ```
 
 Alternatively, `f1fantasy init --import-file my-team.json` accepts `{"season": 2026, "budget": 102.4, "carry": 1, "drivers": ["ID1", "ID2", "ID3", "ID4", "ID5"], "constructors": ["TEAM1", "TEAM2"]}`. The CLI validates IDs against the fetched roster and stores your team at `.f1fantasy/team.json`, which Git ignores. Re-import after making changes on the Fantasy website. The optimizer uses two free net transfers after your first race, at most one carried transfer, and only permits extra −10-point transfers with `recommend --allow-penalties`.
 
-`f1fantasy clear-team` removes only the **locally imported** team; it works offline and does not change an F1 Fantasy account. After clearing, the next recommendation treats you as a new $100m team. Pass `--state PATH` **before** the command if you imported into a custom location.
+`f1fantasy clear-team` removes only the **locally imported** team; it works offline and does not change an F1 Fantasy account. After clearing, `recommend --no-account --no-chips` treats you as a new $100m team. Pass `--state PATH` **before** the command if you imported into a custom location.
 
 ### Plan chips
 
-Add optional fields to your team import: `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and `chip_reserve` (an optional name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied; `--account` refreshes it remotely.
+Chip planning is enabled by default for `recommend` and `account apply`; use `--no-chips` to disable it. `recommend` and `chips` refresh your connected account by default; `--no-account` uses your local import. For local chip planning, add `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and optionally `chip_reserve` (a name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied.
 
 ```sh
 f1fantasy chips
-f1fantasy recommend --chips --races 3
+f1fantasy recommend --races 3
 f1fantasy recommend --chip x3 --chip-reserve limitless=90 --races 3
 ```
 
@@ -71,7 +71,7 @@ Saving costs beyond the horizon are explicit **heuristics**: Autopilot 15, x3 40
 Final Fix is a separate **provisional** preview:
 
 ```sh
-f1fantasy chips --final-fix remaining.json --format json
+f1fantasy chips --no-account --final-fix remaining.json --format json
 ```
 
 The imported team needs `boost_driver_id` and unused `final_fix`. Supply `gameday_id`, timezone-aware `window_open_utc`/`window_close_utc` enclosing now, multiplier-adjusted `accrued_points`, `remaining_sessions` (e.g. `["race"]`), and `remaining_points` keyed by **every active asset ID**, each with numeric `qualifying`, `sprint`, `race` fields. Elapsed sessions must be zero. The preview labels your window/forecasts as unverified, preserves accrued points, inherits Boost on replacement, and retains the original roster for restoration. It does not activate a chip.
@@ -85,15 +85,15 @@ Official null-score weekends are excluded from the empirical joint sample for al
 .venv/bin/python -m playwright install chromium
 f1fantasy account connect --team 1
 f1fantasy account show --format json
-f1fantasy chips --account
-f1fantasy recommend --account --chips --races 3
+f1fantasy chips
+f1fantasy recommend --races 3
 f1fantasy account apply --races 3
 f1fantasy account audit --format json
 ```
 
 `connect --team 1` explicitly binds the official one-based team number. Sign in and complete MFA in the dedicated browser, then open My Team. No password is collected; the browser session persists. Set `PLAYWRIGHT_CHROMIUM_PATH` for a nonstandard executable. Private session/binding/journal storage defaults to `$XDG_STATE_HOME/f1fantasy/account` or `~/.local/state/f1fantasy/account`, outside the repository. Override with global `--account-dir PATH` **before** the command. An exclusive operation lock prevents concurrent profile use. Expired sessions require reconnecting.
 
-`account apply` recomputes forecasts and checks live event, roster/prices/statistics, budget, net-transfer penalties, chip eligibility and actual deadline before a single-request mutation and fresh read-back. Add `--chips` or `--chip NAME` to select a chip. Text/JSON output reports success or nonzero failure; the offline audit records prepared/unknown/verified outcomes. On restart, apply reconciles a pending outcome before forecasting or writing again; uncertainty blocks further writes.
+`account apply` recomputes forecasts and checks live event, roster/prices/statistics, budget, net-transfer penalties, chip eligibility and actual deadline before a single-request mutation and fresh read-back. Chip planning is enabled by default; use `--chip NAME` to force a chip or `--no-chips` to disable it. Text/JSON output reports success or nonzero failure; the offline audit records prepared/unknown/verified outcomes. On restart, apply reconciles a pending outcome before forecasting or writing again; uncertainty blocks further writes.
 
 **Current live gates:** public research found no verified explicit lock timestamp, so missing deadline evidence blocks writes. Final Fix activation is blocked pending its authoritative window/read-back contract. Combined transfers plus Autopilot/No Negative/x3 activation are rejected because no atomic contract was established. Active chips currently block new CLI planning. Authenticated schemas, session restoration and saves still require verification with your session. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
 

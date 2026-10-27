@@ -82,6 +82,8 @@ def test_prices_init_recommend_statistics_json(tmp_path, monkeypatch, capsys):
                 "--state",
                 str(state),
                 "recommend",
+                "--no-account",
+                "--no-chips",
                 "--races",
                 "1",
                 "--format",

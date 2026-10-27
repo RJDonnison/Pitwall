@@ -55,18 +55,37 @@ def run(path, *args):
 
 def test_chips_inventory_is_explicit_and_offline(game, capsys):
     _, state, path = game
-    assert run(path, "chips") == 0
+    assert run(path, "chips", "--no-account") == 0
     value = json.loads(capsys.readouterr().out)["data"]
     assert value["available_chips"] == state["available_chips"]
     assert value["inventory_verified"] is False
     path.unlink()
-    assert run(path, "chips") == 0
+    assert run(path, "chips", "--no-account") == 0
     assert json.loads(capsys.readouterr().out)["data"]["available_chips"] is None
+
+
+def test_account_and_chip_planning_are_enabled_by_default(game, monkeypatch, capsys):
+    _, state, path = game
+    state.update(gameday_id=10, eligible_chips=["x3"])
+    reads = []
+
+    def show(*args):
+        reads.append("show")
+        return state
+
+    monkeypatch.setattr(account, "show", show)
+    assert run(path, "recommend", "--races", "1") == 0
+    result = json.loads(capsys.readouterr().out)["data"]
+    assert result["account_synced"] is True
+    assert result["lineups"][0]["chip"] == "x3"
+    assert run(path, "chips") == 0
+    assert json.loads(capsys.readouterr().out)["data"]["inventory_verified"] is True
+    assert reads == ["show", "show"]
 
 
 def test_chip_recommendation_reports_x3_sessions_and_terminal_reserve(game, capsys):
     _, _, path = game
-    assert run(path, "recommend", "--chips", "--chip", "x3", "--races", "1") == 0
+    assert run(path, "recommend", "--no-account", "--chip", "x3", "--races", "1") == 0
     value = json.loads(capsys.readouterr().out)["data"]
     lineup = value["lineups"][0]
     assert lineup["chip"] == "x3"
@@ -90,7 +109,7 @@ def test_recommendation_reports_empirical_history_coverage(game, monkeypatch, ca
             skipped_history_gamedays=(5, 6),
         ),
     )
-    assert run(path, "recommend", "--chips", "--races", "1") == 0
+    assert run(path, "recommend", "--no-account", "--races", "1") == 0
     output = json.loads(capsys.readouterr().out)
     assert output["data"]["chip_history"] == {
         "sample_gamedays": {"0": [7, 8, 9]},
@@ -105,12 +124,12 @@ def test_chip_inventory_and_reserve_failures_do_not_produce_recommendations(
     _, state, path = game
     del state["available_chips"]
     path.write_text(json.dumps(state))
-    assert run(path, "recommend", "--chips") == 1
+    assert run(path, "recommend", "--no-account") == 1
     result = capsys.readouterr()
     assert result.out == "" and "inventory" in result.err
     state["available_chips"] = ["x3"]
     path.write_text(json.dumps(state))
-    assert run(path, "recommend", "--chips", "--chip-reserve", "x3=nan") == 1
+    assert run(path, "recommend", "--no-account", "--chip-reserve", "x3=nan") == 1
     result = capsys.readouterr()
     assert result.out == "" and "reserve" in result.err
 
@@ -135,6 +154,7 @@ def test_account_apply_reforecasts_and_uses_original_net_baseline(
 
     def apply(directory, season, proposal, allow_penalties):
         assert calls == ["forecast"]
+        assert proposal["chip"] == "x3"
         assert proposal["baseline_ids"] == baseline
         proposed = set(proposal["drivers"] + proposal["constructors"])
         assert (
@@ -220,12 +240,12 @@ def test_final_fix_preview_is_future_only_and_explicitly_provisional(
     monkeypatch.setattr(data, "season_weekends", lambda *a: [event])
     monkeypatch.setattr(data, "load_assets", lambda *a: (live.assets, now))
     monkeypatch.setattr(data, "load_statistics", lambda *a: {})
-    assert run(path, "chips", "--final-fix", str(source)) == 0
+    assert run(path, "chips", "--no-account", "--final-fix", str(source)) == 0
     value = json.loads(capsys.readouterr().out)["data"]
     assert value["provisional"] is True and value["accrued_points"] == 37
     assert value["in_id"] == "5"
     assert value["boost_driver_id"] == "5"
     spec["remaining_points"]["5"]["qualifying"] = 50
     source.write_text(json.dumps(spec))
-    assert run(path, "chips", "--final-fix", str(source)) == 1
+    assert run(path, "chips", "--no-account", "--final-fix", str(source)) == 1
     assert "elapsed session" in capsys.readouterr().err
