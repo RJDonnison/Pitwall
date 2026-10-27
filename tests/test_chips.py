@@ -559,6 +559,41 @@ def test_loader_strict_cutoff_last_five_same_type_and_official_category_uplift(
         assert deviations[0][0] != deviations[-1][0]
 
 
+def test_loader_excludes_null_weekends_from_the_entire_joint_sample(monkeypatch):
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def with_gap(path):
+        feed = get(path)
+        if path == "drivers/5_en.json":
+            feed["Value"][0]["SessionWisePoints"][0]["points"] = None
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", with_gap)
+    values = load_chip_values(assets, weekends, estimates)
+    assert values.history_gamedays[0] == (7, 9, 11, 13)
+    assert values.skipped_history_gamedays == (5,)
+    assert len(values.autopilot[0]) == 4
+    assert len(values.autopilot[1]) == 5
+    assert values.no_negative[0, "c0"] == Estimate(1, 0, 11)
+    for a in assets[:6]:
+        assert sum(s[a.id].total for s in values.autopilot[0]) / 4 == pytest.approx(
+            estimates[0, a.id].total
+        )
+
+
+def test_loader_fails_when_every_common_sample_has_null_points(monkeypatch):
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def unavailable(path):
+        feed = get(path)
+        feed["Value"][0]["SessionWisePoints"][0]["nonegative_points"] = None
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", unavailable)
+    with pytest.raises(DataError, match="No complete common"):
+        load_chip_values(assets, weekends, estimates)
+
+
 @pytest.mark.parametrize(
     "bad", ["missing_asset", "missing_session", "nan", "negative_uplift", "total"]
 )

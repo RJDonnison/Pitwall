@@ -56,8 +56,12 @@ weekends completed strictly before both the current time and
 `weekends[0].first_session`. It uses at most
 the last five weekends matching each predicted weekend's Sprint format. It
 requires a common complete sample for all active assets and official session
-totals consistent with `GamedayPoints`. It fails rather than imputing missing
-history. No future-horizon actual results or cumulative season totals are used.
+totals consistent with `GamedayPoints`. A weekend with official null session
+scores is excluded for every asset; missing scores are never treated as zero.
+It fails if no complete sample remains or other data is inconsistent.
+`history_gamedays` records the contributing game days per horizon index and
+`skipped_history_gamedays` records excluded null-score weekends. No future-horizon
+actual results or cumulative season totals are used.
 
 No Negative uplift is the mean official sessionwise
 `nonegative_points - points`, including constructor-specific category adjustments.

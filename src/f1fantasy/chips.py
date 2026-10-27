@@ -39,6 +39,8 @@ class ChipValues:
 
     no_negative: dict[tuple[int, str], Estimate] = field(default_factory=dict)
     autopilot: dict[int, tuple[dict[str, Estimate], ...]] = field(default_factory=dict)
+    history_gamedays: dict[int, tuple[int, ...]] = field(default_factory=dict)
+    skipped_history_gamedays: tuple[int, ...] = ()
 
 
 def load_chip_values(
@@ -67,17 +69,30 @@ def load_chip_values(
         key=lambda w: w.first_session,
     )
     samples: dict[bool, list[tuple[dict[str, Estimate], dict[str, Estimate]]]] = {}
+    sampled: dict[bool, list[int]] = {}
+    skipped: list[int] = []
     for sprint in {w.sprint for w in weekends}:
         matching = [w for w in history if w.sprint == sprint][-5:]
         if not matching:
             raise DataError("No completed same-format chip history before forecast")
         samples[sprint] = []
+        sampled[sprint] = []
         for weekend in matching:
             scores: dict[str, Estimate] = {}
             uplifts: dict[str, Estimate] = {}
             try:
                 rows = data._get_json(f"drivers/{weekend.gameday_id}_en.json")["Value"]
                 active = {a.id: a for a in assets}
+                # An official null is unavailable history, never zero points.
+                # Exclude the entire joint sample so drivers stay correlated.
+                if any(
+                    session["points"] is None or session["nonegative_points"] is None
+                    for item in rows
+                    if str(item["PlayerId"]) in active
+                    for session in item["SessionWisePoints"]
+                ):
+                    skipped.append(weekend.gameday_id)
+                    continue
                 for item in rows:
                     key = str(item["PlayerId"])
                     if key not in active:
@@ -124,6 +139,11 @@ def load_chip_values(
                     f"Unverifiable chip history for {weekend.name}: {exc}"
                 ) from exc
             samples[sprint].append((scores, uplifts))
+            sampled[sprint].append(weekend.gameday_id)
+        if not samples[sprint]:
+            raise DataError(
+                "No complete common same-format chip history before forecast"
+            )
     nn: dict[tuple[int, str], Estimate] = {}
     ap: dict[int, tuple[dict[str, Estimate], ...]] = {}
     for t, weekend in enumerate(weekends):
@@ -158,7 +178,12 @@ def load_chip_values(
             }
             for scores, _ in sample
         )
-    return ChipValues(nn, ap)
+    return ChipValues(
+        nn,
+        ap,
+        {t: tuple(sampled[w.sprint]) for t, w in enumerate(weekends)},
+        tuple(sorted(skipped)),
+    )
 
 
 @dataclass(frozen=True)
