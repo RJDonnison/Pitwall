@@ -559,9 +559,15 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         ]
         if len(histories) != 1:
             raise AccountError("Missing or duplicate selected-team history")
-        matchday = str(_integer(raw["matchday"], "team matchday", 1))
-        detail = histories[0]["mddetails"][matchday]
-        state = _integer(detail["mds"], "team session status")
+        # Despite its name, mddetails is keyed by Fantasy GamedayId, not the
+        # lineup's matchday or the schedule's per-session RaceDay identifier.
+        details = histories[0].get("mddetails")
+        if not isinstance(details, dict):
+            raise AccountError("Unrecognized selected-team game-day history")
+        detail = details.get(str(gameday))
+        if not isinstance(detail, dict):
+            raise AccountError("Missing selected-team history for current game day")
+        state = _integer(detail.get("mds"), "team session status")
         if state not in (0, 1, 2, 3):
             raise AccountError("Unknown team session status")
         locked = any(

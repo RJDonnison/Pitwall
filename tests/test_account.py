@@ -73,7 +73,7 @@ def raw():
 
 @pytest.fixture
 def history():
-    return [{"teamno": 2, "mddetails": {"43": {"mds": 0}}}]
+    return [{"teamno": 2, "mddetails": {"19": {"mds": 0}}}]
 
 
 @pytest.fixture
@@ -190,6 +190,25 @@ def test_normalized_budget_is_cap_not_unspent_balance(state):
     assert state["active_chip"] is None
     assert "final_fix" not in state["eligible_chips"]
     assert "teamname" not in state and "guid" not in state
+
+
+@pytest.mark.parametrize("matchday", [1, 43])
+def test_history_status_uses_current_fantasy_gameday(
+    raw, fixture, catalog, history, matchday
+):
+    raw["matchday"] = matchday
+    history[0]["mddetails"][str(matchday)] = {"mds": 3}
+    result = account._normalize(raw, fixture, catalog, history, None)
+    assert "x3" in result["eligible_chips"]
+
+
+@pytest.mark.parametrize("details", [None, [], {"1": {"mds": 0}}])
+def test_current_gameday_history_must_be_present(
+    raw, fixture, catalog, history, details
+):
+    history[0]["mddetails"] = details
+    with pytest.raises(account.AccountError, match="game.day history|current game day"):
+        account._normalize(raw, fixture, catalog, history, None)
 
 
 @pytest.mark.parametrize("empty_booster", [None, ""])
