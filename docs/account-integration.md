@@ -32,7 +32,9 @@ show(directory: Path, season: int) -> dict
 apply(directory: Path, season: int, proposal: dict,
       allow_penalties: bool = False) -> dict
 audit(directory: Path) -> list[dict]
-recover(directory: Path, season: int) -> dict | None
+recover(directory: Path, season: int, *, confirm_completed: bool = True) -> dict | None
+final_fix_context(directory: Path, season: int) -> dict
+apply_final_fix(directory: Path, season: int, proposal: dict) -> dict
 ```
 
 Failures raise `AccountError`, a subclass of `DataError`. The CLI should catch
@@ -52,7 +54,8 @@ journal and lock files use 0600. Operations use a nonblocking Linux `flock` and
 hold it throughout browser use. Overlapping operations fail. A nonempty journal
 prevents rebinding the same directory to another identity; choose a new directory
 instead. Browser data is managed by Chromium under the private parent directory.
-Session restoration and MFA expiry still need authenticated verification.
+Session restoration has been verified. MFA/expired sessions return through the
+official interactive login rather than accepting a stale login cookie.
 
 ## Normalized `show` result
 
@@ -69,12 +72,19 @@ The selected team only is returned, without GUID, team name or cookies:
 - `lock_deadline_utc` (nullable), `locked`, `fetched_at`
 - `unlimited_transfers`, `net_transfers`, `transfer_allowance`,
   `transfers_left`, `transfer_penalty`
+- `limitless_restoration_ids` when a verified local activation journal identifies
+  the actual seven selected immediately before Limitless activation
+- In the Final Fix window or after activation: `final_fix_window`, retained
+  session evidence, `retained_points`, `accrued_points`, and the verified
+  `final_fix` replacement identity when present
 
 Chip names are `limitless`, `wildcard`, `final_fix`, `autopilot`, `no_negative`,
 and `x3`. Availability means unused; eligibility is more restrictive. The parser
 requires the observed per-chip history fields and selected-team `mddetails`.
-Unknown statuses, inconsistent balance/current prices, historical lineups with
-extra outgoing/swap players, and missing history fail closed. Seven current
+Unknown statuses, inconsistent balance/current prices, ambiguous combined swap
+histories, and missing history fail closed. A verified Final Fix eight-entry
+history is reconciled to seven effective selections plus the retained outgoing
+entry and original Boost. Seven current
 IDs are joined to the fresh active roster. An inactive current selection cannot
 currently be reconciled and is an explicit error.
 
@@ -137,9 +147,33 @@ The shipped countdown adds 40 seconds to session start. This is not proof of the
 server lock boundary. `NextMatchDeadline: "0"` is not an authoritative timestamp.
 Fresh event/session lock flags are used directly rather than inventing a timestamp.
 
-Final Fix remains explicitly blocked: authoritative session/window semantics and
-the historical outgoing/incoming-player read-back contract were not verified.
-The module does not invent a window or attempt an endpoint with guessed fields.
+## Final Fix window and retained scoring
+
+`final_fix_context` requires the official `IsFinalFixActive` flag and verified
+session statuses, category and race-day identity. The selected team must be
+post-qualifying, unused for Final Fix, not late, and have no other active chip.
+An upcoming qualifying session, in-progress session, locked remaining session,
+unknown status or closed window prevents submission. No scheduled-time fallback
+is used. Regular Race and the feed's `Sprint Qualifying` (Sprint scoring) sessions
+are distinguished explicitly.
+
+The context returns `state`, original `weekend`, fresh `assets`,
+`remaining_sessions`, official multiplier-adjusted `accrued_points`, `eligible`
+and `window`. Every retained session must be finalized and have finite official
+per-selection scoring. The CLI forecasts remaining sessions only, with the
+original pre-weekend historical cutoff. It does not feed elapsed results back
+into those forecasts.
+
+A Final Fix proposal extends the normal proposal with `outgoing_id`,
+`incoming_id`, current pre-replacement `original_ids`,
+`original_boost_driver_id`, `window` and `retained_points`. Apply requires one
+same-kind affordable replacement, the inherited Boost and unchanged transfer
+penalty. The server window is checked again after durable preparation. Read-back
+verifies eight scoring entries, seven effective selections, original selections,
+retained points and the replacement's exact race-day/category boundary. Ambiguous
+outcomes retain the ordinary journal's no-replay rule. This path is implemented
+and fixture-tested; the window was closed during development, so successful live
+Final Fix submission remains unverified.
 
 ## Single-request writes
 
@@ -151,7 +185,9 @@ Observed service origin: `https://fantasy.formula1.com`.
 | Read history | `GET /services/user/gameplay/{guid}/getusergamedaysv1/1` |
 | Ordinary/Wildcard lineup | `POST /services/user/gameplay/transferteam` |
 | Boost only | `POST /services/user/gameplay/captainupdate` |
-| Limitless full team | `POST /services/user/booster/applylimitless` |
+| Initial Limitless activation | `POST /services/user/booster/applylimitless` |
+| Active Limitless/AP/No Negative/x3 roster edit | `POST /services/user/gameplay/transferteam` |
+| Final Fix replacement | `POST /services/user/booster/applyfinalfix` |
 | Standalone Autopilot | `POST /services/user/booster/applydrsenabled` |
 | Standalone No Negative | `POST /services/user/booster/applynonegative` |
 | Standalone x3 | `POST /services/user/booster/applymegadriver` |
@@ -168,8 +204,12 @@ the ordinary lineup/Boost is saved and fully read back; only then is the chip
 activated and read back. x3 may name an incoming driver after that driver has
 been verified in the saved lineup. A Boost-only change plus x3 remains one chip
 request, since that endpoint supports both multiplier allocations directly.
-Active chips cannot be cancelled or replaced. Already-active Limitless editing
-is unverified and rejected. No server transaction/idempotency guarantee has been
+Active chips cannot be cancelled or replaced. Already-active Limitless uses
+`transferteam` with `boosterId: 1`; Boost-only edits use `captainupdate`. The
+activation endpoint is not called again. The journal records the actual draft at
+activation for later restoration, distinct from the original transfer baseline.
+If activation occurred externally and restoration is unknown, the CLI limits
+planning to the current weekend. No server transaction/idempotency guarantee has been
 established; partial completion is possible and is explicitly reported.
 
 Authenticated UI inspection confirmed that selecting No Negative in a transfer
@@ -229,6 +269,12 @@ rollback or chip cancellation. Errors identify completed operations, and audit
 exposes each step's status. Recovery also works after chip activation makes
 ordinary new planning ineligible; changing flags does not replace a pending plan.
 
+A matching completed chip apply is freshly confirmed by default. Explicit
+`account apply --replan` skips only that completed confirmation and optimizes a
+new target while preserving the active chip; pending recovery still runs first.
+`--final-fix` similarly requests a distinct remaining-session evaluation rather
+than returning a confirmation of an unrelated completed chip apply.
+
 ## Research provenance and verification gaps
 
 Official pages: <https://fantasy.formula1.com/en/create-team>,
@@ -248,8 +294,12 @@ Public shipped sources captured October 26, 2026:
 
 The read parser requires `Meta.Success === true`, `Data.Value.userTeam`, raw
 `playerpostion`, the observed chip fields, and the observed history structure.
-These shapes were recovered from shipped consumers and are not authenticated
-fixtures. Cookie expiry, MFA, full read response types, active-chip accounting,
-live team enumeration, restart behavior, lock windows and concurrency with manual
-web edits still need an authorized authenticated observation pass. Unknown
-responses must extend the evidence/tests before extending accepted schemas.
+These shapes originate in shipped consumers and have been checked against
+authenticated Team 2 reads, persistent session restoration, transfer/x3 saves and
+durable recovery. Closed Final Fix windows and conflicting active chips were
+observed without mutation. Successful Final Fix submission and non-x3 chip
+accounting still require live-window verification; their offline fixtures do not
+claim otherwise. Active Limitless routing was established in chunk 50's save
+branch: `applyLimitless` is selected only when `boosterid !== 1`, with subsequent
+edits falling through to `transferTeam`. Unknown responses must extend the
+evidence/tests before extending accepted schemas.

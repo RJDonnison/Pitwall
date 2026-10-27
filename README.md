@@ -2,7 +2,7 @@
 
 This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses Boost and chips, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. An optional persistent-browser integration connects one account team and provides an explicit manual apply path with live read-back.
 
-Account reads and the unchanged-lineup apply path have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Changed-lineup saves still require live read-back verification. Final Fix has a provisional future-only preview; live activation is blocked pending its window/read-back contract. Scheduling is excluded from this build.
+V3's manual account and chip workflows are implemented, including active-chip continuation and post-qualifying Final Fix. Account reads, changed-lineup saves, combined x3 activation and restart reconciliation have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Final Fix and other chip branches have contract/fixture coverage but still need successful live-window verification. Scheduling is excluded from this build.
 
 ## Requirements
 
@@ -56,7 +56,7 @@ Alternatively, `f1fantasy init --import-file my-team.json` accepts `{"season": 2
 
 ### Plan chips
 
-Chip planning is enabled by default for `recommend` and `account apply`; use `--no-chips` to disable it. `recommend` and `chips` refresh your connected account by default; `--no-account` uses your local import. For local chip planning, add `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and optionally `chip_reserve` (a name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied.
+Chip planning is enabled by default for `recommend` and `account apply`; use `--no-chips` to disable new chip spending. An already-active chip remains effective. `recommend` and `chips` refresh your connected account by default; `--no-account` uses your local import. For local chip planning, add `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and optionally `chip_reserve` (a name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied.
 
 ```sh
 f1fantasy chips
@@ -68,7 +68,16 @@ The optimizer allows one chip per weekend and each once per season. It keeps 2×
 
 Saving costs beyond the horizon are explicit **heuristics**: Autopilot 15, x3 40, No Negative 25, Wildcard 20, Limitless 80 points. Override with `chip_reserve` or repeatable `--chip-reserve NAME=POINTS`; zero is allowed. Defaults become zero when the horizon reaches season end. Within-horizon timing is jointly optimized. Empirical chip inputs use up to five completed same-format current-season weekends strictly before the forecast; missing common history fails closed. See [chip model details](docs/chips.md).
 
-Final Fix is a separate **provisional** preview:
+Final Fix is re-evaluated separately after qualifying, when the server opens its window:
+
+```sh
+f1fantasy chips --final-fix --format json
+f1fantasy account apply --final-fix
+```
+
+These commands refresh the account, official window and still-unscored session boundaries. The preview forecasts only the remaining Sprint/race sessions using pre-weekend model inputs, preserves official accrued points, and considers one affordable replacement with inherited Boost. Apply verifies the original roster, retained points and window again immediately before submission, then reconciles the original and replacement entries on read-back. A closed window, another active chip or ambiguous scoring stops the action. If no replacement improves the forecast, it returns `unchanged` without consuming Final Fix.
+
+An offline **provisional** input remains available:
 
 ```sh
 f1fantasy chips --no-account --final-fix remaining.json --format json
@@ -100,7 +109,16 @@ Combined transfers/Boost changes plus Autopilot, No Negative or x3 activation wo
 
 Repeating `account apply` after a completed chip activation checks the live team against the latest verified journal and returns the verified result if it still matches, without replanning or submitting again.
 
-**Current live gates:** Final Fix activation is blocked pending its authoritative window/read-back contract. Active chips block new CLI planning except recovery or confirmation of a completed apply. A combined transfer/x3 activation has been verified on the connected Team 2; other chip activation/accounting branches remain live-unverified. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
+To deliberately optimize and apply a new lineup with an already-active chip, use:
+
+```sh
+f1fantasy recommend --races 3
+f1fantasy account apply --replan --races 3
+```
+
+The active chip cannot be cancelled, replaced or charged another saving cost. Pending recovery still takes precedence over `--replan`. Active Limitless edits use the ordinary transfer endpoint without reactivating the chip. Its pre-activation roster is saved durably for subsequent-round planning. If Limitless was activated outside this tool and its restoration roster cannot be verified, planning is limited to the current weekend rather than inventing future transfers.
+
+**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. See [account integration details](docs/account-integration.md). No daemon or scheduled submission is included.
 
 ### Preload history and compare forecasts
 

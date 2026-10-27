@@ -12,6 +12,7 @@ from decimal import Decimal, InvalidOperation
 import fcntl
 import hashlib
 import json
+from math import isfinite
 import os
 from pathlib import Path
 import re
@@ -393,6 +394,17 @@ class _Session:
             raise AccountError("Conflicting explicit remote lock deadlines")
         return parsed.pop()
 
+    def check_final_fix(self, state: dict) -> None:
+        fixtures = self.get("/feeds/v2/schedule/raceday_en.json")["Data"]["fixtures"]
+        fixture = _current_fixture(
+            fixtures, state["season"], state["gameday_id"], state["phase_id"]
+        )
+        window = _final_fix_window(fixtures, fixture)
+        if not window["open"] or window != state["final_fix_window"]:
+            raise AccountError(
+                "Final Fix server window/session changed; refresh context"
+            )
+
 
 @contextmanager
 def _browser(directory: Path):
@@ -524,6 +536,50 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         gameday = _integer(fixture["GamedayId"], "gameday", 1)
         number = _integer(raw["teamno"], "team number", 1)
         players = raw["playerid"]
+        replacement = None
+        if raw.get("boosterid") in (3, "3") and len(players) == 8:
+            if raw.get("player_swap_details"):
+                raise AccountError(
+                    "Final Fix combined with player swaps cannot be reconciled"
+                )
+            old, new = str(raw["finalfxoldplayerid"]), str(raw["finalfxnewplayerid"])
+            all_ids = _server_ids(
+                [p["id"] for p in players], "Final Fix scoring lineup", 8
+            )
+            if old == new or old not in all_ids or new not in all_ids:
+                raise AccountError("Invalid Final Fix replacement identities")
+            if (
+                old not in roster
+                or new not in roster
+                or roster[old]["kind"] != roster[new]["kind"]
+            ):
+                raise AccountError("Final Fix replacement kind/roster mismatch")
+            outgoing = next(p for p in players if str(p["id"]) == old)
+            original = [p for p in players if str(p["id"]) != new]
+            original_ids = _server_ids(
+                [p["id"] for p in original], "Final Fix original lineup", 7
+            )
+            players = [
+                dict(p, playerpostion=outgoing["playerpostion"])
+                if str(p["id"]) == new
+                else p
+                for p in players
+                if str(p["id"]) != old
+            ]
+            replacement = {
+                "outgoing_id": old,
+                "incoming_id": new,
+                "original_ids": sorted(original_ids),
+                "original_boost_driver_id": old
+                if str(raw["capplayerid"]) == new
+                else str(raw["capplayerid"]),
+                "race_category": raw["finalfxracecat"],
+                "raceday": _integer(raw["finalfxraceday"], "Final Fix raceday", 1),
+            }
+            if replacement["race_category"] not in ("R", "S"):
+                raise AccountError("Unknown Final Fix scoring boundary")
+        elif raw.get("boosterid") in (3, "3") and raw.get("finalfxoldplayerid"):
+            raise AccountError("Final Fix retained scoring entry is missing")
         if not isinstance(players, list) or len(players) != 7:
             raise AccountError(
                 "Historical/Final Fix/swap lineup cannot be reconciled as seven selections"
@@ -595,7 +651,9 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         unlimited = active_chip in {"limitless", "wildcard"} or (
             not accounting and allowance == 0 and left == 0
         )
-        net = len(set(baseline) - set(ids))
+        net = len(
+            set(baseline) - set(replacement["original_ids"] if replacement else ids)
+        )
         if not unlimited and (allowance not in (2, 3) or left != allowance - net):
             raise AccountError("Server transfer state conflicts with net baseline")
         if not isinstance(history, list):
@@ -633,7 +691,7 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         ]
         if deadline is not None:
             deadline = _timestamp(deadline).isoformat()
-        return {
+        result = {
             "season": season,
             "team_number": number,
             "gameday_id": gameday,
@@ -659,6 +717,9 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
             "transfers_left": left,
             "transfer_penalty": 0 if unlimited else max(net - allowance, 0) * 10,
         }
+        if replacement is not None:
+            result["final_fix"] = replacement
+        return result
     except (KeyError, TypeError, ValueError) as exc:
         if isinstance(exc, AccountError):
             raise
@@ -685,7 +746,207 @@ def _snapshot(
     fixture, roster = _public(session, binding["season"], gameday, phase)
     history = _unwrap(session.get(f"{TEAM}{guid}/getusergamedaysv1/1"))
     state = _normalize(raw, fixture, roster, history, session.deadline())
+    if state["active_chip"] == "final_fix" and not state.get("final_fix"):
+        raise AccountError(
+            "Final Fix retained original/replacement scoring entries unavailable"
+        )
+    if _flag(fixture.get("IsFinalFixActive", 0), "Final Fix window") or state.get(
+        "final_fix"
+    ):
+        _final_fix_evidence(session, raw, state, roster, history)
     return state, roster
+
+
+def _final_fix_window(fixtures: list, fixture: dict) -> dict:
+    """Server flags/statuses own eligibility; scheduled starts never open a window."""
+    event = [
+        f
+        for f in fixtures
+        if str(f["Season"]) == str(fixture["Season"])
+        and f["GamedayId"] == fixture["GamedayId"]
+        and f["PhaseId"] == fixture["PhaseId"]
+    ]
+    upcoming = [f for f in event if str(f["MatchStatus"]) in ("0", "1")]
+    if any(
+        str(f["MatchStatus"]) not in ("0", "1", "2", "3", "4", "5", "6") for f in event
+    ):
+        raise AccountError("Unknown Final Fix session status")
+    if sum(str(f["MatchStatus"]) == "1" for f in event) > 1:
+        raise AccountError("Ambiguous current Final Fix session")
+    upcoming.sort(key=lambda f: _integer(f["RaceDay"], "session order", 1))
+    # The shipped cj/y5 helpers use the CURRENT or next UPCOMING session.
+    next_session = next(
+        (f for f in upcoming if str(f["MatchStatus"]) == "1"),
+        upcoming[0] if upcoming else None,
+    )
+    names = {"Race": ("race", "R"), "Sprint Qualifying": ("sprint", "S")}
+    kind = names.get(next_session["SessionType"]) if next_session else None
+    remaining = []
+    if kind:
+        remaining = [
+            names[f["SessionType"]][0]
+            for f in upcoming
+            if _integer(f["RaceDay"], "session order") >= int(next_session["RaceDay"])
+            and f["SessionType"] in names
+        ]
+        if len(set(remaining)) != len(remaining):
+            raise AccountError("Duplicate remaining Final Fix sessions")
+    opened = _flag(fixture["IsFinalFixActive"], "Final Fix window")
+    live = any(str(f["MatchStatus"]) in ("2", "3", "5") for f in event)
+    opened = (
+        opened
+        and bool(kind)
+        and not live
+        and not any(_flag(next_session[k], k) for k in ("MDIsLocked", "MHIsLocked"))
+        and not any(f["SessionType"] == "Qualifying" for f in upcoming)
+    )
+    return {
+        "open": opened,
+        "raceday": _integer(next_session["RaceDay"], "next raceday", 1)
+        if kind
+        else None,
+        "race_category": kind[1] if kind else None,
+        "remaining_sessions": remaining,
+        "next_raceday": _integer(next_session["RaceDay"], "next raceday", 1)
+        if kind
+        else None,
+    }
+
+
+def _finite_points(value) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        raise AccountError("Official accrued session points unavailable")
+    try:
+        result = float(value)
+    except ValueError:
+        raise AccountError("Malformed official accrued points") from None
+    if not isfinite(result):
+        raise AccountError("Non-finite official accrued points")
+    return result
+
+
+def _final_fix_evidence(session, raw, state, roster, history) -> None:
+    """Attach official retained scoring and server window evidence to a snapshot."""
+    try:
+        fixtures = session.get("/feeds/v2/schedule/raceday_en.json")["Data"]["fixtures"]
+        fixture = _current_fixture(
+            fixtures, state["season"], state["gameday_id"], state["phase_id"]
+        )
+        window = _final_fix_window(fixtures, fixture)
+        replacement = state.get("final_fix")
+        boundary = (
+            replacement["race_category"] if replacement else window["race_category"]
+        )
+        if boundary not in ("R", "S"):
+            raise AccountError("No authoritative remaining Final Fix session")
+        event = [
+            f
+            for f in fixtures
+            if str(f["Season"]) == str(state["season"])
+            and f["GamedayId"] == state["gameday_id"]
+            and f["PhaseId"] == state["phase_id"]
+        ]
+        event.sort(key=lambda f: _integer(f["RaceDay"], "session order", 1))
+        category = {"Qualifying": "Q", "Sprint Qualifying": "S", "Race": "R"}
+        cut = next(
+            i for i, f in enumerate(event) if category.get(f["SessionType"]) == boundary
+        )
+        retained = [f["SessionType"] for f in event[:cut]]
+        if not retained or any(str(f["MatchStatus"]) != "4" for f in event[:cut]):
+            raise AccountError("Prior session scoring is not authoritatively complete")
+        ids = (
+            replacement["original_ids"]
+            if replacement
+            else state["drivers"] + state["constructors"]
+        )
+        boost = (
+            replacement["original_boost_driver_id"]
+            if replacement
+            else state["boost_driver_id"]
+        )
+        rows = session.get(f"/feeds/drivers/{state['gameday_id']}_en.json")["Data"][
+            "Value"
+        ]
+        scores = {}
+        total = 0.0
+        for id_ in ids:
+            matches = [p for p in rows if str(p["PlayerId"]) == id_]
+            if (
+                len(matches) != 1
+                or _money(matches[0]["Value"], "Final Fix price")
+                != roster[id_]["price"]
+            ):
+                raise AccountError("Final Fix roster/price changed")
+            values = {}
+            for name in retained:
+                points = [
+                    p
+                    for p in matches[0]["SessionWisePoints"]
+                    if p["sessiontype"] == name
+                ]
+                if len(points) != 1:
+                    raise AccountError("Missing/duplicate retained session points")
+                values[name] = _finite_points(points[0]["points"])
+            scores[id_] = values
+            total += sum(values.values()) * (2 if id_ == boost else 1)
+        detail = next(h for h in history if int(h["teamno"]) == state["team_number"])
+        eligible = (
+            window["open"]
+            and int(detail["mddetails"][str(state["gameday_id"])]["mds"]) == 2
+            and str(detail["ftMdid"]) != str(state["gameday_id"])
+            and not _flag(raw["islateonboard"], "late onboarding")
+            and state["active_chip"] is None
+            and "final_fix" in state["available_chips"]
+        )
+        state["final_fix_window"] = window
+        state["retained_sessions"] = retained
+        state["retained_points"] = scores
+        state["accrued_points"] = total
+        if eligible:
+            state["eligible_chips"].append("final_fix")
+    except (KeyError, TypeError, ValueError, StopIteration) as exc:
+        if isinstance(exc, AccountError):
+            raise
+        raise AccountError(
+            "Cannot verify Final Fix session/window/scoring evidence"
+        ) from None
+
+
+def final_fix_context(directory: Path, season: int) -> dict:
+    """Fresh account-aware Final Fix inputs; no forecasts use current-week results."""
+    with _locked(directory) as directory:
+        binding = _binding(directory, season)
+        with _browser(directory) as session:
+            state, roster = _snapshot(session, binding)
+            if "final_fix_window" not in state:
+                raise AccountError(
+                    "Final Fix server window is closed or conflicting chip is active"
+                )
+            weekends = data.season_weekends(season)
+            matches = [w for w in weekends if w.gameday_id == state["gameday_id"]]
+            if len(matches) != 1:
+                raise AccountError("Final Fix original weekend identity unavailable")
+            assets, _ = data.load_assets(state["gameday_id"])
+            if {a.id: (a.kind, a.price) for a in assets} != {
+                k: (v["kind"], v["price"]) for k, v in roster.items()
+            }:
+                raise AccountError("Final Fix context prices changed; refresh")
+            return dict(
+                state=state,
+                weekend=matches[0],
+                assets=assets,
+                remaining_sessions=state["final_fix_window"]["remaining_sessions"],
+                accrued_points=state["accrued_points"],
+                eligible="final_fix" in state["eligible_chips"],
+                window=state["final_fix_window"],
+            )
+
+
+def apply_final_fix(directory: Path, season: int, proposal: dict) -> dict:
+    """One explicit replacement through the shared durable apply/recovery journal."""
+    if not isinstance(proposal, dict) or proposal.get("chip") != "final_fix":
+        raise AccountError("Final Fix proposal must explicitly request final_fix")
+    return apply(directory, season, proposal)
 
 
 def connect(
@@ -719,10 +980,31 @@ def show(directory: Path, season: int) -> dict:
         binding = _binding(directory, season)
         with _browser(directory) as session:
             state, _ = _snapshot(session, binding)
+            if state["active_chip"] == "limitless":
+                for entry in reversed(_ledger(directory)):
+                    expected = entry["expected"]
+                    if (
+                        entry["status"] == "verified"
+                        and entry.get("restoration_ids")
+                        and all(
+                            expected.get(key) == state.get(key)
+                            for key in (
+                                "season",
+                                "team_number",
+                                "gameday_id",
+                                "phase_id",
+                                "active_chip",
+                            )
+                        )
+                    ):
+                        state["limitless_restoration_ids"] = entry["restoration_ids"]
+                        break
             return state
 
 
-def recover(directory: Path, season: int) -> dict | None:
+def recover(
+    directory: Path, season: int, *, confirm_completed: bool = True
+) -> dict | None:
     """Reconcile an interrupted write before the CLI attempts a new forecast.
 
     Chip activation can make an ordinary new plan ineligible. Recovery uses the
@@ -734,7 +1016,9 @@ def recover(directory: Path, season: int) -> dict | None:
         rows = _ledger(directory)
         pending = [row for row in rows if row["status"] != "verified"]
         completed_chip = (
-            rows[-1] if rows and rows[-1]["expected"].get("active_chip") else None
+            rows[-1]
+            if confirm_completed and rows and rows[-1]["expected"].get("active_chip")
+            else None
         )
         if not pending and completed_chip is None:
             return None
@@ -809,9 +1093,46 @@ def _proposal(proposal: dict) -> dict:
         # Selection order is not an idempotency distinction.
         result["drivers"] = sorted(result["drivers"])
         result["constructors"] = sorted(result["constructors"])
+        if result["chip"] == "final_fix":
+            if not all(
+                key in proposal
+                for key in (
+                    "outgoing_id",
+                    "incoming_id",
+                    "original_ids",
+                    "original_boost_driver_id",
+                    "window",
+                    "retained_points",
+                )
+            ):
+                raise AccountError(
+                    "Final Fix blocked: explicit replacement and authoritative window evidence required"
+                )
+            result["outgoing_id"] = _ids(
+                [proposal["outgoing_id"]], "Final Fix outgoing", 1
+            )[0]
+            result["incoming_id"] = _ids(
+                [proposal["incoming_id"]], "Final Fix incoming", 1
+            )[0]
+            result["original_ids"] = sorted(
+                _ids(proposal["original_ids"], "Final Fix original lineup", 7)
+            )
+            result["original_boost_driver_id"] = proposal["original_boost_driver_id"]
+            if result["original_boost_driver_id"] not in result["original_ids"]:
+                raise AccountError("Invalid Final Fix original Boost")
+            for key in ("window", "retained_points"):
+                if not isinstance(proposal[key], dict):
+                    raise AccountError("Missing Final Fix forecast boundary evidence")
+                result[key] = proposal[key]
+            # Validate JSON before deriving a durable journal identity.
+            json.dumps(result, allow_nan=False)
         return result
     except (KeyError, TypeError):
         raise AccountError("Malformed account proposal") from None
+    except ValueError as exc:
+        if isinstance(exc, AccountError):
+            raise
+        raise AccountError("Malformed/non-finite account proposal") from None
 
 
 def _plan(
@@ -838,9 +1159,7 @@ def _plan(
     if active is not None and chip != active:
         raise AccountError("Active chip cannot be cancelled or replaced")
     if chip == "final_fix":
-        raise AccountError(
-            "Final Fix blocked: authoritative session/window and historical read-back contract unavailable"
-        )
+        return _plan_final_fix(state, roster, proposal)
     if chip is not None and chip != active and chip not in state["eligible_chips"]:
         raise AccountError("Requested chip is not verifiably eligible")
     x3 = proposal["x3_driver_id"]
@@ -882,19 +1201,17 @@ def _plan(
     )
     changed = set(selected) != set(state["drivers"] + state["constructors"])
     boost_changed = proposal["boost_driver_id"] != state["boost_driver_id"]
-    if chip in {"autopilot", "no_negative", "x3"} and (
-        changed or (chip != "x3" and boost_changed)
+    if (
+        chip != active
+        and chip in {"autopilot", "no_negative", "x3"}
+        and (changed or (chip != "x3" and boost_changed))
     ):
         raise AccountError(
             "Non-atomic chip plus lineup/Boost changes require staged apply"
         )
     if _matches(state, expected):
         return None, {}, expected
-    if chip == "limitless":
-        if active == "limitless":
-            raise AccountError(
-                "Already-active Limitless editing contract is unverified"
-            )
+    if chip == "limitless" and active != "limitless":
         payload = dict(
             PLATFORM,
             teamNo=state["team_number"],
@@ -907,7 +1224,9 @@ def _plan(
             skill=[roster[id_]["skill"] for id_ in selected],
         )
         return BOOSTER + "applylimitless", payload, expected
-    if chip in {"autopilot", "no_negative", "x3"}:
+    if chip in {"autopilot", "no_negative", "x3"} and (
+        chip != active or chip == "x3" and not changed
+    ):
         payload = dict(
             PLATFORM,
             teamNo=state["team_number"],
@@ -944,9 +1263,104 @@ def _plan(
         )
         if chip is not None:
             payload["boosterId"] = CHIPS[chip]
+        if chip == "x3":
+            payload["mgCaptainPlayerId"] = x3
         return TEAM + "transferteam", payload, expected
     payload["optType"] = 1
     return TEAM + "captainupdate", payload, expected
+
+
+def _plan_final_fix(state: dict, roster: dict, proposal: dict):
+    if state["active_chip"] is not None or "final_fix" not in state["eligible_chips"]:
+        raise AccountError(
+            "Final Fix is not eligible in the authoritative server window"
+        )
+    window = state.get("final_fix_window")
+    if not window or not window["open"] or proposal["window"] != window:
+        raise AccountError("Final Fix forecast window/session changed; recompute")
+    if proposal["retained_points"] != state["retained_points"]:
+        raise AccountError("Official retained points changed; recompute Final Fix")
+    original = state["drivers"] + state["constructors"]
+    old, new = proposal["outgoing_id"], proposal["incoming_id"]
+    if (
+        set(proposal["original_ids"]) != set(original)
+        or proposal["original_boost_driver_id"] != state["boost_driver_id"]
+    ):
+        raise AccountError("Final Fix original lineup/Boost changed")
+    if (
+        old not in original
+        or new in original
+        or new not in roster
+        or roster[old]["kind"] != roster[new]["kind"]
+    ):
+        raise AccountError("Final Fix requires exactly one same-kind replacement")
+    selected = proposal["drivers"] + proposal["constructors"]
+    if set(selected) != (set(original) - {old}) | {new}:
+        raise AccountError("Final Fix requires exactly one replacement")
+    for kind, ids in (
+        ("DRIVER", proposal["drivers"]),
+        ("CONSTRUCTOR", proposal["constructors"]),
+    ):
+        if any(i not in roster or roster[i]["kind"] != kind for i in ids):
+            raise AccountError("Final Fix selection kind mismatch")
+    boost = new if old == state["boost_driver_id"] else state["boost_driver_id"]
+    if proposal["boost_driver_id"] != boost or proposal["x3_driver_id"] is not None:
+        raise AccountError("Final Fix inherits Boost; it cannot reassign multipliers")
+    cost = sum(roster[i]["price"] for i in selected)
+    if cost > state["budget_tenths_m"]:
+        raise AccountError("Final Fix exceeds the verified account cap")
+    if proposal["expected_transfer_penalty"] != state["transfer_penalty"]:
+        raise AccountError("Final Fix does not alter preweek transfer penalties")
+    expected = {
+        k: state[k]
+        for k in (
+            "season",
+            "team_number",
+            "gameday_id",
+            "phase_id",
+            "budget_tenths_m",
+            "net_transfers",
+            "transfer_allowance",
+            "transfers_left",
+            "transfer_penalty",
+            "unlimited_transfers",
+            "retained_points",
+            "retained_sessions",
+            "accrued_points",
+        )
+    }
+    expected.update(
+        drivers=sorted(proposal["drivers"]),
+        constructors=sorted(proposal["constructors"]),
+        boost_driver_id=boost,
+        x3_driver_id=None,
+        active_chip="final_fix",
+        baseline_ids=sorted(state["baseline_ids"]),
+        remaining_budget_tenths_m=state["budget_tenths_m"] - cost,
+        available_chips=sorted(set(state["available_chips"]) - {"final_fix"}),
+        final_fix={
+            "outgoing_id": old,
+            "incoming_id": new,
+            "original_ids": sorted(original),
+            "original_boost_driver_id": state["boost_driver_id"],
+            "race_category": window["race_category"],
+            "raceday": window["raceday"],
+        },
+    )
+    payload = dict(
+        PLATFORM,
+        teamNo=state["team_number"],
+        gamedayId=state["gameday_id"],
+        phaseId=state["phase_id"],
+        boosterId=3,
+        playerId=_wire_id(new),
+        playerSkill=roster[new]["skill"],
+        oldPlayerId=_wire_id(old),
+        oldPlayerSkill=roster[old]["skill"],
+        raceday=window["raceday"],
+        raceCategoryId=window["race_category"],
+    )
+    return BOOSTER + "applyfinalfix", payload, expected
 
 
 def _wire_id(id_: str):
@@ -999,7 +1413,10 @@ def _combined_steps(state: dict, roster: dict, proposal: dict, allow_penalties: 
     return steps
 
 
-def _preflight(session, state: dict) -> None:
+def _preflight(session, state: dict, *, final_fix: bool = False) -> None:
+    if final_fix:
+        session.check_final_fix(state)
+        return
     deadline = state["lock_deadline_utc"]
     if state["locked"] or (deadline is not None and _timestamp(deadline) <= _now()):
         raise AccountError("Fantasy team is locked or the verified deadline has passed")
@@ -1145,7 +1562,7 @@ def apply(
                 _save_ledger(directory, rows)
                 return dict(state, apply_status="unchanged", idempotency_key=key)
             deadline = state["lock_deadline_utc"]
-            _preflight(session, state)
+            _preflight(session, state, final_fix=proposal["chip"] == "final_fix")
             row = {
                 "key": key,
                 "status": "prepared",
@@ -1153,15 +1570,28 @@ def apply(
                 "operation": path.rsplit("/", 1)[-1],
                 "expected": expected,
             }
+            if proposal["chip"] == "limitless" and state["active_chip"] is None:
+                # This is the team immediately before activation, not the older
+                # gd_initial_team used to count net transfers.
+                row["restoration_ids"] = sorted(
+                    state["drivers"] + state["constructors"]
+                )
             rows.append(row)
             _save_ledger(directory, rows)
             # Recheck after durable prepare, immediately before sending.
-            if deadline is not None and _timestamp(deadline) <= _now():
+            if (
+                proposal["chip"] != "final_fix"
+                and deadline is not None
+                and _timestamp(deadline) <= _now()
+            ):
                 row["status"] = "unknown"
                 _save_ledger(directory, rows)
                 raise AccountError(
                     "Deadline passed after prepare; read-back required, no replay"
                 )
+            if proposal["chip"] == "final_fix":
+                # Re-read the remote window after durable prepare as well.
+                session.check_final_fix(state)
             try:
                 session.post(path, _numeric_payload(payload))
             except AccountError:

@@ -8,6 +8,8 @@ chip_values: ChipValues | None = None
 chip_reserve: dict[str, float] | None = None
 eligible_chips: dict[int, frozenset[str]] | None = None
 forced_chip: str | None = None
+active_chip: str | None = None
+limitless_restore: frozenset[str] | None = None
 ```
 
 Inventory is explicitly **remaining** inventory. Names: `autopilot`, `x3`,
@@ -21,7 +23,13 @@ pre-weekend chips are allowed, except Wildcard/Limitless on championship round o
 verify account eligibility, including completion of the first weekend, and
 pass the corresponding mapping. Autopilot, X3 and No Negative are immediately available. `forced_chip`
 requires eligible remaining inventory and fixes the first horizon decision.
-First-horizon Limitless requires `previous` to provide its restoration baseline.
+First-horizon Limitless requires `previous` for the net-transfer baseline; use
+`limitless_restore` when its actual restoration draft differs from that baseline.
+
+`active_chip` fixes the first weekend's already-active effect even though that chip
+is absent from remaining inventory. It carries no new saving cost, cannot be
+replaced, and cannot be used again later in the horizon. `--no-chips` disables new
+spending, not existing effects.
 
 Reserve values are finite, nonnegative expected points forgone by spending a
 chip now rather than saving it beyond the horizon. The solver subtracts them
@@ -90,12 +98,17 @@ copies of its score alongside the ordinary 2× driver.
 
 Wildcard permits unlimited net transfers within budget with no penalty.
 Limitless removes the scoring team's cap and transfer restriction, while
-freezing a separate durable roster at its prior selection. The next round's
+freezing a separate durable roster at its prior selection. `limitless_restore`
+overrides its first-weekend restoration roster with the verified draft at actual
+activation; that draft may differ from the original net-transfer baseline. The next round's
 transfers compare against that restored roster. Limitless clears the next
 carried transfer. Other rounds retain the ordinary unused-transfer bank (at
 most one); Wildcard cannot bank a transfer after using its normal allowance.
 `Lineup.transfers` reports net incoming **scoring** selections, including on
 Limitless. Prices remain fixed across hypothetical later rounds as before.
+For already-active Limitless, a multi-week horizon requires verified restoration
+IDs. Without them only a single-weekend plan is permitted. The account journal
+records the current seven before activation and exposes them on later reads.
 
 ## Final Fix
 
@@ -121,3 +134,9 @@ replacing Boost transfers its multiplier to the incoming driver. It rejects
 another active chip. Original team and accrued points are never rewritten.
 Roster prices and remaining forecasts must be verified by the caller. There
 is no scheduling, account mutation or CLI integration in this module.
+
+The CLI connects this pure function to `account.final_fix_context`, which verifies
+the server's Final Fix window, official retained session scores and remaining
+Sprint/race boundaries. `chips --final-fix` previews and `account apply --final-fix`
+submits with durable read-back verification. Forecasts use the original weekend's
+pre-event cutoff; completed scores are retained separately, never forecast inputs.

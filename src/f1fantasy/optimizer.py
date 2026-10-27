@@ -42,6 +42,8 @@ def optimize(
     chip_reserve: dict[str, float] | None = None,
     eligible_chips: dict[int, frozenset[str]] | None = None,
     forced_chip: str | None = None,
+    active_chip: str | None = None,
+    limitless_restore: frozenset[str] | None = None,
 ) -> list[Lineup]:
     """Maximize total predicted points with net transfers and carry-over.
 
@@ -51,6 +53,22 @@ def optimize(
     if not weekends or budget < 0 or carry not in (0, 1):
         raise ValueError("Invalid weekends, budget or carried transfer")
     ids = {a.id for a in assets}
+    if active_chip is not None and active_chip not in PREWEEK_CHIPS:
+        raise DataError("Active Final Fix requires remaining-session planning")
+    if limitless_restore is not None and (
+        len(limitless_restore) != 7
+        or not limitless_restore <= ids
+        or sum(a.id in limitless_restore and a.kind == "DRIVER" for a in assets) != 5
+    ):
+        raise DataError("Invalid verified Limitless restoration lineup")
+    if active_chip == "limitless" and (
+        (len(weekends) != 1 and limitless_restore is None) or previous is None
+    ):
+        raise DataError(
+            "Active Limitless requires a previous team and verified restoration for a multi-week horizon; otherwise use a single-weekend plan"
+        )
+    if active_chip and forced_chip not in (None, active_chip):
+        raise DataError("An active chip cannot be cancelled or replaced")
     if previous is not None and (len(previous) != 7 or not previous <= ids):
         raise DataError(
             "Previous lineup must contain seven currently active Fantasy IDs"
@@ -94,6 +112,9 @@ def optimize(
             allowed[t] = allowed[t] - {"wildcard", "limitless"}
     if previous is None:
         allowed[0] = allowed[0] - {"limitless"}
+    if active_chip:
+        allowed[0] = frozenset({active_chip})
+        forced_chip = active_chip
     if forced_chip is not None and forced_chip not in allowed[0]:
         raise DataError(
             "Forced chip is unavailable or ineligible; Final Fix is future-only"
@@ -170,7 +191,10 @@ def optimize(
     chips: list[dict[str, int]] = []
     tripled: list[dict[str, int]] = []
     for t, weekend in enumerate(weekends):
-        h = {name: var(reserve.get(name, 0)) for name in sorted(allowed[t])}
+        h = {
+            name: var(0 if t == 0 and name == active_chip else reserve.get(name, 0))
+            for name in sorted(allowed[t])
+        }
         chips.append(h)
         row({i: 1 for i in h.values()}, high=1)
         if t == 0 and forced_chip is not None:
@@ -208,7 +232,18 @@ def optimize(
                 # Scoring selection can differ only during Limitless.
                 row({persistent[asset.id]: 1, x[asset.id]: -1, ll: -1}, high=0)
                 row({persistent[asset.id]: -1, x[asset.id]: 1, ll: -1}, high=0)
-                prior = durable[t - 1][asset.id] if t else int(asset.id in previous)
+                prior = (
+                    durable[t - 1][asset.id]
+                    if t
+                    else int(
+                        asset.id
+                        in (
+                            limitless_restore
+                            if limitless_restore is not None
+                            else previous
+                        )
+                    )
+                )
                 if t:
                     row({persistent[asset.id]: 1, prior: -1, ll: 1}, high=1)
                     row({persistent[asset.id]: -1, prior: 1, ll: 1}, high=1)

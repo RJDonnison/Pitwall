@@ -62,6 +62,83 @@ def test_x3_is_distinct_from_regular_boost():
     assert lineup.session_points.total == lineup.expected_points
 
 
+@pytest.mark.parametrize("chip", ["autopilot", "no_negative", "x3", "wildcard"])
+def test_active_chip_keeps_scoring_without_inventory_or_spending_reserve(chip):
+    assets, weekends, estimates, previous = fixture(2)
+    values = ChipValues(
+        no_negative={key: Estimate(0, 0, 2) for key in estimates},
+        autopilot={
+            t: ({a.id: estimates[t, a.id] for a in assets if a.kind == "DRIVER"},)
+            for t in range(2)
+        },
+    )
+    result = optimize(
+        assets,
+        weekends,
+        estimates,
+        100,
+        previous,
+        active_chip=chip,
+        chip_values=values,
+        chip_reserve={chip: 1e6},
+        eligible_chips={},
+    )
+    assert result[0].chip == chip
+    assert result[1].chip is None
+    forced = optimize(
+        assets,
+        weekends,
+        estimates,
+        100,
+        previous,
+        available_chips=frozenset({chip}),
+        forced_chip=chip,
+        chip_values=values,
+    )
+    assert sum(p.expected_points for p in result) == pytest.approx(
+        sum(p.expected_points for p in forced)
+    )
+
+
+def test_active_chip_cannot_be_replaced_by_forced_other_chip():
+    assets, weekends, estimates, previous = fixture(1)
+    with pytest.raises(DataError, match="cannot be cancelled"):
+        optimize(
+            assets,
+            weekends,
+            estimates,
+            100,
+            previous,
+            active_chip="x3",
+            forced_chip="wildcard",
+        )
+
+
+def test_active_limitless_without_restoration_is_single_weekend_and_uncapped():
+    assets, weekends, estimates, previous = fixture(1)
+    result = optimize(
+        assets,
+        weekends,
+        estimates,
+        1,
+        previous,
+        active_chip="limitless",
+    )[0]
+    assert result.chip == "limitless"
+    assert len(ids(result)) == 7
+    assert result.cost > 1
+    assert result.transfer_penalty == 0
+    with pytest.raises(DataError, match="single-weekend"):
+        optimize(
+            assets,
+            weekends * 2,
+            estimates,
+            1,
+            previous,
+            active_chip="limitless",
+        )
+
+
 def test_nn_applies_per_asset_and_to_boost_without_clamping_forecast():
     assets, weekends, estimates, _ = fixture(1)
     estimates = {key: Estimate(5, 0, 3) for key in estimates}

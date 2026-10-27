@@ -69,13 +69,31 @@ def _plan(args, live, weekends, state):
         previous, budget, carry = _validate_state(state, live.assets, args.season)
         if "baseline_ids" in state:
             previous = frozenset(str(id_) for id_ in state["baseline_ids"])
-        if state.get("active_chip"):
+        if state.get("active_chip") == "final_fix":
             raise DataError(
-                "An active chip needs account-specific continuation; inspect account show before planning"
+                "Final Fix has already been used; inspect account show for retained and remaining scoring"
             )
-        if state.get("unlimited_transfers"):
+        if state.get("unlimited_transfers") and state.get("active_chip") not in {
+            "wildcard",
+            "limitless",
+        }:
             previous, carry = None, 0
     horizon = weekends[: args.races]
+    active = state.get("active_chip") if state else None
+    restoration = (
+        frozenset(state["limitless_restoration_ids"])
+        if active == "limitless" and state.get("limitless_restoration_ids")
+        else None
+    )
+    current_ids = (
+        frozenset(str(i) for i in state["drivers"] + state["constructors"])
+        if state
+        else None
+    )
+    if active == "limitless" and restoration is None:
+        # The temporary team is known, but a pre-activation restoration draft is
+        # not reliably exposed. Never invent a durable roster for future rounds.
+        horizon = horizon[:1]
     forecasts = estimate_assets(
         live.assets,
         horizon,
@@ -115,6 +133,8 @@ def _plan(args, live, weekends, state):
             elif not state or state.get("completed_first_weekend") is not True:
                 names -= {"limitless", "wildcard"}
         eligibility[index] = names
+    if active:
+        eligibility[0] = frozenset({active})
     empirical = any(
         names & {"autopilot", "no_negative"} for names in eligibility.values()
     )
@@ -132,6 +152,8 @@ def _plan(args, live, weekends, state):
         chip_values=values,
         chip_reserve=reserve,
         forced_chip=args.chip,
+        active_chip=active,
+        limitless_restore=restoration if active == "limitless" else current_ids,
     )
     history = (
         {
@@ -169,12 +191,25 @@ def _account_command(args):
     elif action == "audit":
         result = {"entries": account.audit(directory)}
     else:
-        recovered = account.recover(directory, args.season)
+        recovered = (
+            account.recover(directory, args.season, confirm_completed=False)
+            if args.replan or args.final_fix
+            else account.recover(directory, args.season)
+        )
         if recovered is not None:
             if args.format == "json":
                 _json_output("account apply", recovered)
             else:
                 print(json.dumps(recovered, indent=2))
+            return 0
+        if args.final_fix:
+            result, proposal = _account_final_fix(args)
+            if proposal is not None:
+                result = account.apply_final_fix(directory, args.season, proposal)
+            if args.format == "json":
+                _json_output("account apply", result)
+            else:
+                print(json.dumps(result, indent=2))
             return 0
         state = account.show(directory, args.season)
         live, weekends = snapshot(args.season)
@@ -205,6 +240,17 @@ def _account_command(args):
 
 
 def _chips_command(args):
+    if args.final_fix is True and not args.account:
+        raise DataError(
+            "Use chips --final-fix with the connected account, or supply a provisional input file with --no-account"
+        )
+    if args.final_fix and args.account:
+        result, _ = _account_final_fix(args)
+        if args.format == "json":
+            _json_output("chips", result)
+        else:
+            print(json.dumps(result, indent=2))
+        return 0
     if args.account:
         from . import account
 
@@ -212,10 +258,6 @@ def _chips_command(args):
     else:
         state = _read_state(args.state) if args.state.exists() else {}
     if args.final_fix:
-        if args.account:
-            raise DataError(
-                "Live Final Fix window/read-back is not yet verified; use an explicit provisional input"
-            )
         result = _final_fix_preview(args, state)
     else:
         available = state.get("available_chips")
@@ -239,6 +281,89 @@ def _chips_command(args):
     else:
         print(json.dumps(result, indent=2))
     return 0
+
+
+def _account_final_fix(args):
+    """Forecast only still-unscored sessions using a server-verified account window."""
+    from . import account
+
+    context = account.final_fix_context(args.account_dir, args.season)
+    state, assets, weekend = context["state"], context["assets"], context["weekend"]
+    if not context["eligible"]:
+        raise DataError("Final Fix is not eligible in the authoritative server window")
+    forecasts = estimate_assets(
+        assets,
+        [weekend],
+        use_telemetry=not getattr(args, "no_telemetry", False),
+        use_risk=not getattr(args, "no_risk", False),
+    )
+    sessions = context["remaining_sessions"]
+    if not sessions or not set(sessions) <= {"sprint", "race"}:
+        raise DataError("Unverified Final Fix remaining-session boundary")
+    remaining = {
+        a.id: Estimate(
+            0,
+            forecasts[0, a.id].sprint if "sprint" in sessions else 0,
+            forecasts[0, a.id].race if "race" in sessions else 0,
+        )
+        for a in assets
+    }
+    catalog = {a.id: a for a in assets}
+    drivers = tuple(catalog[i] for i in state["drivers"])
+    constructors = tuple(catalog[i] for i in state["constructors"])
+    original = Lineup(
+        weekend,
+        drivers,
+        constructors,
+        catalog[state["boost_driver_id"]],
+        sum(a.price for a in drivers + constructors),
+        0,
+        0,
+        state["transfer_penalty"],
+    )
+    decision = final_fix(
+        original,
+        assets,
+        remaining,
+        state["budget_tenths_m"],
+        available="final_fix" in state["available_chips"],
+        eligible=context["eligible"],
+        accrued_points=context["accrued_points"],
+    )
+    result = {
+        "provisional": False,
+        "inventory_verified": True,
+        "window": context["window"],
+        "remaining_sessions": sessions,
+        "out_id": decision.outgoing.id if decision.outgoing else None,
+        "in_id": decision.incoming.id if decision.incoming else None,
+        "boost_driver_id": decision.boost.id,
+        "accrued_points": decision.accrued_points,
+        "remaining_points": decision.remaining_points.total,
+        "expected_total_points": decision.expected_points - state["transfer_penalty"],
+        "original_roster_restored_after_weekend": True,
+    }
+    if decision.outgoing is None:
+        return dict(result, apply_status="unchanged"), None
+    proposal = {
+        "season": args.season,
+        "gameday_id": weekend.gameday_id,
+        "drivers": [a.id for a in decision.drivers],
+        "constructors": [a.id for a in decision.constructors],
+        "boost_driver_id": decision.boost.id,
+        "chip": "final_fix",
+        "x3_driver_id": None,
+        "budget_tenths_m": state["budget_tenths_m"],
+        "baseline_ids": state["baseline_ids"],
+        "expected_transfer_penalty": state["transfer_penalty"],
+        "outgoing_id": decision.outgoing.id,
+        "incoming_id": decision.incoming.id,
+        "original_ids": state["drivers"] + state["constructors"],
+        "original_boost_driver_id": state["boost_driver_id"],
+        "window": context["window"],
+        "retained_points": state["retained_points"],
+    }
+    return result, proposal
 
 
 def _final_fix_preview(args, state):
@@ -372,7 +497,10 @@ def _validate_state(
                 "Imported constructor is missing or inactive in the live roster"
             )
         budget = _money(state["budget"])
-        if sum(catalog[id_].price for id_ in chosen) > budget:
+        if (
+            state.get("active_chip") != "limitless"
+            and sum(catalog[id_].price for id_ in chosen) > budget
+        ):
             raise DataError(
                 "Imported team exceeds the provided budget at fetched prices"
             )
@@ -440,7 +568,9 @@ def _parser() -> argparse.ArgumentParser:
     chips.add_argument(
         "--final-fix",
         type=Path,
-        help="Provisional remaining-session input JSON; never submits",
+        nargs="?",
+        const=True,
+        help="Preview account-aware Final Fix; optional PATH with --no-account provides provisional inputs",
     )
     account = commands.add_parser(
         "account", help="Manage one explicitly connected account team"
@@ -457,6 +587,16 @@ def _parser() -> argparse.ArgumentParser:
     apply = actions.add_parser(
         "apply",
         help="Reforecast, submit one team's next lineup and verify live read-back",
+    )
+    apply.add_argument(
+        "--final-fix",
+        action="store_true",
+        help="Re-evaluate only remaining sessions in the verified post-qualifying window",
+    )
+    apply.add_argument(
+        "--replan",
+        action="store_true",
+        help="Generate a new plan instead of confirming a completed chip apply; pending recovery still runs first",
     )
     audit = actions.add_parser("audit", help="Show durable apply outcomes offline")
     _planning_options(recommend)
@@ -949,6 +1089,15 @@ def main(argv: list[str] | None = None) -> int:
             if args.format == "text":
                 print(coverage)
         lineup_data = []
+        if (
+            state
+            and state.get("active_chip") == "limitless"
+            and not state.get("limitless_restoration_ids")
+        ):
+            message = "Active Limitless: planning this weekend only; restoration draft is not exposed, so future-round transfers are not inferred."
+            warnings.append(message)
+            if args.format == "text":
+                print(message)
         for index, lineup in enumerate(lineups):
             selected = lineup.drivers + lineup.constructors
             session = lineup.session_points
@@ -980,6 +1129,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             if lineup.chip != "limitless":
                 previous = frozenset(after)
+            elif index == 0 and state:
+                previous = frozenset(
+                    state.get(
+                        "limitless_restoration_ids",
+                        state["drivers"] + state["constructors"],
+                    )
+                )
             if args.format == "json":
                 continue
             print(
