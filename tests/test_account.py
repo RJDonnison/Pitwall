@@ -192,6 +192,29 @@ def test_normalized_budget_is_cap_not_unspent_balance(state):
     assert "teamname" not in state and "guid" not in state
 
 
+@pytest.mark.parametrize("chip", account.CHIP_FIELDS)
+@pytest.mark.parametrize("empty_day", [None, ""])
+def test_unused_chip_accepts_empty_activation_day(
+    raw, fixture, catalog, history, chip, empty_day
+):
+    _, day = account.CHIP_FIELDS[chip]
+    raw[day] = empty_day
+    result = account._normalize(raw, fixture, catalog, history, None)
+    assert chip in result["available_chips"]
+    assert result["active_chip"] is None
+
+
+@pytest.mark.parametrize("chip", account.CHIP_FIELDS)
+@pytest.mark.parametrize("empty_day", [None, ""])
+def test_used_chip_requires_activation_day(
+    raw, fixture, catalog, history, chip, empty_day
+):
+    flag, day = account.CHIP_FIELDS[chip]
+    raw.update({flag: 1, day: empty_day})
+    with pytest.raises(account.AccountError, match=f"Unverified {day}"):
+        account._normalize(raw, fixture, catalog, history, None)
+
+
 @pytest.mark.parametrize(
     "mutation",
     [

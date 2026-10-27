@@ -522,7 +522,13 @@ def _normalize(raw: dict, fixture: dict, roster: dict, history, deadline) -> dic
         used, active = {}, []
         for chip, (flag, day) in CHIP_FIELDS.items():
             used[chip] = _flag(raw[flag], flag)
-            taken_day = _integer(raw[day], day)
+            # An unused chip has no activation game day; the service may leave
+            # that field null or empty rather than returning the zero sentinel.
+            taken_day = (
+                0
+                if not used[chip] and raw[day] in (None, "")
+                else _integer(raw[day], day)
+            )
             if taken_day == gameday:
                 if not used[chip]:
                     raise AccountError("Contradictory chip history")
