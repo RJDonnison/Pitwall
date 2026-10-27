@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 import tempfile
 import time
@@ -369,15 +370,22 @@ def _browser(directory: Path):
     _private_directory(profile)
     with sync_playwright() as playwright:
         options = {"headless": False}
-        if os.environ.get("PLAYWRIGHT_CHROMIUM_PATH"):
-            options["executable_path"] = os.environ["PLAYWRIGHT_CHROMIUM_PATH"]
+        executable = (
+            os.environ.get("PLAYWRIGHT_CHROMIUM_PATH")
+            or shutil.which("chromium")
+            or shutil.which("chromium-browser")
+        )
+        if executable:
+            options["executable_path"] = executable
         try:
             context = playwright.chromium.launch_persistent_context(
                 str(profile), **options
             )
         except Exception:
             raise AccountError(
-                "Cannot open dedicated account browser; check Chromium installation/profile lock"
+                "Cannot open dedicated account browser; check Chromium installation, "
+                "graphical display and profile lock. Set PLAYWRIGHT_CHROMIUM_PATH "
+                "to select the Chromium executable explicitly"
             ) from None
         try:
             yield _Session(context)

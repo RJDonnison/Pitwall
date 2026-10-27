@@ -697,3 +697,51 @@ def test_missing_optional_dependency_error_is_actionable(tmp_path, monkeypatch):
     with pytest.raises(account.AccountError, match="optional account dependency"):
         with account._browser(tmp_path):
             pytest.fail("browser should not launch")
+
+
+@pytest.mark.parametrize(
+    "override,installed,expected",
+    [
+        (None, {"chromium": "/usr/bin/chromium"}, "/usr/bin/chromium"),
+        (
+            None,
+            {"chromium-browser": "/usr/bin/chromium-browser"},
+            "/usr/bin/chromium-browser",
+        ),
+        ("/custom/chromium", {"chromium": "/usr/bin/chromium"}, "/custom/chromium"),
+        (None, {}, None),
+    ],
+)
+def test_browser_uses_system_chromium_or_explicit_override(
+    tmp_path, monkeypatch, override, installed, expected
+):
+    import sys
+
+    if override:
+        monkeypatch.setenv("PLAYWRIGHT_CHROMIUM_PATH", override)
+    else:
+        monkeypatch.delenv("PLAYWRIGHT_CHROMIUM_PATH", raising=False)
+    monkeypatch.setattr(account.shutil, "which", installed.get)
+    calls = []
+    context = SimpleNamespace(close=lambda: calls.append("closed"))
+
+    def launch(profile, **options):
+        calls.append((profile, options))
+        return context
+
+    @contextmanager
+    def playwright():
+        yield SimpleNamespace(
+            chromium=SimpleNamespace(launch_persistent_context=launch)
+        )
+
+    monkeypatch.setitem(
+        sys.modules, "playwright.sync_api", SimpleNamespace(sync_playwright=playwright)
+    )
+    monkeypatch.setattr(account, "_Session", lambda value: value)
+    with account._browser(tmp_path) as session:
+        assert session is context
+        assert calls[0][0] == str(tmp_path / "browser")
+        assert calls[0][1]["headless"] is False
+        assert calls[0][1].get("executable_path") == expected
+    assert calls[-1] == "closed"

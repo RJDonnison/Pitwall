@@ -82,7 +82,6 @@ Official null-score weekends are excluded from the empirical joint sample for al
 
 ```sh
 .venv/bin/python -m pip install -e '.[account]'
-.venv/bin/python -m playwright install chromium
 f1fantasy account connect --team 1
 f1fantasy account show --format json
 f1fantasy chips
@@ -91,7 +90,9 @@ f1fantasy account apply --races 3
 f1fantasy account audit --format json
 ```
 
-`connect --team 1` explicitly binds the official one-based team number. Sign in and complete MFA in the dedicated browser, then open My Team. No password is collected; the browser session persists. Set `PLAYWRIGHT_CHROMIUM_PATH` for a nonstandard executable. Private session/binding/journal storage defaults to `$XDG_STATE_HOME/f1fantasy/account` or `~/.local/state/f1fantasy/account`, outside the repository. Override with global `--account-dir PATH` **before** the command. An exclusive operation lock prevents concurrent profile use. Expired sessions require reconnecting.
+The launcher automatically uses `chromium` or `chromium-browser` from your PATH, including Arch Linux's `/usr/bin/chromium`. Set `PLAYWRIGHT_CHROMIUM_PATH` to override the executable. If neither a system browser nor a Playwright browser is installed, install one before connecting; system Chromium needs no Playwright browser download.
+
+`connect --team 1` explicitly binds the official one-based team number. Sign in and complete MFA in the dedicated browser, then open My Team. No password is collected; the browser session persists. Private session/binding/journal storage defaults to `$XDG_STATE_HOME/f1fantasy/account` or `~/.local/state/f1fantasy/account`, outside the repository. Override with global `--account-dir PATH` **before** the command. An exclusive operation lock prevents concurrent profile use. Expired sessions require reconnecting.
 
 `account apply` recomputes forecasts and checks live event, roster/prices/statistics, budget, net-transfer penalties, chip eligibility and actual deadline before a single-request mutation and fresh read-back. Chip planning is enabled by default; use `--chip NAME` to force a chip or `--no-chips` to disable it. Text/JSON output reports success or nonzero failure; the offline audit records prepared/unknown/verified outcomes. On restart, apply reconciles a pending outcome before forecasting or writing again; uncertainty blocks further writes.
 

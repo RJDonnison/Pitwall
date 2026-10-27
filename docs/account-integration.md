@@ -7,9 +7,11 @@ Unexpected schemas and missing evidence are errors, not fabricated defaults.
 
 ## API for the CLI owner
 
-Install the optional extra (`pip install '.[account]'`) and a compatible
-Playwright Chromium installation. `PLAYWRIGHT_CHROMIUM_PATH`, when set, selects
-an existing Chromium executable. Python Playwright documentation:
+Install the optional extra (`pip install '.[account]'`) and Chromium. The launcher
+prefers `PLAYWRIGHT_CHROMIUM_PATH`, then `chromium` or `chromium-browser` on PATH,
+then Playwright's bundled browser. Arch Linux's `/usr/bin/chromium` is detected
+automatically; no Playwright browser download is needed when using it.
+Python Playwright documentation:
 
 - <https://playwright.dev/python/docs/api/class-browsertype#browser-type-launch-persistent-context>
 - <https://playwright.dev/python/docs/api/class-apirequestcontext>
