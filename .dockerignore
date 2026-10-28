@@ -1,0 +1,5 @@
+**
+!pyproject.toml
+!src/
+!src/f1fantasy/
+!src/f1fantasy/*.py

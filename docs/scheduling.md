@@ -1,178 +1,131 @@
-# One-team unattended scheduling
+# Automatic scheduling with Docker
 
-`f1fantasy daemon run` watches the explicitly connected account team and submits
-due jobs automatically. Chip decisions use the full multi-race model, refreshed
-account state, verified live prices/statistics and remaining inventory. The
-daemon uses the existing persistent Chromium profile in headless mode; interactive
-`account connect --team N` remains the way to sign in or renew MFA.
+Due jobs submit and verify changes for the explicitly connected team. Chips are
+enabled by default, paid transfers require opt-in, and V4 Predict is not included.
 
-## Commands
+## Start
 
-From the project directory, with the account already connected:
+Choose your official one-based team number, from the repository:
 
 ```sh
-source .venv/bin/activate
-f1fantasy daemon run --once
-f1fantasy daemon status
-f1fantasy daemon audit --format json
-f1fantasy daemon run
+F1FANTASY_TEAM=2 docker compose up -d --build
+docker compose logs -f fantasy
 ```
 
-`--once` runs one real polling cycle: it can submit a due job. It returns 1 when
-blocked and 0 when the cycle succeeds or is waiting. Continuous operation keeps
-watching when blocked and emits state changes as JSON notifications on stderr.
-`--format json` returns the versioned state envelope; continuous mode writes one
-JSON envelope per polling cycle (JSON Lines). Status and audit are offline.
+On first start, open
+<http://localhost:6080/vnc.html?autoconnect=1&resize=scale>. Sign in to F1 in that
+browser, complete MFA and open My Team. The container binds Team 2, closes the
+interactive browser, and starts scheduling. Replace `2` with your team. A new
+installation never guesses the team; an environment change cannot retarget a
+saved binding. After initial login, use `docker compose up -d` for normal starts.
 
-Defaults:
+The container has its own persistent Chromium session; it does not copy or share
+the host Arch browser profile. Chromium is installed inside the Debian image, so
+no host Python/browser installation is needed. The image runs non-root with an
+owned virtual display and a login UI published only to host loopback. On a remote
+Docker host, use an SSH tunnel to its localhost port 6080.
 
-| Setting | Default |
-| --- | --- |
-| Early run | 24 hours before verified Fantasy lock |
-| Final run | 15 minutes before verified Fantasy lock |
-| No-new-submission safety cutoff | 90 seconds before lock |
-| Poll interval | 60 seconds |
-| Horizon | 3 races |
-| Chips and post-qualifying Final Fix | Enabled |
-| Paid transfers | Disabled |
+Compose restarts after host reboot unless explicitly stopped. The named
+`fantasy-data` volume preserves the session, binding, account journal, scheduler
+audit/jobs and FastF1 cache. `docker compose down` keeps it; `down -v` erases it.
+The image build context contains only package source and the manifest, never
+local profiles, credentials, Git data or caches.
+
+## Default policy
+
+| Stage | When | Action |
+| --- | --- | --- |
+| Early | 24 hours before verified Fantasy lock | Refresh account/prices, forecast three rounds, apply and verify |
+| Final | 15 minutes before verified Fantasy lock | Refresh everything and apply the final pre-lock plan |
+| Safety cutoff | 90 seconds before lock | No new scheduled write may start |
+| Final Fix | First eligible poll in the official post-qualifying window | Forecast only remaining sessions and apply an improving replacement |
+
+Polling is every 60 seconds. Jobs persist account/team/season/event/phase and
+lock/window identity. Restarts do not repeat completed stages. A restart near
+lock skips the expired early stage. Official deadline changes supersede waiting
+jobs; an interrupted job outside its saved window requires reconciliation.
+Fresh lock, cap, net-transfer, roster/chip and read-back validation is shared
+with manual apply.
+
+**Current deadline gate:** the observed live website supplies lock flags and a
+countdown but no verified timezone-bearing lock timestamp. In that state the
+service runs and reports `blocked`; it cannot time the early/final jobs. It does
+not substitute a qualifying/session start for the Fantasy lock deadline. Those
+jobs submit only once a real verified deadline is available. Final Fix uses its
+independent authoritative server window and does not require a pre-lock
+timestamp. Check status: a running container is not proof that a timed job is
+armed or completed. There is deliberately no guessed-deadline override.
+
+## Status and notifications
 
 ```sh
-f1fantasy daemon run --early-hours 36 --final-minutes 20 --safety-seconds 120 --poll-seconds 60 --races 3
-f1fantasy daemon run --no-chips --no-final-fix-enabled
+docker compose ps
+docker compose logs -f fantasy
+docker compose exec fantasy f1fantasy daemon status --format json
+docker compose exec fantasy f1fantasy daemon audit --format json
+docker compose exec fantasy f1fantasy account audit --format json
 ```
 
-`--no-chips` disables new pre-weekend chip spending, not effects already active.
-Final Fix has a separate switch because it is evaluated in a different window.
-The normal forecast, chip-reserve and explicit paid-transfer options are accepted.
+Health is healthy only for a recent, unblocked scheduler heartbeat. Login in
+progress, blocked state, or heartbeat older than 15 minutes is not healthy.
+Docker does not restart just because health is unhealthy; inspect the reason in
+status/logs. First login gets a 15-minute startup grace period.
 
-## Deadline authority
+Transitions emit sanitized JSON notifications in logs. Identical blocked polls
+update the heartbeat without duplicate notification spam. Optional
+`--notify-command /path/to/executable` receives each event as JSON stdin, without
+a shell; mount that executable if needed. Delivery failure/timeout is recorded
+separately and cannot reclassify a verified save. Account GUIDs, passwords,
+cookies and raw responses are omitted.
 
-Pre-lock jobs require a freshly observed, timezone-bearing **actual Fantasy lock
-deadline**. Qualifying time, Sprint time, a rounded countdown and the shipped
-countdown's 40-second adjustment are not substitutes. If the site exposes only
-lock flags/countdown, status is `blocked` with a reason and **no scheduled
-pre-lock write occurs**. Manual `account apply` can still use its fresh server
-lock checks. There is deliberately no user-supplied deadline override that could
-silently turn an inferred time into server authority.
+## Renew login and recover jobs
 
-The currently observed site exposes no verified lock timestamp, so this gate
-currently blocks early/final auto-submission. This is an integration limitation,
-not a successful live scheduling verification. The daemon is ready to schedule
-when an authoritative timestamp is exposed by the supported account reader.
-
-Final Fix is independent: it runs only when the server's verified Final Fix
-window is open and the team is eligible. It uses official completed-session
-scores and forecasts only remaining sessions. Session dates never authorize a
-write by themselves. Another active chip makes Final Fix ineligible.
-
-## Persistence, restart and changes
-
-Private state is stored in `<account-dir>/scheduler/state.json` (directory 0700,
-file 0600, atomic/fsynced writes). The account's original apply journal remains
-the authority for whether a submitted operation committed. A separate scheduler
-lock prevents overlapping daemons; account operations retain their profile lock.
-The scheduler is bound to the connected account identity, season and selected
-team, not whichever card the website happens to display.
-
-Job identity includes team, event, phase, stage and verified deadline/window.
-Each stage runs once per identity. A moved deadline supersedes waiting jobs and
-creates new times. On a late restart, an expired early stage is skipped in favor
-of the final stage; no new submission starts inside the safety cutoff. Timing and
-policy changes affect waiting jobs, while interrupted operations retain their
-saved policy and original account proposal.
-
-An interrupted eligible job resumes through account recovery before forecasting.
-Already-sent ambiguous steps are read back, never blindly resent. A changed
-event/window or passed cutoff stops automatic recovery that could send another
-step. Each submission checks the exact scheduled team/session/deadline again
-after forecasting and immediately before sending, including each combined step.
-The server's own lock checks and complete account read-back remain mandatory.
-
-Failures block subsequent jobs. Inspect both journals before explicitly allowing
-recovery:
+An expired session blocks scheduling. Recreate to open the interactive browser:
 
 ```sh
-f1fantasy daemon status --format json
-f1fantasy account audit --format json
-f1fantasy daemon retry JOB_ID
+F1FANTASY_TEAM=2 F1FANTASY_RECONNECT=1 docker compose up -d --force-recreate
 ```
 
-Retry is processed on the next cycle only while the original window/cutoff still
-permits it. For a past job, reconcile with `account apply` as appropriate, then
-use `daemon cancel JOB_ID` to retire the scheduler job. Cancel does not roll back
-the team, refund a chip, or clear the account's uncertainty journal; that journal
-will still prevent conflicting writes.
-
-SIGINT/SIGTERM stop polling after the current operation finishes. A forced kill
-may leave a running job, which is reconciled on restart. Keep the machine awake
-and its clock synchronized; this daemon cannot run while the machine is off.
-
-## Notifications
-
-Every verified, missed, superseded, blocked or failed transition is persisted in
-daemon audit and emitted on stderr (and therefore the service journal). Repeated
-identical blocked polls do not spam transition notifications.
-
-For external delivery, supply an executable that receives sanitized event JSON
-on standard input:
+After signing in through the same UI, clear forced renewal for future restarts:
 
 ```sh
-f1fantasy daemon run --notify-command /absolute/path/to/notify-fantasy
+F1FANTASY_TEAM=2 docker compose up -d --force-recreate
 ```
 
-The command is invoked directly without a shell, with a 15-second timeout. It
-receives job IDs, stage/status and sanitized summaries, not cookies, GUIDs or raw
-service bodies. Credentials belong in that executable's private environment or
-secret store. Notification failures are recorded separately and never turn a
-verified submission into a failed submission. Events remain in local audit even
-if notification delivery is interrupted.
-
-## Always-on Arch/Linux user service
-
-Create `~/.config/systemd/user/f1fantasy.service`, changing the two project paths
-for your installation:
-
-```ini
-[Unit]
-Description=F1 Fantasy one-team scheduler
-
-[Service]
-Type=exec
-WorkingDirectory=/home/reujdon/Repos/f1
-ExecStart=/home/reujdon/Repos/f1/.venv/bin/f1fantasy daemon run
-Environment=PYTHONUNBUFFERED=1
-Environment=PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium
-Restart=on-failure
-RestartSec=60
-KillMode=mixed
-TimeoutStopSec=300
-UMask=0077
-
-[Install]
-WantedBy=default.target
-```
-
-The daemon selects headless mode itself. Use the same Linux user and account
-directory as interactive connect. The existing Arch Chromium installation is
-used; no Playwright browser download is required. Use an absolute
-`--account-dir /path` before `daemon` in `ExecStart` if you use a custom profile.
+Failed/uncertain jobs block automatic continuation. Inspect both audits, then:
 
 ```sh
-systemctl --user daemon-reload
-systemctl --user enable --now f1fantasy.service
-systemctl --user status f1fantasy.service
-journalctl --user-unit=f1fantasy.service -f
+docker compose exec fantasy f1fantasy daemon retry JOB_ID
+docker compose exec fantasy f1fantasy daemon cancel JOB_ID
 ```
 
-To keep the user service manager running after logout, enable lingering for your
-user with `loginctl enable-linger "$USER"` where permitted. Stop the service before
-interactive reconnect if it is currently using the browser profile:
+Retry reconciles the saved plan on the next poll; it never blindly resends a
+sent-but-uncertain operation. Never-sent combined steps resume only in their
+original verified scheduled window. Pending manual plans cannot silently be
+continued by the daemon. Cancel does not erase the account journal or make an
+ambiguous write replayable. A combined apply may save a lineup before chip
+activation stops; the audit identifies each step. Past-window uncertainty can
+require manual reconciliation rather than a retry.
 
-```sh
-systemctl --user stop f1fantasy.service
-f1fantasy account connect --team 2 --timeout 600
-systemctl --user start f1fantasy.service
+## Customize
+
+Create a local ignored `compose.override.yaml`, then `docker compose up -d`:
+
+```yaml
+services:
+  fantasy:
+    command: [daemon, run, --races, "3", --early-hours, "24", --final-minutes, "20", --safety-seconds, "120", --poll-seconds, "60"]
 ```
 
-No service is installed or enabled automatically by the CLI. Scheduling does not
-extend into F1 Predict.
+Other flags include `--no-chips`, `--no-final-fix-enabled`, `--allow-penalties`,
+`--no-telemetry`, `--no-risk`, and `--chip-reserve NAME=POINTS`. Timing requires
+early > final > safety cutoff. Waiting jobs adopt the new policy; interrupted
+jobs retain their saved policy. `daemon run --once` is a real potentially
+submitting cycle, not a dry run.
+
+`F1FANTASY_LOGIN_PORT` changes the loopback UI port. `F1FANTASY_LOGIN_TIMEOUT`
+defaults to 900 seconds. Build arguments `F1FANTASY_UID`/`F1FANTASY_GID` default
+to 1000 for volume ownership; keep them stable after populating the volume.
+Only one container should own an account directory. Locks reject overlapping
+profile/scheduler operations. Without Docker, install `.[account]`, connect the
+team, and run `f1fantasy daemon run` with system Chromium in headless mode.

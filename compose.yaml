@@ -1,0 +1,27 @@
+services:
+  fantasy:
+    build:
+      context: .
+      args:
+        USER_UID: ${F1FANTASY_UID:-1000}
+        USER_GID: ${F1FANTASY_GID:-1000}
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 5m
+    shm_size: 1gb
+    ports:
+      - "127.0.0.1:${F1FANTASY_LOGIN_PORT:-6080}:6080"
+    environment:
+      F1FANTASY_TEAM: ${F1FANTASY_TEAM:-}
+      F1FANTASY_RECONNECT: ${F1FANTASY_RECONNECT:-0}
+      F1FANTASY_LOGIN_TIMEOUT: ${F1FANTASY_LOGIN_TIMEOUT:-900}
+    volumes:
+      - fantasy-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  fantasy-data:

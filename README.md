@@ -2,7 +2,18 @@
 
 This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses Boost and chips, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. An optional persistent-browser integration connects one account team and provides an explicit manual apply path with live read-back.
 
-V3's account and chip workflows include active-chip continuation, post-qualifying Final Fix and an unattended one-team scheduler. Account reads, changed-lineup saves, combined x3 activation and restart reconciliation have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Final Fix and other chip branches have contract/fixture coverage but still need successful live-window verification. Scheduled pre-lock writes require an actual verified lock timestamp, which the currently observed site does not expose.
+V3 includes account/chip workflows and a Docker service for unattended scheduling. Account reads, changed-lineup saves, combined x3 activation and restart reconciliation have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Timed early/final jobs require a verified Fantasy lock timestamp; if it is unavailable, the daemon reports blocked rather than guessing. Final Fix uses its separate official window. See [Docker scheduling](docs/scheduling.md).
+
+## Run automatically with Docker
+
+```sh
+F1FANTASY_TEAM=2 docker compose up -d --build
+docker compose logs -f fantasy
+```
+
+For the first login, open <http://localhost:6080/vnc.html?autoconnect=1&resize=scale>, sign in, complete MFA and open My Team. Replace `2` with your official team number. After connecting, the container starts the scheduler automatically and preserves login, jobs and cache in its named volume. Normal later starts use `docker compose up -d`. The container has its own Chromium; no host Python/browser setup is required.
+
+Defaults are a fresh three-round plan 24 hours before verified lock, a final refresh 15 minutes before lock, a 90-second no-write cutoff, and a separate eligible Final Fix run. Due jobs **submit** and verify the team. Check `docker compose exec fantasy f1fantasy daemon status --format json`; a running container alone does not mean a verified deadline was available. [Setup, deadline limitations, recovery and configuration](docs/scheduling.md).
 
 ## Requirements
 
@@ -118,33 +129,7 @@ f1fantasy account apply --replan --races 3
 
 The active chip cannot be cancelled, replaced or charged another saving cost. Pending recovery still takes precedence over `--replan`. Active Limitless edits use the ordinary transfer endpoint without reactivating the chip. Its pre-activation roster is saved durably for subsequent-round planning. If Limitless was activated outside this tool and its restoration roster cannot be verified, planning is limited to the current weekend rather than inventing future transfers.
 
-**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. See [account integration details](docs/account-integration.md).
-
-### Unattended scheduling
-
-```sh
-f1fantasy daemon run --once
-f1fantasy daemon status
-f1fantasy daemon audit --format json
-f1fantasy daemon run
-```
-
-The daemon auto-submits for the connected team: an early run 24 hours before the
-verified Fantasy deadline, a final refresh 15 minutes before it, and a separate
-eligible Final Fix evaluation. It runs headless with the existing Chromium
-profile, persists job progress and uses the same verified account apply/recovery.
-Late restarts skip obsolete early jobs; a 90-second safety buffer prevents new
-near-lock submissions. `--once` is a real cycle and may submit a due job.
-
-**Current deadline gate:** a live daemon poll verified the connected account but
-reported `blocked`: the website exposes lock flags/countdown rather than a
-verified lock timestamp. Early/final jobs therefore cannot currently auto-submit;
-the scheduler does not substitute qualifying time. Final Fix uses its independent
-authoritative server window. Status/audit explain blockers, and transition
-notifications go to stderr or an optional `--notify-command` executable.
-
-See [scheduling and Arch systemd deployment](docs/scheduling.md) for timing options,
-notification delivery, restart handling, explicit retry/cancel and always-on setup.
+**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. The Docker daemon runs scheduled stages through these same account boundaries. See [account integration details](docs/account-integration.md) and [scheduling](docs/scheduling.md).
 
 ### Preload history and compare forecasts
 

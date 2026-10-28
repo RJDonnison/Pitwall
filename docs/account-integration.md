@@ -254,13 +254,13 @@ transfers, allowance, remaining transfers and penalty. HTTP success or a success
 toast alone is insufficient. A timeout/rejected response still triggers read-back
 because the write may have committed. A read failure/mismatch retains `unknown`;
 a process interruption leaves `prepared`, with the same no-replay semantics.
-`audit()` does not launch the browser. The [scheduler](scheduling.md) uses these
-same operations and journal, with a separate durable job history. Scheduled
-proposals additionally bind team/session, exact observed lock deadline and safety
-cutoff; these are rechecked after forecasting and immediately before sending
-each step. Scheduled pre-lock writes require a verified timestamp even though
-manual apply can use fresh lock flags alone. The daemon's headless browser reuses
-the dedicated profile; interactive login remains a separate headed operation.
+`audit()` does not launch the browser. The [Docker scheduler](scheduling.md)
+uses this same apply/recovery path with persisted account/team/event identity,
+verified deadline and safety-cutoff guards. Those guards are rechecked after
+durable preparation and before each new combined step. A pending manual plan
+cannot be silently continued as an unrelated scheduled action. Recovery may
+verify sent operations after a deadline, but cannot start a new write outside
+the saved scheduling window.
 
 The CLI calls `recover()` before forecasting a new apply. Single-operation
 recovery checks expected postconditions and never posts again. Combined recovery
