@@ -66,6 +66,7 @@ def _planning_options(parser):
 
 def _plan(args, live, weekends, state):
     """Shared fresh forecast path for recommendations and explicit apply."""
+    season_plan = getattr(args, "season_plan", False)
     if not 1 <= args.races <= 5:
         raise DataError("--races must be between 1 and 5")
     if state is None:
@@ -83,7 +84,7 @@ def _plan(args, live, weekends, state):
             "limitless",
         }:
             previous, carry = None, 0
-    horizon = weekends[: args.races]
+    horizon = weekends if season_plan else weekends[: args.races]
     active = state.get("active_chip") if state else None
     restoration = (
         frozenset(state["limitless_restoration_ids"])
@@ -96,6 +97,10 @@ def _plan(args, live, weekends, state):
         else None
     )
     if active == "limitless" and restoration is None:
+        if season_plan and len(horizon) > 1:
+            raise DataError(
+                "Season planning requires the verified Limitless restoration roster; inspect account show"
+            )
         # The temporary team is known, but a pre-activation restoration draft is
         # not reliably exposed. Never invent a durable roster for future rounds.
         horizon = horizon[:1]
@@ -118,7 +123,7 @@ def _plan(args, live, weekends, state):
     if not available <= CHIPS:
         raise DataError("Unknown chip in remaining inventory")
     reserve = dict(DEFAULT_RESERVE)
-    if len(weekends) <= args.races:
+    if season_plan or len(weekends) <= args.races:
         reserve = {name: 0.0 for name in reserve}
     reserve.update(state.get("chip_reserve", {}) if state else {})
     for item in args.chip_reserve:
@@ -250,6 +255,31 @@ def _account_command(args):
         if getattr(args, "scheduled", None):
             proposal["scheduled"] = args.scheduled
         result = account.apply(directory, args.season, proposal, args.allow_penalties)
+        if getattr(args, "season_plan", False):
+            result = dict(
+                result,
+                season_plan={
+                    "season": args.season,
+                    "refreshed_at": live.fetched_at.isoformat(),
+                    "future_prices_assumed_constant": True,
+                    "projected_total_points": sum(
+                        plan.expected_points for plan in lineups
+                    ),
+                    "rounds": [
+                        {
+                            "round": plan.weekend.round,
+                            "gameday_id": plan.weekend.gameday_id,
+                            "sprint": plan.weekend.sprint,
+                            "chip": plan.chip,
+                            "expected_points": plan.expected_points,
+                            "transfers": int(plan.transfers),
+                            "transfer_penalty": plan.transfer_penalty,
+                        }
+                        for plan in lineups
+                    ],
+                    "final_fix": "separate_post_qualifying_reassessment",
+                },
+            )
     if args.format == "json":
         _json_output("account " + action, result)
     else:
@@ -415,6 +445,7 @@ def _daemon_command(args):
                 "safety_seconds",
                 "poll_seconds",
                 "races",
+                "season_plan",
                 "chips",
                 "chip",
                 "chip_reserve",
@@ -435,6 +466,9 @@ def _daemon_command(args):
 
         def execute(job):
             options = argparse.Namespace(**vars(args))
+            # A running job keeps its original policy, including jobs persisted
+            # before full-season planning existed.
+            options.season_plan = job["policy"].get("season_plan", False)
             for key, value in job["policy"].items():
                 setattr(options, key, value)
             options.account_action, options.format, options.replan = (
@@ -754,6 +788,12 @@ def _parser() -> argparse.ArgumentParser:
         "run", help="Run unattended early/final and Final Fix jobs"
     )
     _planning_options(daemon_run)
+    daemon_run.add_argument(
+        "--season-plan",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Optimize all remaining season rounds rather than --races (Docker default)",
+    )
     daemon_run.add_argument("--early-hours", type=float, default=24)
     daemon_run.add_argument("--final-minutes", type=float, default=15)
     daemon_run.add_argument("--safety-seconds", type=float, default=90)

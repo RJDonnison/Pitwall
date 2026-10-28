@@ -30,4 +30,4 @@ STOPSIGNAL SIGTERM
 HEALTHCHECK --interval=60s --timeout=15s --start-period=15m --retries=3 \
     CMD ["python", "-m", "f1fantasy.container", "health"]
 ENTRYPOINT ["python", "-m", "f1fantasy.container"]
-CMD ["daemon", "run"]
+CMD ["daemon", "run", "--season-plan", "--allow-penalties"]

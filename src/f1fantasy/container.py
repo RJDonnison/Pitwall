@@ -158,7 +158,12 @@ def health():
 
 
 def main(argv=None):
-    argv = list(sys.argv[1:] if argv is None else argv) or ["daemon", "run"]
+    argv = list(sys.argv[1:] if argv is None else argv) or [
+        "daemon",
+        "run",
+        "--season-plan",
+        "--allow-penalties",
+    ]
     try:
         if argv == ["health"]:
             return health()

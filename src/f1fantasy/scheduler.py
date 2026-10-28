@@ -25,6 +25,8 @@ def timestamp(value: str) -> datetime:
 
 
 def validate(policy: dict) -> None:
+    if not isinstance(policy.get("season_plan", False), bool):
+        raise DataError("Invalid scheduler season planning mode")
     for name in ("early_hours", "final_minutes", "safety_seconds", "poll_seconds"):
         value = policy[name]
         if (
@@ -218,6 +220,9 @@ def _tick(root, account_dir, season, policy, inspect, execute, notify, now=None)
         checked_at=now.isoformat(),
         season=season,
         team_number=binding["team_number"],
+        planning_scope="remaining_season"
+        if policy.get("season_plan", False)
+        else "rolling_horizon",
     )
     try:
         live = inspect()
@@ -340,6 +345,8 @@ def _tick(root, account_dir, season, policy, inspect, execute, notify, now=None)
             apply_status=result["apply_status"],
             account_key=result.get("idempotency_key"),
         )
+        if "season_plan" in result:
+            job["season_plan"] = result["season_plan"]
         _event(
             root,
             state,
