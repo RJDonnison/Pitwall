@@ -1019,7 +1019,11 @@ def show(directory: Path, season: int) -> dict:
 
 
 def recover(
-    directory: Path, season: int, *, confirm_completed: bool = True
+    directory: Path,
+    season: int,
+    *,
+    confirm_completed: bool = True,
+    scheduled: dict | None = None,
 ) -> dict | None:
     """Reconcile an interrupted write before the CLI attempts a new forecast.
 
@@ -1050,6 +1054,14 @@ def recover(
                 return None
             for row in pending:
                 if "steps" in row:
+                    if scheduled is not None and any(
+                        step["status"] == "ready"
+                        and step["proposal"].get("scheduled") != scheduled
+                        for step in row["steps"]
+                    ):
+                        raise AccountError(
+                            "Pending account plan belongs to another scheduling window; reconcile manually"
+                        )
                     state = _run_combined(
                         directory, rows, row, session, binding, state, roster
                     )

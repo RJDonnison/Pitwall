@@ -197,11 +197,21 @@ def _account_command(args):
         result = {"entries": account.audit(directory)}
     else:
         recovered = (
-            account.recover(directory, args.season, confirm_completed=False)
-            if args.replan or args.final_fix
-            else account.recover(directory, args.season)
+            account.recover(
+                directory,
+                args.season,
+                confirm_completed=False,
+                scheduled=args.scheduled,
+            )
+            if getattr(args, "scheduled", None)
+            else (
+                account.recover(directory, args.season, confirm_completed=False)
+                if args.replan or args.final_fix
+                else account.recover(directory, args.season)
+            )
         )
         if recovered is not None:
+            _scheduled_state(args, recovered)
             if args.format == "json":
                 _json_output("account apply", recovered)
             else:
@@ -464,16 +474,17 @@ def _daemon_command(args):
                     raise RuntimeError("Notification delivery failed") from None
 
         try:
-            with account._locked(scheduler.directory(args.account_dir)) as root:
+            # Separate lifetime and job-state locks leave retry/cancel usable
+            # while the daemon is sleeping between polls.
+            with account._locked(scheduler.directory(args.account_dir) / "runner"):
                 while not stopped.is_set():
-                    result = scheduler._tick(
-                        root,
+                    result = scheduler.tick(
                         args.account_dir,
                         args.season,
                         policy,
                         lambda: account.show(args.account_dir, args.season),
                         execute,
-                        notify,
+                        notify=notify,
                     )
                     if args.format == "json":
                         _json_output("daemon run", result)
@@ -751,24 +762,26 @@ def _parser() -> argparse.ArgumentParser:
         "--final-fix-enabled", action=argparse.BooleanOptionalAction, default=True
     )
     daemon_run.add_argument(
-        "--once", action="store_true", help="Inspect and run due jobs once, then exit"
+        "--once",
+        action="store_true",
+        help="Run a real polling cycle and exit; may submit a due job",
     )
     daemon_run.add_argument(
         "--notify-command",
-        help="Executable receiving sanitized JSON notification on stdin (no shell)",
+        help="Executable receiving sanitized JSON on stdin, without a shell",
     )
     daemon_status = daemon_actions.add_parser(
         "status", help="Show persisted scheduler status offline"
     )
     daemon_audit = daemon_actions.add_parser(
-        "audit", help="Show durable scheduler events offline"
+        "audit", help="Show scheduler transitions offline"
     )
     daemon_retry = daemon_actions.add_parser(
-        "retry", help="Allow a failed job to reconcile/resume on the next polling cycle"
+        "retry", help="Reconcile/resume a failed job on the next cycle"
     )
     daemon_retry.add_argument("job_id")
     daemon_cancel = daemon_actions.add_parser(
-        "cancel", help="Cancel a scheduler job without changing the account journal"
+        "cancel", help="Cancel a job without clearing account uncertainty"
     )
     daemon_cancel.add_argument("job_id")
     _planning_options(recommend)
