@@ -21,7 +21,7 @@
 
 - Model chip eligibility and scoring across regular and Sprint weekends, including Wildcard, Limitless, x3 Boost and Final Fix.
 - Sync one F1 Fantasy team, then submit and verify selected transfers, Boost and chips against the live account.
-- Schedule verified updates around actual Fantasy lock times on an always-on machine, with restart recovery and an audit log.
+- Schedule verified updates around actual Fantasy lock times on an always-on machine, with restart recovery and an audit log, using Docker.
 
 ## V4 — official F1 Predict (planned)
 

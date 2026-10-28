@@ -10,3 +10,4 @@ __pycache__/
 .f1fantasy/
 compose.override.yaml
 compose.override.yml
+build/
