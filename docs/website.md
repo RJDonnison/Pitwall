@@ -156,9 +156,25 @@ next-round net score comparison, cumulative Fantasy trajectory and selectable
 round details. The reference is explicitly the unchanged roster with best 2×
 and no chips; it is not a league benchmark or a do-nothing active-chip forecast.
 Autopilot shows scenario-dependent extra points rather than a fixed winner.
-Regular Boost uses the selected driver's portrait; Autopilot shows the five
-eligible drivers instead. Next-round removals and arrivals have separate labelled
-lists with portraits and prices. The circuit inset uses a dark background.
+Regular Boost uses the selected driver's portrait as the card background;
+Autopilot shows the five eligible drivers instead. Next-round removals and arrivals
+have separate labelled lists with portraits and prices, in a bounded, keyboard-focusable
+scroll region so long transfer lists do not stretch the adjacent directives.
+The circuit inset uses a dark background. The slimmer masthead and matching pit-lane
+logo/favicon follow the same broadsheet identity; registry action footers are compact,
+and non-interactive recommended-team table rows have no hover affordance.
+
+Track specifications for the five remaining 2026 rounds use official Formula 1
+circuit guides (length, race laps and race distance, with source links). Public
+Open-Meteo daily forecasts add air-temperature range, maximum daily precipitation
+probability and maximum wind over the weekend's UTC dates, with source, units and
+retrieval time. These are air forecasts, not track temperatures or a probability
+that the entire race is wet. Beyond the 16-day window, missing/invalid weather or
+an API outage displays an unavailable state; it cannot prevent publication of valid
+Fantasy forecasts. No browser API key or account credentials are involved. The optional
+weather request runs with each two-hour public-data publication; weather is display
+context only and does not influence scoring, selection or the optimizer. Unknown
+circuits/seasons do not inherit another venue's specifications.
 
 The Garage retains `pitwall-teams-v1` storage and JSON import/export. Settings
 are on the main page rather than a sidebar. Five portrait cards, two wide car
@@ -198,8 +214,10 @@ label rather than a synthetic trend. Historical prices do not replace current
 market verification or change the constant-future-price optimizer assumption.
 
 Forecasts is explicitly Coming soon. Real race probabilities, pit-stop and FIA
-championship predictions remain V6; weather remains V8. The mockups' sample
-confidence, weather, league rankings and lock countdowns are not measurements.
+championship predictions remain V6; weather's integration into the race model remains
+V8. Mockup confidence, league rankings, track temperatures and lock countdowns are
+not measurements. The footer mirrors Stitch's strategic-principle, optimizer,
+forecasts and privacy sections while retaining actual data status and image credits.
 
 The large preview banner is removed; the footer retains the price-check time,
 six-hour expiry, live/snapshot status and image credits. Inputs and chip controls

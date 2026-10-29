@@ -32,6 +32,7 @@
 
 ### V8 — Weather-aware race model
 
+- The V5 Strategy page already displays sourced track specifications and optional public weather context. This version adds weather to the predictive model, rather than treating that display as a model improvement.
 - Add sourced, timestamped weather forecasts and condition classification, such as dry, wet and changeable, to the race model.
 - Evaluate effects on pace, reliability and qualifying/Sprint/race outcomes using only weather information available at prediction time.
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.

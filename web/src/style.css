@@ -293,8 +293,8 @@ article {
 }
 .header-inner {
   max-width: 1504px;
-  min-height: 76px;
-  padding: 12px 32px;
+  min-height: 60px;
+  padding: 6px 32px;
   margin: auto;
   display: flex;
   align-items: center;
@@ -357,7 +357,7 @@ article {
   position: absolute;
   height: 2px;
   background: var(--red);
-  bottom: -15px;
+  bottom: -8px;
   left: 0;
   right: 0;
 }
@@ -1235,9 +1235,6 @@ tbody th small {
   font-weight: 400;
   color: var(--muted);
   margin-top: 3px;
-}
-tbody tr:hover {
-  background: #f7f7f4;
 }
 td:last-child {
   color: var(--red);
@@ -4031,5 +4028,264 @@ footer > .hint {
     width: 88px;
     height: 100px;
     flex-basis: 88px;
+  }
+}
+
+/* Visual Strategy: sourced weekend context and compact editorial directives. */
+.race-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.race-overview > .race-hero {
+  margin-bottom: 0;
+  min-width: 0;
+}
+.race-context {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 22px;
+  display: grid;
+  gap: 20px;
+}
+.race-context > section + section {
+  border-top: 1px solid var(--rule);
+  padding-top: 18px;
+}
+.race-context strong {
+  display: block;
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  margin: 10px 0 8px;
+}
+.race-context strong small {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.race-context strong i {
+  font-style: normal;
+  color: var(--rule);
+  padding: 0 4px;
+}
+.race-context p,
+.race-context a,
+.weather-note {
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.race-context a {
+  text-underline-offset: 3px;
+}
+.weather-metrics {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 16px;
+  font-weight: 600;
+}
+.weather-metrics small {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.weather-note {
+  display: block;
+  margin-top: 10px;
+}
+.directive .transfer-lists {
+  max-height: 184px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #9c9992 #eeede9;
+}
+.boost-directive.boost-driver {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  min-height: 310px;
+  background: #262925;
+}
+.boost-driver .boost-backdrop {
+  position: absolute;
+  inset: 25px -38px -8px 20%;
+  z-index: -1;
+  opacity: 0.46;
+  pointer-events: none;
+}
+.boost-backdrop .licensed-photo {
+  width: 100%;
+  height: 100%;
+}
+.boost-backdrop img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right bottom;
+}
+.boost-driver .directive-heading,
+.boost-driver .boost-output {
+  position: relative;
+}
+.boost-driver .boost-visual {
+  position: relative;
+  flex: 1;
+  align-items: flex-end;
+  min-height: 140px;
+}
+.boost-driver .boost-visual h2 {
+  font-size: 31px;
+  max-width: 210px;
+  line-height: 1.05;
+}
+.boost-driver .boost-visual p {
+  color: #f0f0eb;
+}
+.boost-driver .boost-output {
+  background: #20231fe8;
+  border-top: 1px solid #ffffff20;
+}
+.market-card-bottom {
+  padding-top: 4px;
+  padding-bottom: 8px;
+  min-height: 0;
+}
+.market-card-bottom .registry-add {
+  min-height: 36px;
+  height: 36px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+.site-footer {
+  margin-top: 56px;
+  padding-top: 34px;
+  border-top: 1px solid var(--rule);
+}
+.footer-principle {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  margin-bottom: 34px;
+}
+.footer-principle > span {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+.footer-principle h2 {
+  font-size: clamp(25px, 3vw, 40px);
+  line-height: 1.14;
+  letter-spacing: -1.5px;
+  font-weight: 500;
+  margin: 0;
+  width: 65%;
+}
+.footer-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px;
+  padding-bottom: 32px;
+}
+.footer-columns h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 12px 0;
+}
+.footer-columns p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 38ch;
+}
+.footer-columns a {
+  font-size: 10px;
+  text-underline-offset: 4px;
+}
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.footer-brand .pitwall-logo {
+  width: 24px;
+  height: 24px;
+}
+.footer-disclaimer {
+  font-size: 10px;
+  color: var(--muted);
+}
+@media (max-width: 1000px) {
+  .race-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .race-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .race-context > section + section {
+    border-top: 0;
+    border-left: 1px solid var(--rule);
+    padding: 0 0 0 20px;
+  }
+}
+@media (max-width: 650px) {
+  .header-inner {
+    min-height: 50px;
+    padding: 8px 12px 6px;
+  }
+  .race-overview {
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .race-context {
+    padding: 14px;
+    gap: 12px;
+  }
+  .race-context strong {
+    font-size: 20px;
+  }
+  .race-context > section + section {
+    padding-left: 12px;
+  }
+  .weather-metrics {
+    font-size: 13px;
+    gap: 8px;
+  }
+  .boost-directive.boost-driver {
+    min-height: 290px;
+  }
+  .boost-driver .boost-visual h2 {
+    font-size: 30px;
+  }
+  .market-card-bottom .registry-add {
+    min-height: 44px;
+    height: 44px;
+  }
+  .site-footer {
+    margin-top: 36px;
+    padding-top: 24px;
+  }
+  .footer-principle {
+    display: block;
+  }
+  .footer-principle h2 {
+    width: auto;
+    margin-top: 16px;
+  }
+  .footer-columns {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .footer-columns p {
+    max-width: 60ch;
   }
 }

@@ -4,7 +4,11 @@ import racePhotos from "./race-media.json" with { type: "json" };
 import { esc } from "./text.js";
 
 export const logo = () =>
-  '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="9" fill="#991b1b"/><path d="M10 30V10h12a7 7 0 0 1 0 14h-6v6Zm6-12h6a1 1 0 0 0 0-2h-6Z" fill="white"/><path d="m26 26 5 5" stroke="white" stroke-width="3"/></svg>';
+  '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
+
+export function footerMarkup() {
+  return `<footer class="site-footer"><div class="footer-principle"><span>Strategic principle</span><h2>Think in seasons.<br>Check before you change.</h2></div><div class="footer-columns"><section><span class="eyebrow">Optimizer</span><h3>One joint plan</h3><p>Five drivers, two constructors, Boost, chips and transfer penalties. One exact season plan, calculated on your device.</p><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Official Fantasy rules ↗</a></section><section><span class="eyebrow">Forecasts</span><h3>Forecasts, not promises</h3><p>Historical inputs precede the weekend. Future prices stay at today's values. Final Fix is a separate post-qualifying decision.</p><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather by Open-Meteo · CC BY 4.0 ↗</a></section><section><span class="eyebrow">Privacy</span><h3>Your teams stay here</h3><p>Three profiles, stored in this browser. No account sign-in, server-side team storage or automatic submission.</p><p>Check the official game's prices, eligibility and lock before making changes.</p></section></div><div class="footer-status"><span class="footer-brand">${logo()}<b>Pitwall</b> · Independent Fantasy planning</span><span id="publication-status" role="status">Loading public data…</span></div><p class="footer-disclaimer">Not affiliated with Formula 1. No account submission.</p>${creditsMarkup()}</footer>`;
+}
 export function portrait(asset, fallback = "") {
   const photo = photos[asset.id];
   return photo

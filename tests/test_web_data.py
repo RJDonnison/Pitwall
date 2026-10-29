@@ -14,6 +14,7 @@ from f1fantasy.projections import Estimate
 
 @pytest.fixture
 def public(monkeypatch):
+    monkeypatch.setattr(web_data, "race_context", lambda weekend: {})
     now = datetime.now(timezone.utc)
     w = Weekend(2026, 19, "Mexico", 19, now + timedelta(days=2), False, False)
     assets = tuple(

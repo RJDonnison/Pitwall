@@ -7,7 +7,9 @@ import {
   insightsMarkup,
   registryCardMarkup,
   transfersMarkup,
+  heroMarkup,
 } from "../src/views.js";
+import { footerMarkup } from "../src/visuals.js";
 
 function fixture() {
   const assets = Array.from({ length: 7 }, (_, i) => ({
@@ -132,11 +134,11 @@ test("regular Boost uses its driver's real portrait, not an arbitrary Autopilot 
   result.rounds[0].entries[0].id = "131";
   result.rounds[0].boost = "131";
   const html = strategyMarkup(data, team, result, false, 0);
-  assert.match(html, /class="boost-portrait"><img[^>]*media\/131.webp/);
+  assert.match(html, /class="boost-backdrop"[^>]*><img[^>]*media\/131.webp/);
   result.rounds[0].chip = "autopilot";
   const automatic = strategyMarkup(data, team, result, false, 0);
   assert.match(automatic, /class="boost-candidates"/);
-  assert.doesNotMatch(automatic, /class="boost-portrait"/);
+  assert.doesNotMatch(automatic, /class="boost-backdrop"/);
 });
 
 test("roster changes separate removal and arrival lists without implying swap pairs", () => {
@@ -144,10 +146,56 @@ test("roster changes separate removal and arrival lists without implying swap pa
   const html = transfersMarkup(data, ["0", "5"], ["1", "6"]);
   assert.match(html, /aria-label="Remove selections"/);
   assert.match(html, /aria-label="Bring in selections"/);
+  assert.match(
+    html,
+    /tabindex="0" role="region" aria-label="Roster changes; scroll/,
+  );
   assert.equal((html.match(/<li>/g) || []).length, 4);
   assert.match(html, /Selection 0/);
   assert.match(html, /Selection 6/);
   assert.match(transfersMarkup(data, [], []), /Keep the current roster/);
+});
+
+test("track and weather context distinguish sourced air forecasts from model inputs", () => {
+  const { data, team } = fixture();
+  data.rounds[0].track_spec = {
+    length_km: 4.304,
+    race_laps: 71,
+    race_distance_km: 305.354,
+    season: 2026,
+    source: "https://www.formula1.com/en/racing/2026/mexico/circuit",
+  };
+  data.rounds[0].weather = {
+    status: "available",
+    air_min_c: 12,
+    air_max_c: 25,
+    daily_rain_probability_max: 35,
+    wind_max_kmh: 18,
+    start_date: "2026-10-31",
+    end_date: "2026-11-01",
+    fetched_at: "2026-10-30T10:00:00Z",
+  };
+  const html = heroMarkup(data, team, null);
+  assert.match(html, /4\.304/);
+  assert.match(html, /71 <small>laps/);
+  assert.match(html, /12–25° <small>air/);
+  assert.match(html, /35%/);
+  assert.match(html, /not used in point estimates/);
+  data.rounds[0].weather = { status: "outside_horizon" };
+  const later = heroMarkup(data, team, null);
+  assert.match(later, /Outside the 16-day/);
+  assert.doesNotMatch(later, /12–25°|35%/);
+});
+
+test("editorial footer retains public data status, privacy and source credits", () => {
+  const html = footerMarkup();
+  assert.match(html, /Think in seasons/);
+  assert.match(html, /One joint plan/);
+  assert.match(html, /Forecasts, not promises/);
+  assert.match(html, /Your teams stay here/);
+  assert.match(html, /id="publication-status"/);
+  assert.match(html, /TracingInsights/);
+  assert.doesNotMatch(html, /id="refresh"/);
 });
 
 test("registry shows unboosted next-round points and team colours for both kinds", () => {

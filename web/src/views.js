@@ -152,7 +152,10 @@ export function heroMarkup(
   selectedRound = result?.selectedRound || 0,
 ) {
   const r = dataset.rounds[selectedRound];
-  return `<section class="race-hero circuit-hero">${racePhotoMarkup(r.name)}<div class="race-title"><span class="race-kicker">Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><h1>${esc(r.name)}</h1><p>${dataset.rounds.length} rounds remaining · ${esc(new Date(r.first_session_utc).toLocaleDateString(undefined, { day: "numeric", month: "long" }))}</p></div>${circuitMarkup(r.name)}</section>`;
+  const spec = r.track_spec,
+    weather = r.weather;
+  const context = `<aside class="race-context" aria-label="Track and weather"><section><span class="eyebrow">Track spec</span>${spec ? `<strong>${Number(spec.length_km).toFixed(3)} <small>km</small> <i>·</i> ${spec.race_laps} <small>laps</small></strong><p>${Number(spec.race_distance_km).toFixed(3)} km race distance</p><a href="${esc(spec.source)}" target="_blank" rel="noopener noreferrer">Formula 1 · ${spec.season} circuit guide ↗</a>` : "<p>Circuit specifications not published for this round.</p>"}</section><section class="weather-context"><span class="eyebrow">Weekend weather</span>${weather?.status === "available" ? `<strong>${Math.round(weather.air_min_c)}–${Math.round(weather.air_max_c)}° <small>air</small></strong><div class="weather-metrics"><span>${Math.round(weather.daily_rain_probability_max)}% <small>max daily rain chance</small></span><span>${Math.round(weather.wind_max_kmh)} <small>km/h max wind</small></span></div><p>${esc(weather.start_date)}–${esc(weather.end_date)} · UTC days</p><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo · updated ${esc(new Date(weather.fetched_at).toLocaleString())} ↗</a>` : `<p>${weather?.status === "outside_horizon" ? "Outside the 16-day forecast window." : "Forecast currently unavailable."}</p>`}<small class="weather-note">Weather context only · not used in point estimates.</small></section></aside>`;
+  return `<div class="race-overview"><section class="race-hero circuit-hero">${racePhotoMarkup(r.name)}<div class="race-title"><span class="race-kicker">Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><h1>${esc(r.name)}</h1><p>${dataset.rounds.length} rounds remaining · ${esc(new Date(r.first_session_utc).toLocaleDateString(undefined, { day: "numeric", month: "long" }))}</p></div>${circuitMarkup(r.name)}</section>${context}</div>`;
 }
 export function referencePoints(dataset, team) {
   if (team.selected.length !== 7) return null;
@@ -178,7 +181,7 @@ function transferNames(dataset, ids) {
     .join("");
 }
 export function transfersMarkup(dataset, outgoing, incoming) {
-  return `<div class="transfer-lists">${[
+  return `<div class="transfer-lists" tabindex="0" role="region" aria-label="Roster changes; scroll for all selections">${[
     ["out", "Remove", outgoing],
     ["in", "Bring in", incoming],
   ]
@@ -207,8 +210,9 @@ function boostDirective(dataset, round) {
   const value = automatic
     ? total(round.entries.map((e) => total(e.extra)))
     : entry.total;
-  return `<section class="panel directive boost-directive">
-    <div class="directive-heading"><span>${icon("bolt")}Regular Boost · next round</span><span class="tag">2×</span></div>
+  return `<section class="panel directive boost-directive ${automatic ? "boost-automatic" : "boost-driver"}">
+    ${!automatic ? `<div class="boost-backdrop" aria-hidden="true">${portrait(driver, helmet())}</div>` : ""}
+    <div class="directive-heading"><span>${icon("bolt")}Driver Boost</span><span class="tag">2×</span></div>
     <div class="boost-visual">${
       automatic
         ? `<div class="boost-candidates" aria-label="Autopilot selects among these five drivers">${round.entries
@@ -224,7 +228,7 @@ function boostDirective(dataset, round) {
                 )}</span>`,
             )
             .join("")}</div>`
-        : `<div class="boost-portrait">${portrait(driver, helmet())}</div>`
+        : ""
     }<div><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Autopilot · whole-weekend winner" : esc(constructorName(dataset, driver))}</p></div></div>
     <div class="boost-output"><strong>${points(value)}</strong><span>${automatic ? "expected extra Boost points" : "forecast pts including 2×"}</span></div>
      ${automatic ? '<p class="hint">Scenario-dependent winner.</p>' : round.x3 ? `<p>3×: ${esc(dataset.assets.find((a) => a.id === round.x3).name)}.</p>` : ""}

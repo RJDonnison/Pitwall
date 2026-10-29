@@ -153,13 +153,41 @@ def main():
                                 "Math.abs(document.querySelector('#active-setup summary').getBoundingClientRect().top - document.querySelector('#export-team').getBoundingClientRect().top) < 6"
                             ), "Import/export are not inline with chip setup"
                     if route == "strategy":
+                        assert page.locator(".race-context").count() == 1
+                        assert (
+                            "Track spec" in page.locator(".race-context").text_content()
+                        )
+                        assert page.locator(".footer-columns > section").count() == 3
+                        assert page.locator("#publication-status").count() == 1
+                        if width == 1440:
+                            assert page.locator("#strategy table").is_visible(), (
+                                "Desktop breakdown stayed collapsed after resizing"
+                            )
+                            row = page.locator("#strategy tbody tr").first
+                            color = row.evaluate(
+                                "e => getComputedStyle(e).backgroundColor"
+                            )
+                            row.hover()
+                            assert (
+                                row.evaluate("e => getComputedStyle(e).backgroundColor")
+                                == color
+                            ), (
+                                "Non-interactive recommendation rows should not change on hover"
+                            )
+                        assert page.locator(
+                            ".roster-directive .transfer-lists"
+                        ).evaluate(
+                            "e => e.clientHeight <= 185 && getComputedStyle(e).overflowY === 'auto' && e.scrollHeight > e.clientHeight"
+                        ), (
+                            "Transfers should scroll instead of stretching adjacent cards"
+                        )
                         assert (
                             page.locator(".roster-directive .transfer-column").count()
                             == 2
                         )
                         assert (
                             page.locator(
-                                ".boost-portrait img, .boost-candidates img"
+                                ".boost-backdrop img, .boost-candidates img"
                             ).count()
                             > 0
                         )

@@ -25,7 +25,7 @@ import {
   strategyMarkup,
   insightsMarkup,
 } from "./views.js";
-import { logo, chipIcon, creditsMarkup } from "./visuals.js";
+import { logo, chipIcon, footerMarkup } from "./visuals.js";
 
 const $ = (query) => document.querySelector(query);
 const blank = (i) => ({
@@ -144,7 +144,7 @@ function route({ scroll = false } = {}) {
 function shell() {
   $("#app").innerHTML =
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
-     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading"><h1>Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main><footer><div class="footer-status"><span><b>Pitwall</b> · No account submission</span><span id="publication-status" role="status">Loading public data…</span></div>${creditsMarkup()}</footer>`;
+     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading"><h1>Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
   $("#search").oninput = renderMarket;
   document.querySelectorAll("[data-kind]").forEach(
@@ -214,7 +214,7 @@ function render() {
   $("#allocation").innerHTML = allocationMarkup(dataset, t);
   $("#roster-board").innerHTML = rosterMarkup(dataset, t, dataset.rounds[0]);
   $("#settings").innerHTML =
-    `<div class="panel garage-config"><div class="garage-inputs"><label>Team name<input id="team-name" maxlength="32" value="${esc(t.name)}"/></label><label>Total budget ($m)<input id="budget" type="number" min="0.1" step="0.1" value="${t.budget / 10}" aria-describedby="budget-help"/></label><label>Free transfers<select id="transfers"><option value="0" ${!t.initial && t.carry === 0 ? "selected" : ""}>2 free · established team</option><option value="1" ${!t.initial && t.carry === 1 ? "selected" : ""}>3 free · one carried</option><option value="initial" ${t.initial ? "selected" : ""}>Unlimited · new team</option></select></label></div><p class="hint" id="budget-help">Budget = team value + cash. Enter the original race-week roster; extra transfers cost −10 points each.</p>
+    `<div class="panel garage-config"><div class="garage-inputs"><label>Team name<input id="team-name" maxlength="32" value="${esc(t.name)}"/></label><label>Total budget ($m)<input id="budget" type="number" min="0.1" step="0.1" value="${t.budget / 10}" aria-describedby="budget-help"/></label><label>Free transfers<select id="transfers"><option value="0" ${!t.initial && t.carry === 0 ? "selected" : ""}>2 free · established team</option><option value="1" ${!t.initial && t.carry === 1 ? "selected" : ""}>3 free · one carried</option><option value="initial" ${t.initial ? "selected" : ""}>Unlimited · new team</option></select></label></div><p class="sr-only" id="budget-help">Budget = team value + cash.</p>
    <fieldset class="chips"><legend>Chips</legend>${CHIPS.map((c) => {
      const supported = dataset.chip_support[c]?.available !== false;
      const available = t.chips.includes(c) && t.active !== c;
@@ -372,6 +372,9 @@ function renderStrategy() {
 function renderInsights() {
   $("#insights").innerHTML = insightsMarkup();
 }
+matchMedia("(max-width: 650px)").addEventListener("change", () => {
+  if (dataset) renderStrategy();
+});
 function acceptDataset(fresh) {
   dataset = fresh;
   for (const t of profiles) {

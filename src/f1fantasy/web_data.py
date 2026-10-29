@@ -11,6 +11,7 @@ from pathlib import Path
 from . import data, output, public_history
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
+from .race_context import race_context
 
 
 def price_history(live):
@@ -64,6 +65,7 @@ def build(season: int, *, telemetry: bool = True) -> dict:
     rounds = []
     for t, weekend in enumerate(weekends):
         row = output.event(weekend)
+        row.update(race_context(weekend))
         row["forecasts"] = {a.id: components(forecasts[t, a.id]) for a in live.assets}
         if values is not None:
             row["no_negative"] = {
