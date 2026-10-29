@@ -25,6 +25,18 @@ Interactive CLI recommendations keep their existing three-round default and `--r
 
 ## Usage
 
+To recommend separately for different teams in the connected account:
+
+```sh
+f1fantasy recommend --team 1
+f1fantasy recommend --team 2 --races 5
+f1fantasy recommend --team 3 --format json
+```
+
+`--team` is read-only and requires account mode. It does not reconnect or change
+the single team bound to `account apply` or Docker automation. Omitting it keeps
+the connected-team default.
+
 From this repository, install into a virtual environment:
 
 ```sh

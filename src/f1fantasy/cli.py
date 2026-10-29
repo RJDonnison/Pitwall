@@ -730,6 +730,12 @@ def _parser() -> argparse.ArgumentParser:
         "recommend", help="Recommend lineup, transfers and 2x Boost"
     )
     recommend.add_argument(
+        "--team",
+        type=int,
+        choices=(1, 2, 3),
+        help="Read this account team for recommendations without changing the submission binding",
+    )
+    recommend.add_argument(
         "--account",
         action=argparse.BooleanOptionalAction,
         default=True,
@@ -1204,6 +1210,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "recommend" and not 1 <= args.races <= 5:
             raise DataError("--races must be between 1 and 5")
+        if args.command == "recommend" and args.team is not None and not args.account:
+            raise DataError(
+                "--team requires an authenticated account; remove --no-account"
+            )
         live, weekends = snapshot(args.season, allow_old_prices=args.allow_old_prices)
         warnings = []
         if live.provisional:
@@ -1289,9 +1299,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.account:
             from . import account
 
-            state = account.show(args.account_dir, args.season)
+            state = (
+                account.show(args.account_dir, args.season, team_number=args.team)
+                if args.team is not None
+                else account.show(args.account_dir, args.season)
+            )
             if state["gameday_id"] != live.weekend.gameday_id:
                 raise DataError("Account event differs from the planning event")
+            if args.team is not None and state.get("team_number") != args.team:
+                raise DataError("Account returned a different requested team")
+            if args.format == "text":
+                print(f"Account Team {state.get('team_number', 'connected')}")
         else:
             state = _read_state(args.state) if args.state.exists() else None
         lineups, forecasts, previous, budget, carry, reserves, chip_history = _plan(
@@ -1408,6 +1426,7 @@ def main(argv: list[str] | None = None) -> int:
                     "price_source": price_source,
                     "current_team_imported": state is not None,
                     "account_synced": args.account,
+                    "team_number": state.get("team_number") if args.account else None,
                     "chip_reserve_points": reserves,
                     "chip_history": chip_history,
                     "budget_tenths_m": budget,

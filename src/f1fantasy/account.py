@@ -990,10 +990,14 @@ def connect(
         return state
 
 
-def show(directory: Path, season: int) -> dict:
-    """Fetch fresh selected-team state, roster/prices and statistics."""
+def show(directory: Path, season: int, *, team_number: int | None = None) -> dict:
+    """Read a selected team without changing the one-team submission binding."""
     with _locked(directory) as directory:
         binding = _binding(directory, season)
+        if team_number is not None:
+            if type(team_number) is not int or team_number not in (1, 2, 3):
+                raise AccountError("Read-only team number must be 1, 2 or 3")
+            binding = dict(binding, team_number=team_number)
         with _browser(directory) as session:
             state, _ = _snapshot(session, binding)
             if state["active_chip"] == "limitless":
