@@ -156,10 +156,18 @@ next-round net score comparison, cumulative Fantasy trajectory and selectable
 round details. The reference is explicitly the unchanged roster with best 2×
 and no chips; it is not a league benchmark or a do-nothing active-chip forecast.
 Autopilot shows scenario-dependent extra points rather than a fixed winner.
+Regular Boost uses the selected driver's portrait; Autopilot shows the five
+eligible drivers instead. Next-round removals and arrivals have separate labelled
+lists with portraits and prices. The circuit inset uses a dark background.
 
 The Garage retains `pitwall-teams-v1` storage and JSON import/export. Settings
 are on the main page rather than a sidebar. Five portrait cards, two wide car
 cards and the four-column registry follow the supplied Visual Garage layout.
+Registry cards carry their constructor colour and an unboosted next-weekend
+Fantasy point estimate, with compact black Add/Remove controls. These estimates
+include qualifying, Sprint when present, and race; they do not include Boost,
+chips or transfer penalties. Search and type filters share a row, and import/export
+sits alongside the already-active-chip settings.
 Free transfers are selected explicitly (two, three with carry, or unlimited for
 a new team). The removed new-team/completed/paid checkboxes are replaced by this
 single control and a fixed net-points policy: extra transfers always cost −10.

@@ -74,6 +74,8 @@ export function icon(name, cls = "") {
     grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
     flag: '<path d="M5 22V3m0 1c5-5 9 5 15 0v11c-6 5-10-5-15 0"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
   };
   return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.grid}</svg>`;
 }
@@ -114,6 +116,14 @@ export function rosterMarkup(dataset, team, round) {
         ).join("")}</div>`,
     )
     .join("");
+}
+export function registryCardMarkup(dataset, team, a) {
+  const selected = team.selected.includes(a.id);
+  const count = dataset.assets.filter(
+    (row) => row.kind === a.kind && team.selected.includes(row.id),
+  ).length;
+  const forecast = total(dataset.rounds[0].forecasts[a.id]);
+  return `<article class="market-card ${selected ? "selected" : ""}" style="--team-color:${teamColor(dataset, a)}"><div class="market-card-title"><div class="registry-photo">${portrait(a, a.kind === "DRIVER" ? helmet() : car())}</div><div><h3>${esc(a.name)}</h3>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</div><strong>${money(a.price_tenths_m)}</strong></div>${priceTrend(dataset, a)}<div class="market-card-bottom"><span class="registry-estimate" title="Unboosted Fantasy forecast for ${esc(dataset.rounds[0].name)}"><strong>${points(forecast)}</strong> est. pts</span><button class="registry-add" data-select="${esc(a.id)}" aria-label="${selected ? "Remove" : "Add"} ${esc(a.name)}" aria-pressed="${selected}" ${!selected && count >= (a.kind === "DRIVER" ? 5 : 2) ? "disabled" : ""}>${icon(selected ? "minus" : "plus")}<span>${selected ? "Remove" : "Add"}</span></button></div></article>`;
 }
 export function allocationMarkup(dataset, team) {
   const chosen = dataset.assets.filter((a) => team.selected.includes(a.id));
@@ -167,6 +177,29 @@ function transferNames(dataset, ids) {
     )
     .join("");
 }
+export function transfersMarkup(dataset, outgoing, incoming) {
+  return `<div class="transfer-lists">${[
+    ["out", "Remove", outgoing],
+    ["in", "Bring in", incoming],
+  ]
+    .map(
+      ([direction, label, ids]) =>
+        `<section class="transfer-column transfer-${direction}" aria-label="${label} selections"><h3>${icon(direction === "out" ? "minus" : "plus")}${label}<span>${ids.length}</span></h3><ul>${
+          ids.length
+            ? ids
+                .map((id) => {
+                  const a = dataset.assets.find((row) => row.id === id);
+                  return `<li><span class="transfer-photo">${portrait(a, a.kind === "DRIVER" ? helmet() : car())}</span><div><strong>${esc(a.name)}</strong><small>${a.kind === "DRIVER" ? "Driver" : "Constructor"}</small></div><span class="transfer-price">${money(a.price_tenths_m)}</span></li>`;
+                })
+                .join("")
+            : `<li class="transfer-empty">${direction === "out" ? "Keep the current roster" : "No additions"}</li>`
+        }</ul></section>`,
+    )
+    .join("")}</div>`;
+}
+function transferDirective(dataset, team, round) {
+  return `<section class="panel directive roster-directive"><div class="directive-heading"><span>${icon("transfer")}Roster changes · next round</span><span class="tag">${round.transfer_penalty ? `−${round.transfer_penalty}` : "0"} pts penalty</span></div><h2>${round.transfers} net ${round.transfers === 1 ? "transfer" : "transfers"}</h2>${transfersMarkup(dataset, round.out, round.in)}<div class="directive-footer">${round.chip === "limitless" ? "Temporary uncapped lineup" : `Budget remaining: ${money(team.budget - round.cost)}`}<span>${round.chip === "wildcard" || round.chip === "limitless" || team.initial ? "Unlimited changes" : `${2 + team.carry} free allowance`}</span></div></section>`;
+}
 function boostDirective(dataset, round) {
   const automatic = round.chip === "autopilot";
   const driver = dataset.assets.find((a) => a.id === round.boost);
@@ -176,7 +209,23 @@ function boostDirective(dataset, round) {
     : entry.total;
   return `<section class="panel directive boost-directive">
     <div class="directive-heading"><span>${icon("bolt")}Regular Boost · next round</span><span class="tag">2×</span></div>
-    <div class="boost-visual">${helmet()}<div><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Autopilot · whole-weekend winner" : esc(constructorName(dataset, driver))}</p></div></div>
+    <div class="boost-visual">${
+      automatic
+        ? `<div class="boost-candidates" aria-label="Autopilot selects among these five drivers">${round.entries
+            .filter(
+              (e) =>
+                dataset.assets.find((a) => a.id === e.id).kind === "DRIVER",
+            )
+            .map(
+              (e) =>
+                `<span>${portrait(
+                  dataset.assets.find((a) => a.id === e.id),
+                  helmet(),
+                )}</span>`,
+            )
+            .join("")}</div>`
+        : `<div class="boost-portrait">${portrait(driver, helmet())}</div>`
+    }<div><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Autopilot · whole-weekend winner" : esc(constructorName(dataset, driver))}</p></div></div>
     <div class="boost-output"><strong>${points(value)}</strong><span>${automatic ? "expected extra Boost points" : "forecast pts including 2×"}</span></div>
      ${automatic ? '<p class="hint">Scenario-dependent winner.</p>' : round.x3 ? `<p>3×: ${esc(dataset.assets.find((a) => a.id === round.x3).name)}.</p>` : ""}
   </section>`;
@@ -225,7 +274,7 @@ export function strategyMarkup(
   );
   const denominator = Math.max(1, first.points, reference[0]);
   let cumulative = 0;
-  return `${heroMarkup(dataset, team, result)}<div class="directive-grid"><section class="panel directive"><div class="directive-heading"><span>${icon("transfer")}Roster changes · next round</span><span class="tag">${first.transfer_penalty ? `−${first.transfer_penalty}` : "0"} pts penalty</span></div><h2>${first.transfers} net ${first.transfers === 1 ? "transfer" : "transfers"}</h2><div class="transfer-stack"><div><span class="transfer-badge out">Out</span><div>${transferNames(dataset, first.out) || "No outgoing selections"}</div></div><span class="swap-mark">↕</span><div><span class="transfer-badge">In</span><div>${transferNames(dataset, first.in) || "Keep all seven"}</div></div></div><div class="directive-footer">${first.chip === "limitless" ? "Temporary uncapped lineup" : `Budget remaining: ${money(team.budget - first.cost)}`}<span>${first.chip === "wildcard" || first.chip === "limitless" || team.initial ? "Unlimited changes" : `${2 + team.carry} free allowance`}</span></div></section>${boostDirective(dataset, first)}<section class="panel directive chip-directive"><div class="directive-heading"><span>${icon("shield")}Strategic allocation</span><span class="tag ${first.chip ? "red" : ""}">${first.chip ? "Use chip" : "Hold"}</span></div><div class="chip-callout">${icon("shield")}<div><h2>${first.chip ? chipNames[first.chip] : "Save chips this round"}</h2><p>${first.chip ? chipDescriptions[first.chip] : "Keep available chips for a higher-value round in this season plan."}</p></div></div><div class="chip-dots" aria-label="${team.chips.length} chips marked available">${Object.keys(
+  return `${heroMarkup(dataset, team, result)}<div class="directive-grid">${transferDirective(dataset, team, first)}${boostDirective(dataset, first)}<section class="panel directive chip-directive"><div class="directive-heading"><span>${icon("shield")}Strategic allocation</span><span class="tag ${first.chip ? "red" : ""}">${first.chip ? "Use chip" : "Hold"}</span></div><div class="chip-callout">${icon("shield")}<div><h2>${first.chip ? chipNames[first.chip] : "Save chips this round"}</h2><p>${first.chip ? chipDescriptions[first.chip] : "Keep available chips for a higher-value round in this season plan."}</p></div></div><div class="chip-dots" aria-label="${team.chips.length} chips marked available">${Object.keys(
     chipNames,
   )
     .map((c) => `<i class="${team.chips.includes(c) ? "available" : ""}"></i>`)

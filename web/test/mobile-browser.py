@@ -82,6 +82,19 @@ def main():
             assert page.locator("#page-garage a[href='#strategy']").count() == 0
             assert page.locator(".chip-toggle small").count() == 0
             assert page.locator("#roster-board [data-remove]").count() == 7
+            assert page.locator("[data-nav=garage]").text_content().strip() == "Garage"
+            assert page.locator("#page-garage h1").text_content() == "Garage"
+            assert page.locator(".market-card .registry-estimate").count() == len(
+                data["assets"]
+            )
+            assert page.locator(".registry-add svg").count() == len(data["assets"])
+            assert page.locator("#active-setup + .import-export").count() == 1
+            # Filtering still works after placing the controls beside search.
+            page.locator("[data-kind=CONSTRUCTOR]").click()
+            assert page.locator(".market-card").count() == sum(
+                a["kind"] == "CONSTRUCTOR" for a in data["assets"]
+            )
+            page.locator("[data-kind=ALL]").click()
             page.evaluate("location.hash='asset-registry'")
             page.wait_for_timeout(100)
             page.evaluate(
@@ -131,6 +144,28 @@ def main():
                     assert page.evaluate(
                         "document.documentElement.scrollWidth <= innerWidth"
                     ), (width, route, overflow)
+                    if route == "garage":
+                        assert page.evaluate(
+                            "Math.abs(document.querySelector('#search').getBoundingClientRect().top - document.querySelector('.market-tools .segments').getBoundingClientRect().top) < 6"
+                        ), (width, "Registry search and filters are not inline")
+                        if width == 1440:
+                            assert page.evaluate(
+                                "Math.abs(document.querySelector('#active-setup summary').getBoundingClientRect().top - document.querySelector('#export-team').getBoundingClientRect().top) < 6"
+                            ), "Import/export are not inline with chip setup"
+                    if route == "strategy":
+                        assert (
+                            page.locator(".roster-directive .transfer-column").count()
+                            == 2
+                        )
+                        assert (
+                            page.locator(
+                                ".boost-portrait img, .boost-candidates img"
+                            ).count()
+                            > 0
+                        )
+                        assert page.locator(".circuit-art").evaluate(
+                            "e => !['rgb(255, 255, 255)', 'rgba(0, 0, 0, 0)'].includes(getComputedStyle(e).backgroundColor)"
+                        )
                     if width <= 650:
                         assert (
                             page.locator(".masthead nav").evaluate(

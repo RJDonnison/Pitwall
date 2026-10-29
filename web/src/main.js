@@ -18,20 +18,14 @@ import {
   chipDescriptions,
   icon,
   constructorName,
-  teamColor,
+  registryCardMarkup,
   profilesMarkup,
   rosterMarkup,
   allocationMarkup,
   strategyMarkup,
   insightsMarkup,
 } from "./views.js";
-import {
-  logo,
-  chipIcon,
-  portrait,
-  creditsMarkup,
-  priceTrend,
-} from "./visuals.js";
+import { logo, chipIcon, creditsMarkup } from "./visuals.js";
 
 const $ = (query) => document.querySelector(query);
 const blank = (i) => ({
@@ -92,7 +86,6 @@ let active = 0,
   verificationText = "Published snapshot",
   revision = 0;
 const team = () => profiles[active];
-const asset = (id) => dataset.assets.find((a) => a.id === id);
 function save() {
   try {
     localStorage.setItem("pitwall-teams-v1", JSON.stringify(profiles));
@@ -150,8 +143,8 @@ function route({ scroll = false } = {}) {
 }
 function shell() {
   $("#app").innerHTML =
-    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Team Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
-     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Team Garage" hidden><div class="page-heading"><h1>Team Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main><footer><div class="footer-status"><span><b>Pitwall</b> · No account submission</span><span id="publication-status" role="status">Loading public data…</span></div>${creditsMarkup()}</footer>`;
+    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
+     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading"><h1>Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main><footer><div class="footer-status"><span><b>Pitwall</b> · No account submission</span><span id="publication-status" role="status">Loading public data…</span></div>${creditsMarkup()}</footer>`;
   $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
   $("#search").oninput = renderMarket;
   document.querySelectorAll("[data-kind]").forEach(
@@ -227,7 +220,7 @@ function render() {
      const available = t.chips.includes(c) && t.active !== c;
      return `<button type="button" class="chip-toggle chip-${c} ${available ? "available" : "used"}" data-chip="${c}" aria-pressed="${available}" aria-label="${chipNames[c]}: ${t.active === c ? "active" : available ? "available" : "used"}" ${!supported || t.active === c ? "disabled" : ""} title="${esc(supported ? chipDescriptions[c] : "History unavailable")}">${chipIcon(c)}<span>${chipNames[c]}</span></button>`;
    }).join("")}</fieldset>
-  <details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
+  <div class="garage-utilities"><details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
     t.active === "limitless"
       ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
           "DRIVER",
@@ -248,7 +241,7 @@ function render() {
           )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. Required for full-season restoration.</p>`
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
-    <div class="garage-actions"><div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
+    <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
   for (const id of ["budget", "transfers", "active-chip"])
     $(`#${id}`).onchange = () => {
       const value = $(`#${id}`);
@@ -336,15 +329,7 @@ function renderMarket() {
         b.price_tenths_m - a.price_tenths_m || a.name.localeCompare(b.name),
     );
   $("#market-list").innerHTML =
-    available
-      .map((a) => {
-        const selected = team().selected.includes(a.id),
-          count = team().selected.filter(
-            (id) => asset(id)?.kind === a.kind,
-          ).length;
-        return `<article class="market-card ${selected ? "selected" : ""}" style="--team-color:${teamColor(dataset, a)}"><div class="market-card-title"><div class="registry-photo">${portrait(a, '<span class="asset-monogram">' + esc(a.tla || "F1") + "</span>")}</div><div><h3>${esc(a.name)}</h3><small>${esc(constructorName(dataset, a))}</small></div><strong>${money(a.price_tenths_m)}</strong></div>${priceTrend(dataset, a)}<div class="market-card-bottom"><span class="hint">${selected ? "In your team" : a.kind === "DRIVER" ? "Driver" : "Constructor"}</span><button data-select="${esc(a.id)}" aria-label="${selected ? "Remove" : "Add"} ${esc(a.name)}" aria-pressed="${selected}" ${!selected && count >= (a.kind === "DRIVER" ? 5 : 2) ? "disabled" : ""}>${selected ? "− Remove" : "+ Add"}</button></div></article>`;
-      })
-      .join("") ||
+    available.map((a) => registryCardMarkup(dataset, team(), a)).join("") ||
     '<p class="empty">No matching selections. Try another name.</p>';
   document.querySelectorAll("[data-select]").forEach(
     (b) =>

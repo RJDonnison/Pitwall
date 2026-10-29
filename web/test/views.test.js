@@ -5,6 +5,8 @@ import {
   profilesMarkup,
   strategyMarkup,
   insightsMarkup,
+  registryCardMarkup,
+  transfersMarkup,
 } from "../src/views.js";
 
 function fixture() {
@@ -120,4 +122,51 @@ test("Strategy updates automatically without manual calculation controls", () =>
     strategyMarkup(data, team, null, false, 0, "Bad budget"),
     /Bad budget/,
   );
+});
+
+test("regular Boost uses its driver's real portrait, not an arbitrary Autopilot winner", () => {
+  const { data, team, result } = fixture();
+  data.assets[0].id = "131";
+  team.selected[0] = "131";
+  data.rounds[0].forecasts["131"] = data.rounds[0].forecasts["0"];
+  result.rounds[0].entries[0].id = "131";
+  result.rounds[0].boost = "131";
+  const html = strategyMarkup(data, team, result, false, 0);
+  assert.match(html, /class="boost-portrait"><img[^>]*media\/131.webp/);
+  result.rounds[0].chip = "autopilot";
+  const automatic = strategyMarkup(data, team, result, false, 0);
+  assert.match(automatic, /class="boost-candidates"/);
+  assert.doesNotMatch(automatic, /class="boost-portrait"/);
+});
+
+test("roster changes separate removal and arrival lists without implying swap pairs", () => {
+  const { data } = fixture();
+  const html = transfersMarkup(data, ["0", "5"], ["1", "6"]);
+  assert.match(html, /aria-label="Remove selections"/);
+  assert.match(html, /aria-label="Bring in selections"/);
+  assert.equal((html.match(/<li>/g) || []).length, 4);
+  assert.match(html, /Selection 0/);
+  assert.match(html, /Selection 6/);
+  assert.match(transfersMarkup(data, [], []), /Keep the current roster/);
+});
+
+test("registry shows unboosted next-round points and team colours for both kinds", () => {
+  const { data, team } = fixture();
+  data.assets[6].name = "Ferrari";
+  for (const a of [data.assets[0], data.assets[6]]) {
+    const html = registryCardMarkup(data, team, a);
+    assert.match(html, /--team-color:#b81b25/);
+    assert.match(html, /<strong>10\.0<\/strong> est\. pts/);
+    assert.match(html, /class="registry-add"/);
+    assert.match(html, /aria-label="Remove /);
+    assert.match(html, /aria-pressed="true"/);
+    assert.doesNotMatch(html, /disabled|>Constructor<\/span>/);
+  }
+  const extra = { ...data.assets[0], id: "extra", name: "Extra driver" };
+  data.assets.push(extra);
+  data.rounds[0].forecasts.extra = [-5, 0, 3];
+  const html = registryCardMarkup(data, team, extra);
+  assert.match(html, /<strong>-2\.0<\/strong> est\. pts/);
+  assert.match(html, /aria-label="Add Extra driver"/);
+  assert.match(html, /disabled/);
 });
