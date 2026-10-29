@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: [Refresh public history]
+    types: [completed]
   schedule:
     - cron: "17 */2 * * *"
 
@@ -18,6 +21,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -31,11 +35,6 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: actions/cache@v4
-        with:
-          path: .f1fantasy/cache
-          key: forecast-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: forecast-${{ runner.os }}-
       - name: Install dependencies
         run: |
           python -m pip install -e '.[dev]'
@@ -45,6 +44,7 @@ jobs:
           python -m pytest
           npm test --prefix web
       - name: Generate fresh public forecasts
+        timeout-minutes: 5
         run: python -m f1fantasy.web_data
       - name: Build the static website
         run: npm run build --prefix web

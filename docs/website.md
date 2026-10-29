@@ -53,6 +53,21 @@ every remaining round, and publishes `web/public/forecast.json`. It exports only
 public fields; account code, login sessions and private team files are not read.
 The forecast file is ignored by Git and regenerated for each deployment.
 
+Historical inputs are versioned separately in `data/history.json`: compact public
+race classifications/championship points, Fantasy session scores, calendar
+metadata and pre-weekend telemetry features. The publisher reads this dataset
+strictly: it cannot fall back to a raw FastF1 download when an entry is missing.
+This avoids a cold-cache multi-season download during deployment. The separate
+**Refresh public history** action runs daily/manual with a longer time budget,
+loads newly completed racing sessions, validates forecast coverage, and commits
+only the public dataset. Its successful completion triggers Pages publication.
+Run `python -m f1fantasy.refresh_history` locally for the same update.
+
+No Formula 1 account credentials are required for these completed-session
+inputs. FastF1 may log an optional live-feed authentication warning in the
+updater and continue anonymously. An actual data error is handled separately;
+it does not justify adding personal F1 login secrets to a static website.
+
 The official Fantasy feeds currently return no browser cross-origin permission.
 A Pages site cannot bypass that with client JavaScript or a secret embedded in
 the bundle. Before **every** solve the site re-fetches the publication and attempts
@@ -103,16 +118,16 @@ No example predictions or stale price snapshot are substituted for missing data.
    `https://USERNAME.github.io/REPOSITORY/`; Vite's relative base supports a project
    path and custom-domain root without code changes.
 
-`.github/workflows/pages.yml` installs/tests both runtimes, caches only public
-FastF1 history, publishes fresh inputs, builds `web/dist`, uploads a Pages artifact
+`.github/workflows/pages.yml` installs/tests both runtimes, uses the committed
+historical dataset, publishes fresh inputs, builds `web/dist`, uploads a Pages artifact
 and deploys using GitHub's Pages/OIDC permissions. No authentication cookie,
 password, token secret or user-team upload is required. It runs on push, manual
 dispatch and every two hours; schedules can be delayed/disabled by GitHub, so
 freshness is enforced in the browser as well. A year with no published roster or
 no upcoming round produces the unavailable screen until verified data returns.
 
-This checkout has no Git remote and GitHub CLI is not authenticated. The workflow
-is ready, but no remote repository or live Pages URL has been created here.
+The deployment URL is reported by the `github-pages` environment after a
+successful workflow run.
 
 ## Design and accessibility
 

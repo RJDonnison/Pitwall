@@ -279,7 +279,9 @@ def completed_scores(
     The feed also contains cumulative season statistics; those are intentionally
     ignored because they can contain information from later events.
     """
-    feed = _get_json(f"drivers/{gameday_id}_en.json")
+    from .public_history import fantasy_feed
+
+    feed = fantasy_feed(f"drivers/{gameday_id}_en.json", _get_json)
     rows = feed.get("Value")
     if not isinstance(rows, list) or len(rows) < 30:
         raise DataError(f"Incomplete Fantasy scores for race week {gameday_id}")
@@ -357,7 +359,9 @@ def snapshot(
 def fastf1_weekend(weekend: Weekend) -> Any:
     """Check FastF1's round, race date and format against Fantasy's schedule."""
     try:
-        event = fastf1.get_event(weekend.season, weekend.round)
+        from .public_history import event as get_event
+
+        event = get_event(weekend.season, weekend.round)
         if ("sprint" in str(event["EventFormat"]).lower()) != weekend.sprint:
             raise DataError(f"Conflicting Sprint format for {weekend.name}")
         if weekend.last_session is not None:

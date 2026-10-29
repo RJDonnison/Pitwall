@@ -1,0 +1,43 @@
+name: Refresh public history
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 3 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: public-history
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - uses: actions/cache@v4
+        with:
+          path: .f1fantasy/cache
+          key: history-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: history-${{ runner.os }}-
+      - run: python -m pip install -e '.[dev]'
+      - name: Update only public historical inputs
+        run: python -m f1fantasy.refresh_history
+      - name: Verify the committed-data publication path
+        run: python -m pytest tests/test_public_history.py tests/test_web_data.py
+      - name: Commit updated public data
+        run: |
+          git add data/history.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Refresh public historical model inputs'
+            git push origin HEAD:main
+          fi

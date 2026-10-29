@@ -81,7 +81,11 @@ def load_chip_values(
             scores: dict[str, Estimate] = {}
             uplifts: dict[str, Estimate] = {}
             try:
-                rows = data._get_json(f"drivers/{weekend.gameday_id}_en.json")["Value"]
+                from .public_history import fantasy_feed
+
+                rows = fantasy_feed(
+                    f"drivers/{weekend.gameday_id}_en.json", data._get_json
+                )["Value"]
                 active = {a.id: a for a in assets}
                 # An official null is unavailable history, never zero points.
                 # Exclude the entire joint sample so drivers stay correlated.

@@ -51,6 +51,14 @@ def _position(value: Any) -> int | None:
 
 
 def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]:
+    from .public_history import scores
+
+    return scores(
+        year, round_number, kind, lambda: _load_session_scores(year, round_number, kind)
+    )
+
+
+def _load_session_scores(year: int, round_number: int, kind: str) -> dict[str, float]:
     try:
         session = fastf1.get_session(year, round_number, kind)
         session.load(laps=False, telemetry=False, weather=False, messages=False)
@@ -96,15 +104,17 @@ def _track_form(
     cutoff: Any,
 ) -> dict[int, dict[str, dict[str, list[tuple[int, float]]]]]:
     """Earlier visits to each upcoming venue, independent of season form."""
+    from .public_history import event as get_event, schedule as get_schedule
+
     locations = {
-        index: _venue(fastf1.get_event(w.season, w.round)["Location"])
+        index: _venue(get_event(w.season, w.round)["Location"])
         for index, w in enumerate(weekends)
     }
     track: dict[int, dict[str, dict[str, list[tuple[int, float]]]]] = {
         index: {} for index in locations
     }
     for year in range(weekends[0].season - 2, weekends[0].season + 1):
-        schedule = fastf1.get_event_schedule(year)
+        schedule = get_schedule(year)
         for _, row in schedule.iterrows():
             round_number = int(row["RoundNumber"])
             if round_number < 1:
@@ -116,7 +126,7 @@ def _track_form(
             ]
             if not matched:
                 continue
-            event = fastf1.get_event(year, round_number)
+            event = get_event(year, round_number)
             race_date = event.get_session_date("Race", utc=True).to_pydatetime()
             if race_date.replace(tzinfo=cutoff.tzinfo) >= cutoff:
                 continue
@@ -148,6 +158,8 @@ def estimate_assets(
     if not weekends or lookback < 1:
         raise ValueError("Need upcoming weekends and at least one historical race")
     configure_cache()
+    from .public_history import event as get_event, schedule as get_schedule
+
     for weekend in weekends:
         fastf1_weekend(weekend)
     first = weekends[0]
@@ -156,7 +168,7 @@ def estimate_assets(
     ]
     if len(prior) < lookback:
         try:
-            schedule = fastf1.get_event_schedule(first.season - 1)
+            schedule = get_schedule(first.season - 1)
             rounds = sorted(int(n) for n in schedule["RoundNumber"] if int(n) > 0)
             prior = [
                 (first.season - 1, r) for r in rounds[-(lookback - len(prior)) :]
@@ -172,7 +184,7 @@ def estimate_assets(
         if w.last_session is not None and w.last_session < first.first_session
     }
     for year, round_number in prior:
-        event = fastf1.get_event(year, round_number)
+        event = get_event(year, round_number)
         # A postponed or delayed event must never leak into a prediction.
         if (
             event.get_session_date("Race", utc=True)

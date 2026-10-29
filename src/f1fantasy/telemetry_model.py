@@ -50,9 +50,9 @@ def adjustments(
     drivers = [asset for asset in assets if asset.kind == "DRIVER"]
     output: dict[tuple[int, str], tuple[float, float, float]] = {}
     for index, weekend in enumerate(weekends):
-        location = _location(
-            fastf1.get_event(weekend.season, weekend.round)["Location"]
-        )
+        from .public_history import event as get_event
+
+        location = _location(get_event(weekend.season, weekend.round)["Location"])
         same_venue = [
             _signature(r) for r in eligible if _location(r["location"]) == location
         ]

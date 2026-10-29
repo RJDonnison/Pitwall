@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import data, output
+from . import data, output, public_history
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
 
@@ -45,6 +45,9 @@ def build(season: int, *, telemetry: bool = True) -> dict:
         "schema_version": 1,
         "status": "ready",
         "season": season,
+        "historical_data": public_history.current()["document"].get("coverage")
+        if public_history.current()
+        else None,
         "generated_at": generated.isoformat(),
         "price_checked_at": live.fetched_at.isoformat(),
         "price_published_at": live.published_at.isoformat(),
@@ -69,9 +72,11 @@ def main(argv=None):
     parser.add_argument("--season", type=int, default=datetime.now(timezone.utc).year)
     parser.add_argument("--output", type=Path, default=Path("web/public/forecast.json"))
     parser.add_argument("--no-telemetry", action="store_true")
+    parser.add_argument("--history", type=Path, default=public_history.DEFAULT)
     args = parser.parse_args(argv)
     try:
-        payload = build(args.season, telemetry=not args.no_telemetry)
+        with public_history.repository(args.history):
+            payload = build(args.season, telemetry=not args.no_telemetry)
     except (data.DataError, OSError, ValueError) as exc:
         # A failed publication replaces prior data with an explicit unavailable
         # state; Pages must never keep serving old forecasts as current data.

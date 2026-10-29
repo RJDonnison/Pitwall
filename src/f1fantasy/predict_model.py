@@ -62,6 +62,29 @@ def _history(season, cutoff):
     result end is checked again after loading, guarding delayed sessions.
     """
     cutoff = min(cutoff, _now())
+    from . import public_history as archive
+
+    source = archive.current()
+    if source and not source["update"]:
+        events = [
+            (
+                archive.date(r["race_start"]) + timedelta(hours=6),
+                int(key.split("/")[0]),
+                r["RoundNumber"],
+            )
+            for key, r in source["document"]["events"].items()
+            if int(key.split("/")[0]) in (season - 1, season)
+        ]
+        eligible = sorted(row for row in events if row[0] < cutoff)
+        selected = [row for row in eligible if row[1] < season][-8:] + [
+            row for row in eligible if row[1] == season
+        ]
+        records = [
+            archive.racing_record(year, number, cutoff) for _, year, number in selected
+        ]
+        if not records or any(row is None for row in records):
+            raise DataError("Public racing history is incomplete; refresh the dataset")
+        return records
     configure_cache()
     candidates = []
     for year in (season - 1, season):
@@ -80,6 +103,10 @@ def _history(season, cutoff):
     selected = prior + [item for item in candidates if item[1] == season]
     records = []
     for end, year, round_, event in selected:
+        cached = archive.racing_record(year, round_, cutoff)
+        if cached is not None:
+            records.append(cached)
+            continue
         record = {
             "season": year,
             "round": round_,
@@ -144,6 +171,7 @@ def _history(season, cutoff):
                 for _, row in results.iterrows()
             ]
         records.append(record)
+        archive.save_racing(record)
     return records
 
 
@@ -152,7 +180,9 @@ def _target(snapshot, cutoff):
     names = {str(f.get("MeetingName", "")) for f in fixtures if f.get("MeetingName")}
     if len(names) != 1:
         raise DataError("Predict target needs one unambiguous official meeting")
-    event = fastf1.get_event(int(snapshot["season"]), names.pop())
+    from .public_history import event as get_event
+
+    event = get_event(int(snapshot["season"]), names.pop())
     fixture_dates = [
         _utc(f["SessionStartDateISO8601"])
         for f in fixtures

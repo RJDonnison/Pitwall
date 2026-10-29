@@ -4,6 +4,14 @@ Pitwall is a static website where users enter their F1 Fantasy teams and plan th
 
 The exact mixed-integer optimizer runs in a browser worker using HiGHS WebAssembly. The Python forecast engine publishes only public, pre-weekend data. No F1 login, server-side team storage or automatic submission is needed to use the website. The existing Python CLI and **official F1 Predict** tools remain available; see [Predict commands and verification limits](docs/predict.md).
 
+Completed-session inputs are included in [`data/history.json`](data/README.md)
+(about 2.4 MB), so Pages builds do not download years of raw FastF1 sessions.
+The separate **Refresh public history** action updates that dataset daily or on
+manual request, reusing completed race records and loading new ones. Normal
+publication still fetches current official prices, roster, schedule and Statistics.
+Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`; FastF1's optional live-feed
+authentication warning is not a request to add your account credentials.
+
 ## Run the website locally
 
 ```sh

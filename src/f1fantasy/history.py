@@ -323,6 +323,11 @@ def historical_features(
     cutoff: datetime, root: Path = DEFAULT_CACHE
 ) -> list[dict[str, Any]]:
     """Read cached features from the three relevant seasons before a weekend."""
+    from .public_history import features as archived_features
+
+    stored = archived_features(cutoff)
+    if stored is not None:
+        return stored
     directory = root / "features" / f"v{SCHEMA}"
     if not directory.exists():
         return []
