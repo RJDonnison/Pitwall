@@ -113,3 +113,39 @@ def test_bundled_archive_has_public_inputs_and_no_credentials():
         text = json.dumps(stored).lower()
         for secret in ('"cookie"', '"password"', '"guid"', '"binding"', '"token"'):
             assert secret not in text
+
+
+@pytest.mark.parametrize("cached", [False, True])
+def test_updater_preserves_bundled_features_without_a_runner_cache(
+    tmp_path, monkeypatch, cached
+):
+    from f1fantasy import refresh_history as updater
+
+    now = datetime.now(timezone.utc)
+    original = {
+        "year": now.year,
+        "round": 1,
+        "session_number": 5,
+        "completed_at": f"{now.year}-01-01T00:00:00+00:00",
+        "drivers": {},
+        "track": {"speed_kmh": 200},
+    }
+    content = document()
+    content["features"] = [original]
+    path = write(tmp_path, content)
+    replacement = dict(original, track={"speed_kmh": 210})
+    monkeypatch.setattr(updater.history, "configure_cache", lambda: None)
+    monkeypatch.setattr(
+        updater.history,
+        "historical_features",
+        lambda _: [replacement] if cached else [],
+    )
+    monkeypatch.setattr(archive, "schedule", lambda _: None)
+    monkeypatch.setattr(updater.data, "season_weekends", lambda _: [])
+    monkeypatch.setattr(updater.predict_model, "_history", lambda *a: [])
+    monkeypatch.setattr(updater.web_data, "build", lambda _: {"price_gameday_id": 19})
+
+    assert updater.main(["--season", str(now.year), "--output", str(path)]) == 0
+    updated = json.loads(path.read_text())
+    assert updated["features"] == [replacement if cached else original]
+    assert updated["coverage"]["telemetry_summaries"] == 1

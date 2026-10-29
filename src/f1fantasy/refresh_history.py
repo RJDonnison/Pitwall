@@ -16,6 +16,15 @@ def main(argv=None):
     history.configure_cache()
     features = history.historical_features(now)
     with public_history.repository(args.output, update=True) as document:
+        # A fresh runner may have no local telemetry cache. Preserve the compact
+        # observations already committed, replacing them only with newer extracts.
+        summaries = {
+            (row["year"], row["round"], row["session_number"]): row
+            for row in document["features"] + features
+            if now.year - 2 <= row["year"] <= now.year
+            and public_history.date(row["completed_at"]) < now
+        }
+        features = [summaries[key] for key in sorted(summaries)]
         for year in range(args.season - 2, args.season + 1):
             public_history.schedule(year)
         document["fantasy_events"] = {

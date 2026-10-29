@@ -6,6 +6,32 @@
 - Browser HiGHS WebAssembly optimizes the remaining season jointly; show every selection's Q/S/R points, Boost, chips, changes, budget and penalties by round.
 - GitHub Pages workflow publishes fresh public Python forecasts every two hours. Browser CORS restrictions require explicit labelled snapshot-preview consent when live verification fails; publications expire after six hours.
 - Container deployment has been removed. The existing CLI tools remain available. Pages publication needs a GitHub remote/account and repository Pages configuration.
+- Publication refreshes market inputs and forecasts every two hours; a separate daily/manual job updates the committed public historical dataset. These are scheduled snapshots, not live race streaming.
+
+## Next website versions — planned in this order
+
+### V5 — UI remake
+
+- Wait for the user's `design.md` and mockup screenshot before implementation.
+- Rebuild the interface against that supplied design while retaining team profiles, season optimization, accessible interactions and clear data-freshness labels.
+
+### V6 — Race Insights page
+
+- Add driver and constructor statistics, race-outcome probabilities, fastest-pit-stop probabilities and projected championship points.
+- Separate observed statistics, real F1 championship points and Fantasy scoring; show sample sizes, uncertainty and forecast cutoffs.
+- Include all season participants when reconciling championship totals, including drivers no longer on the active roster. No implementation yet.
+
+### V7 — Website prediction system
+
+- Fetch the latest official F1 Predict questions, legal answer choices, variable payouts and lock state.
+- Bring the existing CLI expected-points model to the website: calculate the highest expected-scoring valid answers, ordered podium and question Boost, with probability and points breakdowns.
+- Keep Predict scoring distinct from Fantasy and fail clearly on unsupported questions or unverifiable data. Account submission is not implied by this website version.
+
+### V8 — Weather-aware race model
+
+- Add sourced, timestamped weather forecasts and condition classification, such as dry, wet and changeable, to the race model.
+- Evaluate effects on pace, reliability and qualifying/Sprint/race outcomes using only weather information available at prediction time.
+- Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
 
 ## V1 — Fantasy recommendations (implemented)
 
