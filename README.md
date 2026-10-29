@@ -16,14 +16,6 @@ npm run dev --prefix web
 
 Open the local URL printed by Vite. Pick your seven selections from the grid, enter **team value plus cash**, carried transfer and remaining chips, then choose **Plan the rest of my season**. The site forecasts every remaining published round, not a rolling three-round horizon. Final Fix is shown as a separate post-qualifying decision rather than assigned speculative pre-weekend points.
 
-## Deploy to GitHub Pages
-
-Push to a GitHub repository with a `main` branch, enable **Settings → Pages → GitHub Actions**, and run **Publish season planner**. [The workflow](.github/workflows/pages.yml) tests the Python and browser optimizers, generates fresh public forecasts, builds the site and deploys it. It also refreshes every two hours. Relative asset paths support `https://USERNAME.github.io/REPOSITORY/`; no account cookies or secrets are published. See [website architecture, deployment and data policy](docs/website.md).
-
-**Live-data limitation:** the official Fantasy feeds currently omit browser CORS permission. The site tries fresh official price/roster/statistics/lock checks before each recommendation, but if the browser cannot verify them, users must explicitly opt into a labelled published-snapshot preview. Publications expire after six hours, and started/locked events or changed live prices block planning. Failed data refreshes publish an unavailable state. Optimal means optimal for the published forecasts and constant future-price assumption—not guaranteed actual points.
-
-Container deployment has been removed. The Python CLI remains optional and keeps its three-round default, `--races 1`–`5`, live account workflows and explicit `--allow-penalties` policy. [Existing CLI scheduling](docs/scheduling.md) is separate from the static website.
-
 ## Requirements
 
 - Python 3.11 or newer and an internet connection for F1 Fantasy and FastF1 data.
@@ -177,7 +169,7 @@ f1fantasy recommend --races 3 --format json \
 f1fantasy statistics --format json | jq '.data.entries | sort_by(.season_points) | reverse | .[:5]'
 ```
 
-`--show-points` lists **predicted and actual qualifying, Sprint, race and total points for every driver and constructor** in each selected historical weekend. MAE means *mean absolute error*, measured in Fantasy points: e.g. a driver MAE of 9.6 means the average driver's weekend prediction missed their actual total by 9.6 points, regardless of direction. Constructor MAE uses only constructors; qualifying, Sprint and race MAEs each include both drivers and constructors. These session MAEs do not necessarily add up to the total MAE because prediction errors can cancel between sessions. `--races` selects how many recent finalized weekends to replay.
+`--show-points` lists **predicted and actual qualifying, Sprint, race and total points for every driver and constructor** in each selected historical weekend. MAE means _mean absolute error_, measured in Fantasy points: e.g. a driver MAE of 9.6 means the average driver's weekend prediction missed their actual total by 9.6 points, regardless of direction. Constructor MAE uses only constructors; qualifying, Sprint and race MAEs each include both drivers and constructors. These session MAEs do not necessarily add up to the total MAE because prediction errors can cancel between sessions. `--races` selects how many recent finalized weekends to replay.
 
 Every command accepts `--format json` after the command (after the action for `account`, e.g. `account show --format json`). Text remains the default. JSON success is one versioned document on stdout, with timestamps, warnings, data-source status and numeric point fields; prices use **integer tenths of a million** (`price_tenths_m`). Progress/logging goes to stderr. On failure the CLI exits nonzero and writes a JSON error to stderr, leaving stdout empty; a partial preload reports its unavailable sessions as JSON and exits nonzero. `jq` is optional and only needed for the examples above.
 
