@@ -611,6 +611,7 @@ article {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 28px;
+  align-items: start;
 }
 .directive {
   display: flex;
@@ -878,6 +879,12 @@ article {
   padding: 15px;
   background: var(--inset);
   border-radius: var(--radius);
+}
+.chip-directive {
+  min-height: 0;
+}
+.chip-directive .directive-footer {
+  margin-top: 0;
 }
 .chip-callout > .icon {
   height: 28px;
@@ -1982,10 +1989,6 @@ footer b {
   color: var(--ink);
   margin-right: 5px;
 }
-footer span:last-child {
-  max-width: 70ch;
-  text-align: right;
-}
 @media (min-width: 1440px) {
   .roster-card > h3 {
     font-size: 16px;
@@ -2992,6 +2995,12 @@ footer span:last-child {
 .market-card,
 .market-card.selected {
   border-top: 4px solid var(--team-color);
+}
+.market-card.selected {
+  border-width: 2px;
+  border-top-width: 4px;
+  border-color: var(--team-color);
+  background: color-mix(in srgb, var(--team-color) 5%, var(--paper));
 }
 .market-card-title small {
   color: var(--team-color);
@@ -4034,25 +4043,55 @@ footer > .hint {
 /* Visual Strategy: sourced weekend context and compact editorial directives. */
 .race-overview {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(230px, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 0;
   margin-bottom: 24px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  background: var(--paper);
 }
 .race-overview > .race-hero {
   margin-bottom: 0;
   min-width: 0;
+  border: 0;
+  border-radius: 0;
+  min-height: 390px;
+  display: flex;
+  align-items: flex-end;
+}
+.race-overview .race-title {
+  padding: 28px;
 }
 .race-context {
   background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  padding: 22px;
-  display: grid;
-  gap: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
 }
-.race-context > section + section {
-  border-top: 1px solid var(--rule);
-  padding-top: 18px;
+.race-context-readings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.race-context-readings > section {
+  min-width: 0;
+}
+.race-context .circuit-art {
+  position: static;
+  width: 100%;
+  max-width: none;
+  height: 180px;
+  flex: 0 0 auto;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+.race-context .circuit-art svg {
+  width: 100%;
+  height: 120px;
 }
 .race-context strong {
   display: block;
@@ -4096,7 +4135,7 @@ footer > .hint {
 }
 .weather-note {
   display: block;
-  margin-top: 10px;
+  margin-top: 0;
 }
 .directive .transfer-lists {
   max-height: 184px;
@@ -4158,56 +4197,76 @@ footer > .hint {
   min-height: 0;
 }
 .market-card-bottom .registry-add {
-  min-height: 36px;
-  height: 36px;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  min-height: 30px;
+  height: 30px;
+  min-width: 0;
+  padding: 5px 10px;
+  position: relative;
+}
+.registry-add::after {
+  content: "";
+  position: absolute;
+  inset: -8px -2px;
 }
 .site-footer {
   margin-top: 56px;
   padding-top: 34px;
   border-top: 1px solid var(--rule);
+  font-size: 13px;
 }
 .footer-principle {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 24px;
-  margin-bottom: 34px;
+  display: block;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--rule);
 }
 .footer-principle > span {
-  font-size: 10px;
-  color: var(--muted);
+  font-size: 11px;
+  color: var(--red);
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
 .footer-principle h2 {
-  font-size: clamp(25px, 3vw, 40px);
-  line-height: 1.14;
-  letter-spacing: -1.5px;
+  font-size: 28px;
+  line-height: 1.3;
+  letter-spacing: -0.7px;
   font-weight: 500;
-  margin: 0;
-  width: 65%;
+  margin: 8px 0 0;
 }
 .footer-columns {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 40px;
+  gap: 32px;
   padding-bottom: 32px;
 }
 .footer-columns h3 {
-  font-size: 16px;
-  font-weight: 500;
-  margin: 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.footer-column-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.footer-column-heading > span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .footer-columns p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
-  line-height: 1.8;
-  max-width: 38ch;
+  line-height: 1.7;
+  margin-bottom: 12px;
 }
 .footer-columns a {
-  font-size: 10px;
+  font-size: 12px;
   text-underline-offset: 4px;
 }
 .footer-brand {
@@ -4221,20 +4280,31 @@ footer > .hint {
   height: 24px;
 }
 .footer-disclaimer {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
+}
+.data-status-details {
+  font-size: 11px;
+  max-width: 65ch;
+}
+.data-status-details summary {
+  cursor: pointer;
+  padding: 12px 0;
+}
+.data-status-details p {
+  font-size: 12px;
+  line-height: 1.7;
+  margin-bottom: 10px;
+}
+.data-status-details #publication-status {
+  font-size: 11px;
 }
 @media (max-width: 1000px) {
   .race-overview {
     grid-template-columns: minmax(0, 1fr);
   }
-  .race-context {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .race-context > section + section {
-    border-top: 0;
-    border-left: 1px solid var(--rule);
-    padding: 0 0 0 20px;
+  .race-overview > .race-hero {
+    min-height: 280px;
   }
 }
 @media (max-width: 650px) {
@@ -4243,18 +4313,35 @@ footer > .hint {
     padding: 8px 12px 6px;
   }
   .race-overview {
-    gap: 8px;
     margin-bottom: 18px;
+  }
+  .race-overview > .race-hero {
+    min-height: 240px;
+  }
+  .race-overview .race-title {
+    max-width: 70%;
+    padding: 18px;
   }
   .race-context {
     padding: 14px;
     gap: 12px;
   }
+  .race-context .circuit-art {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 125px;
+    height: 88px;
+    padding: 8px;
+  }
+  .race-context .circuit-art svg {
+    height: 46px;
+  }
+  .race-context .circuit-art > span {
+    font-size: 7px;
+  }
   .race-context strong {
     font-size: 20px;
-  }
-  .race-context > section + section {
-    padding-left: 12px;
   }
   .weather-metrics {
     font-size: 13px;
@@ -4267,8 +4354,8 @@ footer > .hint {
     font-size: 30px;
   }
   .market-card-bottom .registry-add {
-    min-height: 44px;
-    height: 44px;
+    min-height: 30px;
+    height: 30px;
   }
   .site-footer {
     margin-top: 36px;
@@ -4278,8 +4365,7 @@ footer > .hint {
     display: block;
   }
   .footer-principle h2 {
-    width: auto;
-    margin-top: 16px;
+    font-size: 24px;
   }
   .footer-columns {
     grid-template-columns: 1fr;

@@ -83,7 +83,7 @@ let active = 0,
   error = "",
   busy = false,
   planningTimer = null,
-  verificationText = "Published snapshot",
+  verificationText = "Price snapshot",
   revision = 0;
 const team = () => profiles[active];
 function save() {
@@ -197,7 +197,9 @@ function render() {
   $("#header-cap").innerHTML =
     `Cap <b>${money(cost)}</b> / ${money(t.budget)} <strong class="${cost > t.budget ? "negative" : "positive"}">${money(t.budget - cost)} free</strong>`;
   $("#publication-status").textContent =
-    `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString()} · expires after 6h`;
+    `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
+  $("#publication-window").textContent =
+    `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
   $("#planning-status").textContent = busy
     ? "Updating strategy…"
     : result
@@ -404,7 +406,7 @@ async function load() {
     }
     invalidate();
     acceptDataset(fresh);
-    verificationText = "Published snapshot";
+    verificationText = "Price snapshot";
     queuePlan();
   } catch (e) {
     if (request !== revision) return;
@@ -443,7 +445,7 @@ async function plan() {
     if (!busy || profile !== active || request !== revision) return;
     verificationText = check.verified
       ? "Live prices verified"
-      : "Published-snapshot preview · live verification unavailable";
+      : "Price snapshot";
     worker = new Worker(new URL("./worker.js", import.meta.url), {
       type: "module",
     });

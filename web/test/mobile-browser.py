@@ -145,6 +145,12 @@ def main():
                         "document.documentElement.scrollWidth <= innerWidth"
                     ), (width, route, overflow)
                     if route == "garage":
+                        assert page.locator(".market-card.selected").first.evaluate(
+                            "e => parseFloat(getComputedStyle(e).borderLeftWidth) >= 2"
+                        ), "Selected assets need a clear team-colour border"
+                        assert page.locator(".registry-add").first.evaluate(
+                            "e => e.getBoundingClientRect().height <= 32 && parseFloat(getComputedStyle(e, '::after').height) >= 44"
+                        ), "Compact Add buttons must retain a touch-sized hit area"
                         assert page.evaluate(
                             "Math.abs(document.querySelector('#search').getBoundingClientRect().top - document.querySelector('.market-tools .segments').getBoundingClientRect().top) < 6"
                         ), (width, "Registry search and filters are not inline")
@@ -153,12 +159,34 @@ def main():
                                 "Math.abs(document.querySelector('#active-setup summary').getBoundingClientRect().top - document.querySelector('#export-team').getBoundingClientRect().top) < 6"
                             ), "Import/export are not inline with chip setup"
                     if route == "strategy":
+                        assert page.locator(".race-context .circuit-art").count() == 1
                         assert page.locator(".race-context").count() == 1
                         assert (
                             "Track spec" in page.locator(".race-context").text_content()
                         )
                         assert page.locator(".footer-columns > section").count() == 3
                         assert page.locator("#publication-status").count() == 1
+                        assert (
+                            "Price snapshot"
+                            in page.locator("#publication-status").text_content()
+                        )
+                        assert (
+                            "UTC" in page.locator("#publication-status").text_content()
+                        )
+                        assert page.locator(".footer-columns p").first.evaluate(
+                            "e => 12 <= parseFloat(getComputedStyle(e).fontSize) <= 14"
+                        )
+                        if width == 1440:
+                            assert page.locator(".chip-directive").evaluate(
+                                "e => e.getBoundingClientRect().height < 340"
+                            ), (
+                                "Chip allocation should fit its content, not stretch to the transfer card"
+                            )
+                            assert page.locator(".race-overview").evaluate(
+                                "e => getComputedStyle(e).gap === '0px' && getComputedStyle(e).overflow === 'hidden'"
+                            ), (
+                                "Race photo, map and context must share one integrated hero"
+                            )
                         if width == 1440:
                             assert page.locator("#strategy table").is_visible(), (
                                 "Desktop breakdown stayed collapsed after resizing"

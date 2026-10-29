@@ -163,6 +163,10 @@ scroll region so long transfer lists do not stretch the adjacent directives.
 The circuit inset uses a dark background. The slimmer masthead and matching pit-lane
 logo/favicon follow the same broadsheet identity; registry action footers are compact,
 and non-interactive recommended-team table rows have no hover affordance.
+The race photograph and paper track/weather panel share one integrated hero border,
+with the circuit inside that context panel on desktop and inset over the photo on
+mobile. Strategic allocation fits its content rather than stretching to the transfer
+card's height.
 
 Track specifications for the five remaining 2026 rounds use official Formula 1
 circuit guides (length, race laps and race distance, with source links). Public
@@ -184,6 +188,8 @@ Fantasy point estimate, with compact black Add/Remove controls. These estimates
 include qualifying, Sprint when present, and race; they do not include Boost,
 chips or transfer penalties. Search and type filters share a row, and import/export
 sits alongside the already-active-chip settings.
+Selected registry cards use a two-pixel constructor-colour outline and subtle tint.
+The compact 30-pixel Add/Remove visual retains an expanded 44-pixel touch hit area.
 Free transfers are selected explicitly (two, three with carry, or unlimited for
 a new team). The removed new-team/completed/paid checkboxes are replaced by this
 single control and a fixed net-points policy: extra transfers always cost −10.
@@ -219,8 +225,13 @@ V8. Mockup confidence, league rankings, track temperatures and lock countdowns a
 not measurements. The footer mirrors Stitch's strategic-principle, optimizer,
 forecasts and privacy sections while retaining actual data status and image credits.
 
-The large preview banner is removed; the footer retains the price-check time,
-six-hour expiry, live/snapshot status and image credits. Inputs and chip controls
+The large preview banner is removed. The footer's compact `Price snapshot` label
+shows the price-check time explicitly in UTC; expanding it explains why browser
+verification can be blocked and gives the publication's six-hour expiry in local
+time. A successful direct check instead says `Live prices verified`. This is a
+data-source disclosure, not a solver error. Footer headings/body copy use a consistent
+hierarchy with the three bordered editorial column headings from Stitch, alongside
+image credits. Inputs and chip controls
 are labelled; keyboard focus, skip navigation and reduced-motion preferences
 are supported. Charts have textual values/accessible descriptions and signed
 point tables. Tables and round cards scroll within their regions on narrow
