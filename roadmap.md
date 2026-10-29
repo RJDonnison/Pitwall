@@ -36,6 +36,14 @@
 - Evaluate effects on pace, reliability and qualifying/Sprint/race outcomes using only weather information available at prediction time.
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
 
+### V9 — Forecast confidence and accuracy scores
+
+- Show MAE (mean absolute error) in Fantasy points, with predicted-versus-actual history for drivers, constructors and qualifying/Sprint/race forecasts. Include sample counts, evaluation dates and model version.
+- Evaluate archived pre-weekend predictions chronologically against finalized results; exclude current-weekend outcomes from training, calibration and the original prediction. Compare against a clearly identified baseline.
+- Add empirically calibrated prediction ranges and show their measured coverage. Keep historical accuracy separate from confidence in an individual forecast; MAE is not a confidence percentage.
+- Distinguish regular and Sprint weekends and disclose sparse or missing evidence. Show unavailable or insufficient-history states instead of invented confidence scores.
+- Where supported by joint outcome evidence, expose uncertainty in recommended changes and team totals, accounting for correlated driver/constructor and chip effects rather than simply adding individual errors.
+
 ## V1 — Fantasy recommendations (implemented)
 
 - CLI recommends five drivers, two constructors and a 2× Boost under the budget, with net transfers and one-week carry-over.
