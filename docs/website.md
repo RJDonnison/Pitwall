@@ -8,7 +8,8 @@
 - Allow paid net transfers only when their predicted gain justifies their cost.
 - Optimize all remaining published rounds jointly. Inspect each round's changes,
   chip, 2×/3× drivers, cost, transfer penalty, carry and per-selection Q/S/R points.
-- Compare every active driver/constructor's forecasts in the searchable grid.
+- Use the price-focused registry to select drivers/constructors and inspect their
+  actual recorded round-price changes. Points are shown in Strategy, not Garage.
 - Continue an already active chip; active Limitless requires the original seven
   it will restore. Its temporary scoring roster and durable transfer baseline
   remain distinct. An initial Limitless restores the entered current roster.
@@ -33,7 +34,8 @@ change terminates the worker and invalidates old asynchronous replies.
 
 Constraints cover the full seven selections, budget, selected driver-only 2×,
 distinct 3×, exact net incoming transfers, two free plus at most one carry,
-−10 per explicitly allowed paid transfer, first-team unlimited changes,
+−10 per extra transfer, considered only when worthwhile in the net-points season
+objective, first-team unlimited changes,
 once-per-season/one-chip-per-round eligibility, capped Wildcard and uncapped
 temporary Limitless with restoration and carry reset. Autopilot values the best
 selected **whole-weekend** driver within correlated empirical scenarios. No
@@ -139,27 +141,47 @@ tabular figures. The exact Stitch project `6085770950590244465` references are:
 - `202e82a082484112bf664e97e619b45f`: Visual Team Garage.
 - `999e252f73234cf290cbc36dfbef6bd4`: Visual Race Simulation & Insights.
 
-Strategy includes a decorative racing hero, transfer/Boost/chip directives,
+Strategy includes an actual circuit-coordinate outline, transfer/Boost/chip directives,
 next-round net score comparison, cumulative Fantasy trajectory and selectable
 round details. The reference is explicitly the unchanged roster with best 2×
 and no chips; it is not a league benchmark or a do-nothing active-chip forecast.
 Autopilot shows scenario-dependent extra points rather than a fixed winner.
 
-The Garage retains the existing `pitwall-teams-v1` storage format and JSON
-import/export. Three profile cards, actual budget allocation, vector driver and
-constructor illustrations, the searchable asset registry and chip settings are
-functional. There are no generated portraits presented as verified drivers.
-`web/public/racing-editorial.webp` is decorative artwork from the supplied
-Strategy mockup, not an image of the currently forecast circuit.
+The Garage retains `pitwall-teams-v1` storage and JSON import/export. Settings
+are on the main page rather than a sidebar. Five portrait cards, two wide car
+cards and the four-column registry follow the supplied Visual Garage layout.
+Free transfers are selected explicitly (two, three with carry, or unlimited for
+a new team). The removed new-team/completed/paid checkboxes are replaced by this
+single control and a fixed net-points policy: extra transfers always cost −10.
+Chip icons are coloured when available and grey when marked used; toggles do not
+activate anything on the official game. An active chip is still configured in
+the advanced section. Predictions need an explicit Calculate changes action;
+zero current swaps can be optimal, with later planned changes explained.
 
-The Forecast explorer adopts the third reference's analytical presentation for
-existing unboosted Fantasy Q/S/R estimates, driver point-per-million comparisons
-and constructor cards. Real race probabilities, pit-stop and FIA championship
-predictions remain V6; weather remains V8. The mockups' sample confidence,
-weather, circuit metrics, league rankings and lock countdowns are not exported
-as real measurements. The first-session date is explicitly not a verified lock.
+All 33 current assets have locally hosted Commons photographs under CC BY,
+CC BY-SA or CC0, with source, author, licence and modification credits in the
+footer and `web/public/media/ATTRIBUTION.json`. Photos can show earlier clothing
+or car livery; they are not generated portraits or claims about current imagery.
+Resized derivatives retain their respective source licences. Circuit outlines
+use the MIT-licensed `bacinger/f1-circuits` coordinate dataset and change when
+the selected strategy round changes. Unknown circuits are labelled unavailable.
+`scripts/fetch_open_media.py` reproducibly imports only verified open licences
+(developer refresh requires requests and Pillow); licence exceptions are not
+silently treated as Creative Commons.
 
-Freshness and explicit preview consent remain visible. Inputs and chip controls
+Sparklines use the latest four available official round-price observations in
+`data/history.json`, followed by the freshly verified current price. These are
+not intraday quotes or price forecasts. Missing history shows an unavailable
+label rather than a synthetic trend. Historical prices do not replace current
+market verification or change the constant-future-price optimizer assumption.
+
+Forecasts is explicitly Coming soon. Real race probabilities, pit-stop and FIA
+championship predictions remain V6; weather remains V8. The mockups' sample
+confidence, weather, league rankings and lock countdowns are not measurements.
+
+The large preview banner is removed; the footer retains the price-check time,
+six-hour expiry, refresh control, manual-input disclosure and image credits.
+Explicit snapshot consent remains next to Calculate changes. Inputs and chip controls
 are labelled; keyboard focus, skip navigation and reduced-motion preferences
 are supported. Charts have textual values/accessible descriptions and signed
 point tables. Tables and round cards scroll within their regions on narrow

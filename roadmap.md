@@ -13,9 +13,9 @@
 ### V5 — UI remake (implemented)
 
 - Follow the supplied `DESIGN.md` Grand Prix Broadsheet system and the three Visual Strategy, Team Garage and Simulation/Insights Stitch references.
-- Image-led Strategy with transfer/Boost/chip directives, net score comparisons, cumulative remaining-season points, selectable round cards and exact seven-selection breakdowns.
-- Team Garage with three existing local profiles, illustrated roster cards, capital allocation, searchable asset registry, budget/transfer/chip settings and JSON import/export.
-- A visual Fantasy forecast explorer shows existing driver and constructor Q/S/R estimates and point-per-million comparisons. Real race probabilities, fastest-pit and FIA championship predictions remain V6.
+- Race-specific circuit Strategy with transfer/Boost/chip directives, net score comparisons, cumulative remaining-season points, selectable round cards and exact seven-selection breakdowns.
+- Full-width Team Garage with three existing local profiles, licensed driver/car photographs, actual recorded round-price sparklines, capital allocation, price-focused asset registry, coloured/grey chip controls, budget/free-transfer settings and JSON import/export.
+- Forecasts is a Coming soon page. Real race probabilities, fastest-pit and FIA championship predictions remain V6. Image/circuit authors, open licences and archival-photo caveats are available in the website credits.
 - Preserve the optimizer, local-storage format, explicit snapshot-preview consent, expiry checks, responsive layouts, keyboard focus and reduced-motion support. Mockup-only lock timers, weather and confidence statistics are not presented as live data.
 
 ### V6 — Race Insights page

@@ -1,13 +1,7 @@
 import { total } from "./optimizer.js";
-
-export const esc = (value) =>
-  String(value).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
+import { esc } from "./text.js";
+import { portrait, priceTrend, circuitMarkup } from "./visuals.js";
+export { esc } from "./text.js";
 export const points = (value) =>
   Number(value).toLocaleString(undefined, {
     maximumFractionDigits: 1,
@@ -107,8 +101,10 @@ export function rosterMarkup(dataset, team, round) {
               (a) => a.kind === kind && team.selected.includes(a.id),
             )[i];
             if (!a)
-              return `<a href="#asset-registry" class="roster-empty"><span>+</span><strong>Choose ${kind === "DRIVER" ? "driver" : "constructor"} ${i + 1}</strong><small>Browse the asset registry</small></a>`;
-            return `<article class="roster-card" style="--team-color:${teamColor(dataset, a)}"><div class="driver-art">${kind === "DRIVER" ? helmet() : car()}<span>${esc(a.tla || "F1")}</span></div><p class="eyebrow">${esc(constructorName(dataset, a))}</p><h3>${esc(a.name)}</h3><div class="card-numbers"><strong>${money(a.price_tenths_m)}</strong><span>${points(total(round.forecasts[a.id]))}<small>base forecast pts</small></span></div><div class="mini-splits"><span>Q <b>${points(round.forecasts[a.id][0])}</b></span>${round.sprint ? `<span>S <b>${points(round.forecasts[a.id][1])}</b></span>` : ""}<span>R <b>${points(round.forecasts[a.id][2])}</b></span></div><button class="card-action" data-remove="${esc(a.id)}" aria-label="Remove ${esc(a.name)}">Replace selection ${icon("transfer")}</button></article>`;
+              return `<a href="#asset-registry" class="roster-empty"><span>+</span><strong>Choose ${kind === "DRIVER" ? "driver" : "constructor"} ${i + 1}</strong></a>`;
+            if (kind === "CONSTRUCTOR")
+              return `<article class="roster-card constructor-roster" style="--team-color:${teamColor(dataset, a)}"><div class="constructor-heading"><div><small>Constructor ${i + 1}</small><h3>${esc(a.name)}</h3></div><strong>${money(a.price_tenths_m)}</strong></div><div class="constructor-visual"><div class="roster-photo">${portrait(a, car())}</div>${priceTrend(dataset, a)}</div><button class="card-action" data-remove="${esc(a.id)}" aria-label="Remove ${esc(a.name)}">Replace ${icon("transfer")}</button></article>`;
+            return `<article class="roster-card" style="--team-color:${teamColor(dataset, a)}"><div class="driver-card-top"><div class="roster-photo">${portrait(a, helmet())}</div><div><strong class="driver-tla">${esc(a.tla || "F1")}</strong><small>${esc(constructorName(dataset, a))}</small></div></div><h3>${esc(a.name)}</h3><strong class="roster-price">${money(a.price_tenths_m)}</strong>${priceTrend(dataset, a)}<button class="card-action" data-remove="${esc(a.id)}" aria-label="Remove ${esc(a.name)}">Replace ${icon("transfer")}</button></article>`;
           },
         ).join("")}</div>`,
     )
@@ -125,7 +121,7 @@ export function allocationMarkup(dataset, team) {
   const cost = drivers + constructors,
     free = team.budget - cost;
   const width = (n) => (100 * n) / Math.max(cost, team.budget);
-  return `<section class="panel allocation"><div class="section-heading"><span class="eyebrow">Capital allocation</span><strong>${money(cost)} / ${money(team.budget)}</strong></div><h2>Make every million count.</h2><p>${points((cost / team.budget) * 100)}% of your total cap is allocated. ${free >= 0 ? `${money(free)} remains available.` : `${money(-free)} over cap${team.active === "limitless" ? " · Limitless active" : " · adjust your selections or budget"}.`}</p><div class="allocation-bar" role="img" aria-label="Drivers ${money(drivers)}, constructors ${money(constructors)}, ${free >= 0 ? "free" : "over cap"} ${money(Math.abs(free))}"><span style="width:${width(drivers)}%"></span><span style="width:${width(constructors)}%"></span><span style="width:${width(Math.max(0, free))}%"></span></div><div class="allocation-key"><span><i></i>Drivers<strong>${money(drivers)}</strong></span><span><i></i>Constructors<strong>${money(constructors)}</strong></span><span><i></i>Available<strong class="${free < 0 ? "negative" : ""}">${money(free)}</strong></span></div><p class="inset-note">${icon("shield")}${free >= 0 ? "Within the entered budget" : team.active === "limitless" ? "Temporary uncapped Limitless lineup" : "Above the entered budget"} · manual inputs</p></section>`;
+  return `<section class="panel allocation"><div class="section-heading"><h2>Budget allocation</h2><strong>${money(cost)} / ${money(team.budget)}</strong></div><div class="allocation-bar" role="img" aria-label="Drivers ${money(drivers)}, constructors ${money(constructors)}, ${free >= 0 ? "free" : "over cap"} ${money(Math.abs(free))}"><span style="width:${width(drivers)}%"></span><span style="width:${width(constructors)}%"></span><span style="width:${width(Math.max(0, free))}%"></span></div><div class="allocation-key"><span><i></i>Drivers<strong>${money(drivers)}</strong></span><span><i></i>Constructors<strong>${money(constructors)}</strong></span><span><i></i>Available<strong class="${free < 0 ? "negative" : ""}">${money(free)}</strong></span></div>${free < 0 ? `<p class="negative">Above the entered budget: ${money(-free)} over cap${team.active === "limitless" ? " · Limitless active" : " · adjust the roster or budget"}</p>` : ""}</section>`;
 }
 function chart(values, labels, cls = "trajectory-chart") {
   const low = Math.min(0, ...values),
@@ -134,9 +130,14 @@ function chart(values, labels, cls = "trajectory-chart") {
   const y = (v) => 150 - ((v - low) / (high - low)) * 120;
   return `<svg class="${cls}" viewBox="0 0 800 200" role="img" aria-label="${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}"><path class="chart-grid" d="M40 30H760M40 90H760M40 150H760"/><polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
 }
-export function heroMarkup(dataset, team, result) {
-  const r = dataset.rounds[0];
-  return `<section class="race-hero"><div class="hero-image"><img src="./racing-editorial.webp" alt="" fetchpriority="high"/><div class="hero-image-shade"></div><span class="race-kicker"><i></i>Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><div class="hero-copy"><span class="eyebrow">Your season. One joint strategy.</span><h1>${esc(r.name)}</h1><p>Five drivers. Two constructors. A plan for every remaining round, with Boost, chips and net transfers considered together.</p></div></div><div class="hero-outlook"><span class="eyebrow">Season strategy workbench</span><h2>${dataset.rounds.length} rounds.<br>A longer view.</h2><div class="hero-facts"><span><small>Next first session</small><strong>${esc(new Date(r.first_session_utc).toLocaleString())}</strong></span><span><small>Weekend format</small><strong>${r.sprint ? "Qualifying · Sprint · Race" : "Qualifying · Race"}</strong></span></div><div class="hero-bottom"><span>${icon("clock")} First session is not a verified Fantasy lock.</span><a class="button primary" href="#garage">${result ? "Adjust team" : "Build your team"}${icon("arrow")}</a></div></div></section>`;
+export function heroMarkup(
+  dataset,
+  team,
+  result,
+  selectedRound = result?.selectedRound || 0,
+) {
+  const r = dataset.rounds[selectedRound];
+  return `<section class="race-hero circuit-hero"><div class="race-title"><span class="race-kicker">Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><h1>${esc(r.name)}</h1><p>${dataset.rounds.length} rounds remaining · ${esc(new Date(r.first_session_utc).toLocaleDateString(undefined, { day: "numeric", month: "long" }))}</p><a class="button" href="#garage">${result ? "Edit team" : "Team Garage"} ${icon("arrow")}</a></div>${circuitMarkup(r.name)}</section>`;
 }
 export function referencePoints(dataset, team) {
   if (team.selected.length !== 7) return null;
@@ -182,6 +183,7 @@ export function strategyMarkup(dataset, team, result, busy, selectedRound) {
   if (result)
     result = {
       ...result,
+      selectedRound,
       rounds: result.rounds.map((r) => ({
         ...r,
         transfer_penalty: r.penalty,
@@ -189,7 +191,7 @@ export function strategyMarkup(dataset, team, result, busy, selectedRound) {
       })),
     };
   if (!result)
-    return `${heroMarkup(dataset, team, result)}<section class="panel welcome"><div class="welcome-symbol">${icon(busy ? "bolt" : "grid")}</div><span class="eyebrow">${busy ? "Exact browser optimization" : "The starting grid is yours"}</span><h2>${busy ? "Working through the possibilities." : "Build your season strategy."}</h2><p>${busy ? "Lineups, transfer timing and chips are being optimized together. A full season can take up to 90 seconds. You can cancel in the Team Garage." : "Add your seven selections in the Team Garage. Set your budget, transfers and remaining chips, then calculate the highest projected total across all remaining rounds."}</p><a class="button primary" href="#garage">${busy ? "View planning progress" : "Open Team Garage"}${icon("arrow")}</a><div class="welcome-key"><span>5 drivers + 2 constructors</span><span>All remaining rounds</span><span>Private, on-device solver</span></div></section>`;
+    return `${heroMarkup(dataset, team, result)}<section class="panel welcome"><h2>${busy ? "Calculating…" : team.selected.length === 7 ? "Your team is ready" : "Choose your starting seven"}</h2><p>${busy ? "Optimizing lineups, transfers and chips across the season. This can take up to 90 seconds." : team.selected.length === 7 ? "Calculate to see the recommended swaps, Boost and chip timing." : "Add five drivers and two constructors in the Garage."}</p>${team.selected.length === 7 && !busy ? '<button id="replan" class="primary">Calculate changes</button>' : '<a class="button primary" href="#garage">Team Garage</a>'}</section>`;
   const first = result.rounds[0],
     round = result.rounds[selectedRound];
   const reference = referencePoints(dataset, team),
@@ -239,29 +241,6 @@ function roundMarkup(dataset, team, r) {
       "",
     )}</tbody></table></div><div class="round-finances"><span>Lineup valuation <b>${money(r.cost)}</b> ${r.chip === "limitless" ? "· temporarily uncapped" : `/ ${money(team.budget)} cap`}</span><span>Penalty <b>−${r.transfer_penalty} pts</b></span><span>Carry forward <b>${r.carry} transfer</b></span></div></section>`;
 }
-export function insightsMarkup(dataset, team, roundIndex) {
-  const r = dataset.rounds[roundIndex];
-  const byKind = (kind) =>
-    dataset.assets
-      .filter((a) => a.kind === kind)
-      .sort((a, b) => total(r.forecasts[b.id]) - total(r.forecasts[a.id]));
-  const drivers = byKind("DRIVER"),
-    constructors = byKind("CONSTRUCTOR");
-  const max = Math.max(1, ...drivers.map((a) => total(r.forecasts[a.id])));
-  return `<div class="page-heading"><div><span class="eyebrow accent">Published model · Fantasy point estimates</span><h1>Forecast explorer</h1><p>Compare the grid for ${esc(r.name)}. These are Fantasy scores, not predicted finishing positions or FIA championship points.</p></div><label>Forecast round<select id="insights-round">${dataset.rounds.map((r, i) => `<option value="${i}" ${i === roundIndex ? "selected" : ""}>R${r.round} · ${esc(shortRace(r.name))}</option>`).join("")}</select></label></div><div class="insights-grid"><section class="panel"><div class="section-heading"><div><span class="eyebrow accent">Driver output · unboosted</span><h2>The whole weekend, broken down.</h2></div></div><div class="forecast-bars">${drivers.map((a) => `<div class="forecast-bar"><div><span><b class="tla" style="--team-color:${teamColor(dataset, a)}">${esc(a.tla || "F1")}</b><strong>${esc(a.name)}</strong><small>${esc(constructorName(dataset, a))}</small></span><strong>${points(total(r.forecasts[a.id]))} pts</strong></div><div class="yield-track" aria-hidden="true">${r.forecasts[a.id].map((v, i) => `<i class="session-${i}" style="width:${(100 * Math.max(0, v)) / max}%"></i>`).join("")}</div><p>Q ${points(r.forecasts[a.id][0])}${r.sprint ? ` · Sprint ${points(r.forecasts[a.id][1])}` : ""} · Race ${points(r.forecasts[a.id][2])} · ${money(a.price_tenths_m)}</p></div>`).join("")}</div></section><aside><section class="panel"><span class="eyebrow">Asset efficiency · drivers</span><h2>Points per million</h2><p>Base forecast divided by today's price. Efficiency alone does not determine the optimal seven.</p>${byKind(
-    "DRIVER",
-  )
-    .sort(
-      (a, b) =>
-        total(r.forecasts[b.id]) / b.price_tenths_m -
-        total(r.forecasts[a.id]) / a.price_tenths_m,
-    )
-    .slice(0, 5)
-    .map(
-      (a) =>
-        `<div class="efficiency-row"><strong>${esc(a.name)}</strong><b>${points(total(r.forecasts[a.id]) / (a.price_tenths_m / 10))}</b></div>`,
-    )
-    .join(
-      "",
-    )}</section><section class="panel roadmap-note"><span class="eyebrow accent">Race Insights · V6</span><h2>The next layer is on the roadmap.</h2><p>Race probabilities, fastest pit stops and championship projections are not part of this Fantasy forecast view. Weather modeling is planned separately for V8.</p><a class="button" href="#garage">Use these forecasts ${icon("arrow")}</a></section></aside></div><section class="constructor-section"><div class="section-heading"><div><span class="eyebrow accent">Constructor forecast matrix</span><h2>Two cars. One selection.</h2></div><span class="tag">Base scores · no chip or Boost</span></div><div class="constructor-grid">${constructors.map((a) => `<article class="panel constructor-card" style="--team-color:${teamColor(dataset, a)}"><span class="eyebrow">${money(a.price_tenths_m)}</span><h3>${esc(a.name)}</h3><strong class="constructor-score">${points(total(r.forecasts[a.id]))}<small> predicted pts</small></strong>${car()}<div class="mini-splits"><span>Q <b>${points(r.forecasts[a.id][0])}</b></span>${r.sprint ? `<span>S <b>${points(r.forecasts[a.id][1])}</b></span>` : ""}<span>R <b>${points(r.forecasts[a.id][2])}</b></span></div></article>`).join("")}</div></section>`;
+export function insightsMarkup() {
+  return `<section class="coming-soon panel"><span class="coming-mark">${icon("clock")}</span><h1>Forecasts</h1><p>Coming soon.</p><a class="button" href="#strategy">Back to strategy</a></section>`;
 }

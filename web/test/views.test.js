@@ -100,12 +100,11 @@ test("Autopilot displays scenario-dependent extra points without naming a fixed 
   assert.doesNotMatch(html, /2× Boost<\/span>/);
 });
 
-test("forecast explorer keeps negative Fantasy scores and distinguishes future race insights", () => {
+test("Forecasts is explicitly coming soon without showing model scores", () => {
   const { data, team } = fixture();
   data.rounds[0].forecasts["0"] = [-5, 0, 0];
   const html = insightsMarkup(data, team, 0);
-  assert.match(html, /-5\.0/);
-  assert.match(html, /Fantasy/);
-  assert.match(html, /V6/);
+  assert.match(html, /Coming soon/);
+  assert.doesNotMatch(html, /-5\.0|Forecast round|<table/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });
