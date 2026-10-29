@@ -2,7 +2,8 @@
 
 `history.json` is a compact, versioned input dataset: completed session score
 summaries, race classifications / championship points, calendar metadata,
-official past-weekend Fantasy scores and date-stamped telemetry features.
+official past-weekend Fantasy scores and recorded round prices, and date-stamped
+telemetry features.
 It contains no account credentials, cookies, private teams or raw telemetry.
 
 Sources: public FastF1 completed-session data and official public Fantasy feeds.
@@ -18,6 +19,10 @@ Only the updater can download missing completed sessions. Website publication
 reads this file strictly and fails closed when required historical inputs are
 missing. Every historical observation must precede the forecast cutoff. Current
 prices, active roster, schedule and Statistics are still fetched afresh.
+
+Recorded prices supply the Garage's historical sparklines only. They are neither
+future-price predictions nor a fallback for current prices. Missing history is
+shown as unavailable rather than drawn as a synthetic trend.
 
 The separate **Refresh public history** workflow updates this file after races;
 the Pages workflow does not rebuild raw FastF1 history. Existing completed racing

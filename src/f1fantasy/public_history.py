@@ -188,6 +188,7 @@ def fantasy_feed(path, load):
             "SprintPoints",
             "GamedayPoints",
             "SessionWisePoints",
+            "Value",
         )
         rows = [
             {key: row[key] for key in fields if key in row}

@@ -4,12 +4,47 @@ from __future__ import annotations
 
 import argparse
 import json
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 from pathlib import Path
 
 from . import data, output, public_history
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
+
+
+def price_history(live):
+    """Optional recorded round prices, never predictive or a live-price fallback."""
+    source = public_history.current()
+    document = source["document"] if source else {}
+    result = {a.id: [] for a in live.assets}
+    events = document.get("fantasy_events", {})
+    for day in sorted(events, key=lambda d: public_history.date(events[d])):
+        for row in document.get("fantasy", {}).get(day, []):
+            key = str(row.get("PlayerId"))
+            if key not in result or row.get("Value") is None:
+                continue
+            try:
+                value = Decimal(str(row["Value"])) * 10
+                if (
+                    not value.is_finite()
+                    or value <= 0
+                    or value != value.to_integral_value()
+                ):
+                    continue
+                result[key].append(
+                    {"gameday_id": int(day), "price_tenths_m": int(value)}
+                )
+            except (InvalidOperation, ValueError):
+                continue
+    for a in live.assets:
+        result[a.id] = [
+            p for p in result[a.id] if p["gameday_id"] != live.weekend.gameday_id
+        ]
+        result[a.id].append(
+            {"gameday_id": live.weekend.gameday_id, "price_tenths_m": a.price}
+        )
+    return result
 
 
 def build(season: int, *, telemetry: bool = True) -> dict:
@@ -53,6 +88,7 @@ def build(season: int, *, telemetry: bool = True) -> dict:
         "price_published_at": live.published_at.isoformat(),
         "forecast_cutoff": min(weekends[0].first_session, generated).isoformat(),
         "price_gameday_id": live.weekend.gameday_id,
+        "price_history": price_history(live),
         "assets": [{**output.asset(a), "tla": a.tla} for a in live.assets],
         "rounds": rounds,
         "chip_support": support,

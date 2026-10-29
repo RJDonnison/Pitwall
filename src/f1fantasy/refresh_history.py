@@ -33,6 +33,10 @@ def main(argv=None):
             if w.last_session is not None and w.last_session < now
         }
         document["features"] = features
+        # Keep official round prices for Garage trends. These are historical
+        # snapshots only; live roster/prices still come from data.snapshot.
+        for day in document["fantasy_events"]:
+            public_history.fantasy_feed(f"drivers/{day}_en.json", data._get_json)
         predict_model._history(args.season, now)
         # This exercises the actual upcoming-venue/session/chip inputs, not an
         # unrelated bulk download. Existing completed racing rows are reused.

@@ -97,3 +97,28 @@ def test_failed_refresh_publishes_unavailable_not_old_forecasts(tmp_path, monkey
     monkeypatch.setattr(web_data, "build", failed)
     assert web_data.main(["--output", str(path)]) == 0
     assert json.loads(path.read_text())["status"] == "unavailable"
+
+
+def test_price_history_uses_recorded_values_and_fresh_current_price(
+    public, monkeypatch
+):
+    source = {
+        "fantasy_events": {"17": "2026-09-01T12:00:00Z", "18": "2026-10-01T12:00:00Z"},
+        "fantasy": {
+            "17": [{"PlayerId": "0", "Value": "4.8"}],
+            "18": [
+                {"PlayerId": "0", "Value": "4.9"},
+                {"PlayerId": "1", "Value": None},
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        web_data.public_history, "current", lambda: {"document": source}
+    )
+    result = web_data.build(2026)
+    assert result["price_history"]["0"] == [
+        {"gameday_id": 17, "price_tenths_m": 48},
+        {"gameday_id": 18, "price_tenths_m": 49},
+        {"gameday_id": 19, "price_tenths_m": 50},
+    ]
+    assert result["price_history"]["1"] == [{"gameday_id": 19, "price_tenths_m": 50}]
