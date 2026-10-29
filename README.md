@@ -1,23 +1,28 @@
-# F1 Fantasy and Predict planner
+# Pitwall — F1 season strategy
 
-This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses Boost and chips, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. An optional persistent-browser integration connects one account team and provides an explicit manual apply path with live read-back.
+Pitwall is a static website where users enter their F1 Fantasy teams and plan the rest of the season. It jointly chooses five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points under the entered budget. Three independent teams stay in the user's browser, with JSON import/export. Every driver and constructor has qualifying, Sprint and race forecasts; the round-by-round strategy shows changes, penalties, multipliers and chip effects.
 
-V4 adds **official F1 Predict**: live questions and variable payouts, expected-points answer selection, ordered podium and question Boost, separate regular/Sprint and season-bonus models, archived chronological scoring/calibration, plus an isolated Predict account and scheduler. Start read-only with `f1fantasy predict recommend`; see [Predict commands, Docker setup and verification limits](docs/predict.md). Fantasy commands retain their defaults.
+The exact mixed-integer optimizer runs in a browser worker using HiGHS WebAssembly. The Python forecast engine publishes only public, pre-weekend data. No F1 login, server-side team storage or automatic submission is needed to use the website. The existing Python CLI and **official F1 Predict** tools remain available; see [Predict commands and verification limits](docs/predict.md).
 
-V3 includes account/chip workflows and a Docker service for unattended scheduling. Account reads, changed-lineup saves, combined x3 activation and restart reconciliation have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Timed early/final jobs require a verified Fantasy lock timestamp; if it is unavailable, the daemon reports blocked rather than guessing. Final Fix uses its separate official window. See [Docker scheduling](docs/scheduling.md).
-
-## Run automatically with Docker
+## Run the website locally
 
 ```sh
-F1FANTASY_TEAM=2 docker compose up -d --build
-docker compose logs -f fantasy
+python -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m f1fantasy.web_data
+npm ci --prefix web
+npm run dev --prefix web
 ```
 
-For the first login, open <http://localhost:6080/vnc.html?autoconnect=1&resize=scale>, sign in, complete MFA and open My Team. Replace `2` with your official team number. After connecting, the container starts the scheduler automatically and preserves login, jobs and cache in its named volume. Normal later starts use `docker compose up -d`. The container has its own Chromium; no host Python/browser setup is required.
+Open the local URL printed by Vite. Pick your seven selections from the grid, enter **team value plus cash**, carried transfer and remaining chips, then choose **Plan the rest of my season**. The site forecasts every remaining published round, not a rolling three-round horizon. Final Fix is shown as a separate post-qualifying decision rather than assigned speculative pre-weekend points.
 
-Docker defaults to **whole-season automatic management**: every run jointly plans all remaining rounds for expected total points, including transfers, Boost and chip timing. It refreshes 24 hours and 15 minutes before verified lock, applies only the current round's changes, and re-plans the remaining season as new results, prices and chip/account state arrive. Paid transfers are permitted only within the optimizer's net-points objective, including their −10-point cost; it does not make extra transfers merely because they are allowed. A 90-second no-write cutoff and separate eligible Final Fix run remain. Due jobs **submit** and verify the team. `daemon status --format json` records `planning_scope: remaining_season` and completed jobs retain their projected season plan. [Setup, deadline limitations, recovery and configuration](docs/scheduling.md).
+## Deploy to GitHub Pages
 
-Interactive CLI recommendations keep their existing three-round default and `--races 1`–`5` options; paid transfers remain opt-in with `--allow-penalties`. Whole-season Docker plans maximize **forecast** points, not guaranteed results: future prices are held at the current verified values until the next refresh. The actual-lock-timestamp requirement still applies; a running container alone does not mean timed jobs are armed.
+Push to a GitHub repository with a `main` branch, enable **Settings → Pages → GitHub Actions**, and run **Publish season planner**. [The workflow](.github/workflows/pages.yml) tests the Python and browser optimizers, generates fresh public forecasts, builds the site and deploys it. It also refreshes every two hours. Relative asset paths support `https://USERNAME.github.io/REPOSITORY/`; no account cookies or secrets are published. See [website architecture, deployment and data policy](docs/website.md).
+
+**Live-data limitation:** the official Fantasy feeds currently omit browser CORS permission. The site tries fresh official price/roster/statistics/lock checks before each recommendation, but if the browser cannot verify them, users must explicitly opt into a labelled published-snapshot preview. Publications expire after six hours, and started/locked events or changed live prices block planning. Failed data refreshes publish an unavailable state. Optimal means optimal for the published forecasts and constant future-price assumption—not guaranteed actual points.
+
+Container deployment has been removed. The Python CLI remains optional and keeps its three-round default, `--races 1`–`5`, live account workflows and explicit `--allow-penalties` policy. [Existing CLI scheduling](docs/scheduling.md) is separate from the static website.
 
 ## Requirements
 
@@ -36,7 +41,7 @@ f1fantasy recommend --team 3 --format json
 ```
 
 `--team` is read-only and requires account mode. It does not reconnect or change
-the single team bound to `account apply` or Docker automation. Omitting it keeps
+the single team bound to `account apply` or CLI automation. Omitting it keeps
 the connected-team default.
 
 From this repository, install into a virtual environment:
@@ -145,7 +150,7 @@ f1fantasy account apply --replan --races 3
 
 The active chip cannot be cancelled, replaced or charged another saving cost. Pending recovery still takes precedence over `--replan`. Active Limitless edits use the ordinary transfer endpoint without reactivating the chip. Its pre-activation roster is saved durably for subsequent-round planning. If Limitless was activated outside this tool and its restoration roster cannot be verified, planning is limited to the current weekend rather than inventing future transfers.
 
-**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. The Docker daemon runs scheduled stages through these same account boundaries. See [account integration details](docs/account-integration.md) and [scheduling](docs/scheduling.md).
+**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. The optional CLI daemon runs scheduled stages through these same account boundaries. See [account integration details](docs/account-integration.md) and [scheduling](docs/scheduling.md).
 
 ### Preload history and compare forecasts
 

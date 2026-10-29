@@ -1,5 +1,12 @@
 # Roadmap
 
+## Website — remaining-season planning (implemented)
+
+- Static, responsive Pitwall interface with three locally saved manual teams, budgets, carried transfers and remaining/active chips.
+- Browser HiGHS WebAssembly optimizes the remaining season jointly; show every selection's Q/S/R points, Boost, chips, changes, budget and penalties by round.
+- GitHub Pages workflow publishes fresh public Python forecasts every two hours. Browser CORS restrictions require explicit labelled snapshot-preview consent when live verification fails; publications expire after six hours.
+- Container deployment has been removed. The existing CLI tools remain available. Pages publication needs a GitHub remote/account and repository Pages configuration.
+
 ## V1 — Fantasy recommendations (implemented)
 
 - CLI recommends five drivers, two constructors and a 2× Boost under the budget, with net transfers and one-week carry-over.
@@ -17,13 +24,13 @@
 - Promote a candidate only if it improves the held-out evaluation; keep the previous model available for rollback. After evaluation, refit the approved approach on all completed races for future recommendations without rewriting its historical test result.
 - Consider an **opt-in** cache-compaction command that retains verified prediction features and the results data needed by the CLI while reclaiming bulky raw telemetry after preloading is complete.
 
-## V3 — Fantasy account automation (planned)
+## V3 — Fantasy account automation (implemented, optional CLI)
 
 - Model chip eligibility and scoring across regular and Sprint weekends, including Wildcard, Limitless, x3 Boost and Final Fix.
 - Sync one F1 Fantasy team, then submit and verify selected transfers, Boost and chips against the live account.
-- Schedule verified updates around actual Fantasy lock times on an always-on machine, with restart recovery and an audit log, using Docker.
+- Optional CLI scheduling on an always-on machine requires verified actual Fantasy lock times, restart recovery and an audit log. The static website does not submit account changes.
 
-## V4 — official F1 Predict (planned)
+## V4 — official F1 Predict (implemented, CLI)
 
 - Fetch each round's real questions, answer choices, values and deadlines.
 - Reuse the race forecast engine to choose valid answers with the highest expected Predict score and backtest by question type.

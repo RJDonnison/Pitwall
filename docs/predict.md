@@ -127,27 +127,14 @@ paired with bonus schedule metadata for 2025. Season-bonus commands reject that
 contradiction; coherent season fixtures are covered by model tests, not represented
 as a verified live bonus recommendation.
 
-## Optional Docker automation
+## Optional CLI automation
 
-Build/start **only** the independent Predict service when you want it running:
-
-```sh
-docker compose --profile predict up -d --build predict
-docker compose logs -f predict
-```
-
-Complete its separate official login/MFA at
-<http://localhost:6081/vnc.html?autoconnect=1&resize=scale>. The service's private
-named volume retains Predict login, archives and jobs. It does not access the
-Fantasy session volume or select/change a Fantasy team. `F1PREDICT_LOGIN_PORT`
-changes the loopback-only port; reconnect/timeout controls match the Fantasy
-container. A running container still requires an awake, online Docker host.
-
-```sh
-docker compose exec predict f1fantasy predict daemon status --format json
-docker compose exec predict f1fantasy predict daemon audit --format json
-docker compose --profile predict stop
-```
+Container deployment has been removed in favor of the static Fantasy website.
+Predict remains a separate Python CLI. After `predict account connect`, run
+`f1fantasy predict daemon run` on an awake, online machine to use its existing
+independent scheduler. Its private Predict browser, binding and journals do not
+select or change a Fantasy team. The static website does not expose this account
+session or run Predict submissions.
 
 The default Predict policy evaluates the newly published round 24 hours and 15
 minutes before its **verified** deadline, with a 90-second safety cutoff, and
@@ -167,8 +154,8 @@ explicit retry/cancel; uncertain jobs reconcile the matching saved account targe
 before any new recommendation. Restart/deadline changes cannot authorize unrelated
 pending manual writes. Events are persisted and logged; `--notify-command /path/to/program`
 receives sanitized JSON on stdin without a shell. Notification failure does not
-turn a verified save into a submission failure. Health is unhealthy while blocked
-or stale. `stop` preserves volume data; `down -v` deletes it.
+turn a verified save into a submission failure. Use Ctrl+C to stop the process;
+its private login, archives and job/account journals remain on disk.
 
 ## Official source contracts
 

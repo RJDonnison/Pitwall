@@ -11,7 +11,6 @@ import pytest
 from f1fantasy import (
     account,
     cli,
-    container,
     predict,
     predict_data as data,
     predict_model,
@@ -437,28 +436,6 @@ def test_repeated_same_round_archives_do_not_manufacture_calibration_samples(gam
     assert result["answers"][1]["calibration"]["method"].startswith("uncalibrated")
 
 
-def test_predict_health_uses_independent_scheduler_state(monkeypatch):
-    monkeypatch.setenv("F1FANTASY_SERVICE", "predict")
-    monkeypatch.setattr(
-        predict_scheduler,
-        "status",
-        lambda *a: {
-            "status": "active",
-            "checked_at": datetime.now(timezone.utc).isoformat(),
-        },
-    )
-    assert container.health() == 0
-    monkeypatch.setattr(
-        predict_scheduler,
-        "status",
-        lambda *a: {
-            "status": "blocked",
-            "checked_at": datetime.now(timezone.utc).isoformat(),
-        },
-    )
-    assert container.health() == 1
-
-
 def test_predict_daemon_once_headless_and_restores_environment(
     monkeypatch, tmp_path, capsys
 ):
@@ -491,17 +468,3 @@ def test_predict_daemon_once_headless_and_restores_environment(
     import os
 
     assert "F1FANTASY_HEADLESS" not in os.environ
-
-
-def test_predict_container_bootstrap_is_separate_from_fantasy(monkeypatch, tmp_path):
-    from argparse import Namespace
-
-    calls = []
-    monkeypatch.setattr(predict_account, "connect", lambda *a, **k: calls.append(a))
-    monkeypatch.setattr(
-        account, "connect", lambda *a, **k: pytest.fail("Fantasy must remain separate")
-    )
-    container.bootstrap_predict(
-        Namespace(account_dir=tmp_path, season=2026, scope="round")
-    )
-    assert calls == [(tmp_path, 2026)]

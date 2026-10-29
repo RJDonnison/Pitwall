@@ -1,4 +1,4 @@
-"""Offline scheduler behavior; no browser, Docker, or official submissions."""
+"""Offline scheduler behavior; no browser or official submissions."""
 
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone

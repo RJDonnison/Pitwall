@@ -1,6 +1,5 @@
-"""Docker follows the whole season while interactive recommendations stay bounded."""
+"""Season planning while interactive recommendations stay bounded."""
 
-import contextlib
 import json
 from copy import deepcopy
 from dataclasses import replace
@@ -8,7 +7,7 @@ from datetime import timedelta
 
 import pytest
 
-from f1fantasy import account, cli, container, scheduler
+from f1fantasy import account, cli, scheduler
 from f1fantasy.data import DataError
 from f1fantasy.projections import Estimate
 from test_scheduler import setup, NOW
@@ -119,24 +118,6 @@ def test_unknown_limitless_restoration_cannot_silently_shorten_season_plan(
     )
     with pytest.raises(DataError, match="verified Limitless restoration"):
         cli._plan(args, live, weekends, state)
-
-
-@pytest.mark.parametrize(
-    "arguments,season,penalties",
-    [([], True, True), (["daemon", "run", "--races", "2"], False, False)],
-)
-def test_container_default_is_season_automatic_but_explicit_commands_keep_cli_policy(
-    monkeypatch, arguments, season, penalties
-):
-    monkeypatch.setattr(container, "desktop", contextlib.nullcontext)
-
-    def bootstrap(args):
-        assert args.season_plan is season
-        assert args.allow_penalties is penalties
-
-    monkeypatch.setattr(container, "bootstrap", bootstrap)
-    monkeypatch.setattr(cli, "main", lambda argv: 0)
-    assert container.main(arguments) == 0
 
 
 def test_scheduler_advances_rounds_persists_season_intent_and_preserves_used_chip_inventory(

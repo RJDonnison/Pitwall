@@ -798,7 +798,7 @@ def _parser() -> argparse.ArgumentParser:
         "--season-plan",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help="Optimize all remaining season rounds rather than --races (Docker default)",
+        help="Optimize all remaining season rounds rather than --races",
     )
     daemon_run.add_argument("--early-hours", type=float, default=24)
     daemon_run.add_argument("--final-minutes", type=float, default=15)

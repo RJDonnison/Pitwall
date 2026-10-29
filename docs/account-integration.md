@@ -254,7 +254,7 @@ transfers, allowance, remaining transfers and penalty. HTTP success or a success
 toast alone is insufficient. A timeout/rejected response still triggers read-back
 because the write may have committed. A read failure/mismatch retains `unknown`;
 a process interruption leaves `prepared`, with the same no-replay semantics.
-`audit()` does not launch the browser. The [Docker scheduler](scheduling.md)
+`audit()` does not launch the browser. The [optional CLI scheduler](scheduling.md)
 uses this same apply/recovery path with persisted account/team/event identity,
 verified deadline and safety-cutoff guards. Those guards are rechecked after
 durable preparation and before each new combined step. A pending manual plan
