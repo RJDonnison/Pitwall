@@ -11,8 +11,7 @@
     "format": "prettier --write src test index.html vite.config.js"
   },
   "dependencies": {
-    "@fontsource/barlow": "5.3.0",
-    "@fontsource/barlow-condensed": "5.3.0",
+    "@fontsource/inter": "^5.3.0",
     "highs": "1.15.4"
   },
   "devDependencies": {

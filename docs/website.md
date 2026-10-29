@@ -131,10 +131,41 @@ successful workflow run.
 
 ## Design and accessibility
 
-The ice-blue/navy pit-wall layout uses self-hosted Barlow/Barlow Condensed,
-compact score tables, explicit preview state, labelled inputs and chip controls,
-visible keyboard focus, reduced-motion handling and responsive stacked sections.
-Tables can scroll within their own region on narrow screens; the page itself
-should not scroll horizontally. There is no external analytics or font request.
+V5 follows the user-supplied root `DESIGN.md`: Grand Prix Broadsheet,
+self-hosted Inter, paper/ink/vermilion, hairline borders, restrained corners and
+tabular figures. The exact Stitch project `6085770950590244465` references are:
+
+- `8c7013a0b2254d19b7293cfe93cdd18b`: Visual Strategy & Season Breakdown.
+- `202e82a082484112bf664e97e619b45f`: Visual Team Garage.
+- `999e252f73234cf290cbc36dfbef6bd4`: Visual Race Simulation & Insights.
+
+Strategy includes a decorative racing hero, transfer/Boost/chip directives,
+next-round net score comparison, cumulative Fantasy trajectory and selectable
+round details. The reference is explicitly the unchanged roster with best 2×
+and no chips; it is not a league benchmark or a do-nothing active-chip forecast.
+Autopilot shows scenario-dependent extra points rather than a fixed winner.
+
+The Garage retains the existing `pitwall-teams-v1` storage format and JSON
+import/export. Three profile cards, actual budget allocation, vector driver and
+constructor illustrations, the searchable asset registry and chip settings are
+functional. There are no generated portraits presented as verified drivers.
+`web/public/racing-editorial.webp` is decorative artwork from the supplied
+Strategy mockup, not an image of the currently forecast circuit.
+
+The Forecast explorer adopts the third reference's analytical presentation for
+existing unboosted Fantasy Q/S/R estimates, driver point-per-million comparisons
+and constructor cards. Real race probabilities, pit-stop and FIA championship
+predictions remain V6; weather remains V8. The mockups' sample confidence,
+weather, circuit metrics, league rankings and lock countdowns are not exported
+as real measurements. The first-session date is explicitly not a verified lock.
+
+Freshness and explicit preview consent remain visible. Inputs and chip controls
+are labelled; keyboard focus, skip navigation and reduced-motion preferences
+are supported. Charts have textual values/accessible descriptions and signed
+point tables. Tables and round cards scroll within their regions on narrow
+screens; the page itself should not scroll horizontally. There is no external
+analytics or font request. Hash navigation and relative assets support Pages
+repository paths without a server-side routing rewrite.
+
 The prior Dockerfile/Compose/bootstrap and container-only tests were removed;
 existing private host session directories were not deleted.

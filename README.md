@@ -22,7 +22,9 @@ npm ci --prefix web
 npm run dev --prefix web
 ```
 
-Open the local URL printed by Vite. Pick your seven selections from the grid, enter **team value plus cash**, carried transfer and remaining chips, then choose **Plan the rest of my season**. The site forecasts every remaining published round, not a rolling three-round horizon. Final Fix is shown as a separate post-qualifying decision rather than assigned speculative pre-weekend points.
+Open the local URL printed by Vite. In **Team Garage**, pick your seven selections from the asset registry, enter **team value plus cash**, carried transfer and remaining chips, then choose **Calculate season strategy**. The **Strategy** view shows transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's exact selection breakdown. **Forecasts** compares the existing driver and constructor Fantasy estimates. The site plans every remaining published round, not a rolling three-round horizon. Final Fix is shown as a separate post-qualifying decision rather than assigned speculative pre-weekend points.
+
+The V5 interface follows the supplied [`DESIGN.md`](DESIGN.md) and the Visual Stitch mockups, using a paper/ink/vermilion palette, self-hosted Inter and illustrated roster cards. Existing saved teams and JSON exports remain compatible. See [website design and data boundaries](docs/website.md#design-and-accessibility).
 
 ## Requirements
 

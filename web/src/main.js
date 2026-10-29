@@ -1,62 +1,27 @@
-import "@fontsource/barlow/400.css";
-import "@fontsource/barlow/500.css";
-import "@fontsource/barlow/600.css";
-import "@fontsource/barlow-condensed/600.css";
-import "@fontsource/barlow-condensed/700.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
 import "./style.css";
 import { CHIPS, PREWEEK, total, validateTeam } from "./optimizer.js";
 import { fetchDataset, verifyLive } from "./data.js";
+import {
+  esc,
+  points,
+  money,
+  chipNames,
+  chipDescriptions,
+  icon,
+  constructorName,
+  teamColor,
+  profilesMarkup,
+  rosterMarkup,
+  allocationMarkup,
+  strategyMarkup,
+  insightsMarkup,
+} from "./views.js";
 
-const chipNames = {
-  autopilot: "Autopilot",
-  x3: "3× Boost",
-  no_negative: "No Negative",
-  wildcard: "Wildcard",
-  limitless: "Limitless",
-  final_fix: "Final Fix",
-};
-const chipDescriptions = {
-  autopilot: "2× goes to the best selected driver across the whole weekend.",
-  x3: "Triple one driver, with a different driver on regular 2×.",
-  no_negative:
-    "Removes negative scoring categories; transfer penalties still apply.",
-  wildcard: "Unlimited transfers within your budget.",
-  limitless: "Unlimited budget and transfers, then your original team returns.",
-  final_fix:
-    "One future-only swap after qualifying. Reassess in the official window; not spent by this pre-weekend plan.",
-};
 const $ = (query) => document.querySelector(query);
-const esc = (value) =>
-  String(value).replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
-const points = (value) =>
-  Number(value).toLocaleString(undefined, {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: 1,
-  });
-const money = (value) => `$${(value / 10).toFixed(1)}m`;
-function parseMoney(value) {
-  const amount = Number(value) * 10;
-  if (
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    Math.abs(amount - Math.round(amount)) > 1e-6
-  )
-    throw new Error(
-      "Enter a positive total budget with at most one decimal place.",
-    );
-  return Math.round(amount);
-}
-const date = (value) =>
-  new Date(value).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-  });
 const blank = (i) => ({
   name: `Team ${i + 1}`,
   season: null,
@@ -70,6 +35,18 @@ const blank = (i) => ({
   active: "",
   restore: [],
 });
+function parseMoney(value) {
+  const amount = Number(value) * 10;
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    Math.abs(amount - Math.round(amount)) > 1e-6
+  )
+    throw new Error(
+      "Enter a positive total budget with at most one decimal place.",
+    );
+  return Math.round(amount);
+}
 let profiles;
 try {
   const stored = JSON.parse(localStorage.getItem("pitwall-teams-v1"));
@@ -95,13 +72,15 @@ let active = 0,
   dataset = null,
   result = null,
   marketRound = 0,
-  marketKind = "DRIVER",
+  insightsRound = 0,
+  selectedRound = 0,
+  marketKind = "ALL",
   worker = null,
   error = "",
   busy = false,
-  verification = "";
-let previewAllowed = false;
-let revision = 0;
+  verification = "",
+  previewAllowed = false,
+  revision = 0;
 const team = () => profiles[active];
 const asset = (id) => dataset.assets.find((a) => a.id === id);
 function save() {
@@ -114,125 +93,142 @@ function save() {
 }
 function invalidate() {
   revision++;
-  if (worker) worker.terminate();
+  worker?.terminate();
   worker = null;
   busy = false;
   result = null;
+  selectedRound = 0;
   error = "";
   save();
 }
-
+function switchTeam(i) {
+  invalidate();
+  active = i;
+  verification = "";
+  render();
+}
+function route() {
+  const name = location.hash.slice(1);
+  const page =
+    name === "garage" || name === "asset-registry"
+      ? "garage"
+      : name === "insights"
+        ? "insights"
+        : "strategy";
+  for (const p of ["strategy", "garage", "insights"])
+    $(`#page-${p}`).hidden = p !== page;
+  document
+    .querySelectorAll("[data-nav]")
+    .forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === page));
+  document
+    .querySelectorAll("[data-nav][aria-current]")
+    .forEach((a) => a.setAttribute("aria-current", "page"));
+  if (name === "asset-registry")
+    $("#asset-registry").scrollIntoView({ block: "start" });
+  else if (name === "how-it-works")
+    $("#how-it-works").scrollIntoView({ block: "start" });
+}
+function openGarage() {
+  location.hash = "garage";
+  route();
+}
 function shell() {
-  $("#app").innerHTML = `
-    <header class="masthead"><a class="brand" href="./"><svg viewBox="0 0 36 32" aria-hidden="true"><path d="M2 5h29l-5 7H10l-3 5h15l-5 7H2l7-12H2z" fill="currentColor"/></svg><span>Pitwall</span></a><span class="header-title">Your season, planned.</span><a href="#how-it-works">How it works</a></header>
-    <main><section class="intro"><div><h1>A better team.<br>A longer view.</h1><p>Set your seven. Plan every remaining round, with chips and transfers working together.</p></div><div class="race-stamp" id="race-stamp">Loading the season…</div></section>
-    <div id="data-state" class="data-state" role="status">Fetching the latest published forecasts…</div>
-    <div class="workspace"><aside class="editor" aria-label="Your team editor"><div class="team-tabs" role="group" aria-label="Saved teams">${profiles.map((t, i) => `<button data-team="${i}" aria-pressed="${i === active}">${esc(t.name)}</button>`).join("")}</div><div id="settings"></div></aside>
-    <section class="strategy" aria-label="Season strategy"><div id="strategy"></div><section class="market"><div class="section-heading"><div><h2>The grid</h2><p>Every selection’s forecast. Prices are in millions.</p></div><label class="round-select">Points for<select id="market-round" aria-label="Round for grid forecasts"></select></label></div><div class="market-tools"><div role="group" aria-label="Asset type"><button id="drivers-tab" aria-pressed="true">Drivers</button><button id="constructors-tab" aria-pressed="false">Constructors</button></div><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Find a driver or constructor" /></div><div id="market-list"></div></section></section></div>
-    <section id="how-it-works" class="method"><h2>Think in seasons. Check before you change.</h2><div><p><strong>One joint plan.</strong> An exact mixed-integer optimizer runs on your device. It considers five drivers, two constructors, 2× Boost, once-per-season chips, Sprint weekends, net transfers and their penalties across all published remaining rounds.</p><p><strong>Forecasts, not promises.</strong> Historical inputs precede the predicted weekend. Future prices stay at today’s snapshot values. Re-plan as prices, results and your team change. Final Fix needs a separate post-qualifying decision; it is not assigned a speculative pre-weekend value.</p><p><strong>Your teams stay here.</strong> Three team profiles are stored in this browser. There is no account sign-in, server-side team storage or automatic submission. A published snapshot is a preview; check the official game’s prices, eligibility and lock before making changes.</p></div><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Official Fantasy rules</a></section></main><footer><span>Pitwall · Independent F1 Fantasy planning</span><span>Not affiliated with Formula 1.</span></footer>`;
-  document.querySelectorAll("[data-team]").forEach(
-    (b) =>
-      (b.onclick = () => {
-        invalidate();
-        active = Number(b.dataset.team);
-        verification = "";
-        shell();
-        render();
-      }),
-  );
+  $("#app").innerHTML =
+    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy"><span class="brand-mark" aria-hidden="true">╲</span><span><strong>Pitwall</strong><small>Independent F1 Fantasy planning</small></span></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Team Garage</a><a href="#insights" data-nav="insights">Forecasts</a><a href="#how-it-works">How it works</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading the grid</span><label class="team-switch">${icon("grid")}<span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
+  <main id="main"><div id="data-state" class="data-state" role="status">Fetching the latest published forecasts…</div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section>
+  <section id="page-garage" aria-label="Team Garage" hidden><div class="page-heading"><div><span class="eyebrow accent">Paddock lineup engineering · local device storage</span><h1>Team Garage</h1><p>Set your starting seven. Build the strategy around your actual budget and chips.</p></div><a class="button" href="#strategy">View season strategy ${icon("arrow")}</a></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><div class="garage-workspace"><div class="garage-main"><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><div><span class="eyebrow">Market asset registry</span><h2>Find the right seven.</h2><p>Base Fantasy point forecasts. Prices are in millions.</p></div><label>Forecast round<select id="market-round" aria-label="Round for grid forecasts"></select></label></div><div class="market-tools"><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All targets</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search the grid…"/></div><div id="market-list" class="market-cards"></div></section></div><aside class="editor" aria-label="Team settings and chip inventory"><div id="settings"></div></aside></div></section>
+  <section id="page-insights" aria-label="Fantasy forecast explorer" hidden><div id="insights"></div></section>
+  <section id="how-it-works" class="method"><span class="eyebrow accent">Strategic principle</span><h2>Think in seasons. Check before you change.</h2><div class="method-grid"><article><h3>One joint plan <small>Optimizer</small></h3><p>An exact mixed-integer optimizer runs on your device. It considers five drivers, two constructors, 2× Boost, once-per-season chips, Sprint weekends, net transfers and their penalties across all published remaining rounds.</p><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Official Fantasy rules ↗</a></article><article><h3>Forecasts, not promises <small>Model</small></h3><p>Historical inputs precede the predicted weekend. Future prices stay at today’s snapshot. Re-plan as prices, results and your team change. Final Fix needs a separate post-qualifying decision; it has no speculative pre-weekend value here.</p></article><article><h3>Your teams stay here <small>Privacy</small></h3><p>Three profiles are stored in this browser. There is no account sign-in, server-side team storage or automatic submission. Published data is a preview; check official prices, eligibility and lock before making changes.</p></article></div></section></main><footer><span><b>Pitwall</b> · Independent F1 Fantasy planning</span><span>Decorative racing imagery from your Stitch mockup. Not affiliated with Formula 1.</span></footer>`;
+  $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
   $("#market-round").onchange = (e) => {
     marketRound = Number(e.target.value);
     renderMarket();
   };
   $("#search").oninput = renderMarket;
-  $("#drivers-tab").onclick = () => {
-    marketKind = "DRIVER";
-    renderMarket();
-  };
-  $("#constructors-tab").onclick = () => {
-    marketKind = "CONSTRUCTOR";
-    renderMarket();
-  };
+  document.querySelectorAll("[data-kind]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        marketKind = b.dataset.kind;
+        renderMarket();
+      }),
+  );
+  addEventListener("hashchange", route);
+  route();
 }
-
 function render() {
+  const focused = document.activeElement?.id;
+  const advancedOpen = $("#active-setup")?.open || Boolean(team().active);
+  $("#team-switch").innerHTML = profiles
+    .map(
+      (t, i) =>
+        `<option value="${i}" ${active === i ? "selected" : ""}>${esc(t.name)}</option>`,
+    )
+    .join("");
   if (!dataset) {
     $("#market-list").innerHTML = "";
     $("#market-round").innerHTML = "";
-    $("#settings").innerHTML =
-      '<p class="empty">Your team editor will appear when verified forecast inputs are published.</p>';
-    $("#strategy").innerHTML =
-      `<div class="empty-state"><h2>Waiting for the grid</h2><p>${esc(error || "Loading public roster and forecasts…")}</p><button id="reload">Refresh data</button></div>`;
-    $("#reload").onclick = load;
+    $("#profile-cards").innerHTML = "";
+    $("#allocation").innerHTML = "";
+    $("#roster-board").innerHTML = "";
+    $("#header-cap").textContent = "Awaiting verified inputs";
+    const message = `<div class="panel welcome"><span class="eyebrow">Public forecast publication</span><h2>Waiting for the grid.</h2><p>${esc(error || "Loading public roster and forecasts…")}</p><button data-reload class="primary">Refresh data</button></div>`;
+    $("#strategy").innerHTML = message;
+    $("#insights").innerHTML = message;
+    $("#settings").innerHTML = message;
+    document
+      .querySelectorAll("[data-reload]")
+      .forEach((b) => (b.onclick = load));
     return;
   }
-  $("#race-stamp").innerHTML =
-    `<strong>${dataset.season}</strong><span>${dataset.rounds.length} rounds remaining</span><small>Next: ${esc(dataset.rounds[0].name.replace(" Grand Prix", ""))}</small>`;
+  const t = team(),
+    chosen = dataset.assets.filter((a) => t.selected.includes(a.id)),
+    cost = total(chosen.map((a) => a.price_tenths_m));
+  $("#header-cap").innerHTML =
+    `Cap <b>${money(cost)}</b> / ${money(t.budget)} <strong class="${cost > t.budget ? "negative" : "positive"}">${money(t.budget - cost)} free</strong>`;
   $("#data-state").innerHTML =
-    `<span class="data-dot"></span><div><strong>Planning preview</strong> · Prices checked ${esc(new Date(dataset.price_checked_at).toLocaleString())}<br><small>${esc(verification || "Live prices are not verified in this static site. Published data expires after six hours.")}</small></div><button id="refresh">Refresh data</button>`;
+    `<div><span class="data-dot"></span><strong>Planning preview</strong><span>${esc(verification || "Manual team inputs · published prices, not a verified account")}</span></div><div><small>Prices checked ${esc(new Date(dataset.price_checked_at).toLocaleString())} · expires after 6h</small><button id="refresh">Refresh data</button></div>`;
   $("#refresh").onclick = () => {
     invalidate();
     load();
   };
-  document.querySelectorAll("[data-team]").forEach((b, i) => {
-    b.textContent = profiles[i].name;
-    b.setAttribute("aria-pressed", String(i === active));
-  });
-  const t = team(),
-    chosen = dataset.assets.filter((a) => t.selected.includes(a.id));
-  const count = (kind) => chosen.filter((a) => a.kind === kind).length;
+  $("#profile-cards").innerHTML = profilesMarkup(dataset, profiles, active);
+  document
+    .querySelectorAll("[data-team]")
+    .forEach((b) => (b.onclick = () => switchTeam(Number(b.dataset.team))));
+  $("#allocation").innerHTML = allocationMarkup(dataset, t);
+  $("#roster-board").innerHTML =
+    `<div class="section-heading"><div><span class="eyebrow">Active roster assets</span><h2>Your starting seven</h2><p>Use your original race-week lineup for net transfers.</p></div><span class="tag">${chosen.filter((a) => a.kind === "DRIVER").length}/5 drivers · ${chosen.filter((a) => a.kind === "CONSTRUCTOR").length}/2 constructors</span></div>${rosterMarkup(dataset, t, dataset.rounds[0])}`;
   $("#settings").innerHTML =
-    `<div class="editor-body"><div class="section-heading"><h2>Your starting team</h2><span class="selection-count">${count("DRIVER")}/5 drivers · ${count("CONSTRUCTOR")}/2 constructors</span></div>
-    <label>Team name<input id="team-name" maxlength="32" value="${esc(t.name)}" /></label>
-    <div class="starting-roster">${["DRIVER", "CONSTRUCTOR"]
-      .map(
-        (kind) =>
-          `<div class="roster-group">${Array.from(
-            { length: kind === "DRIVER" ? 5 : 2 },
-            (_, i) => {
-              const a = chosen.filter((a) => a.kind === kind)[i];
-              return a
-                ? `<button class="roster-pick" data-remove="${esc(a.id)}" title="Remove ${esc(a.name)}"><span>${esc(a.tla || a.name)}</span><small>${money(a.price_tenths_m)}</small><span aria-hidden="true">×</span></button>`
-                : `<span class="roster-slot">Choose ${kind === "DRIVER" ? "driver" : "constructor"} ${i + 1} from the grid</span>`;
-            },
-          ).join("")}</div>`,
-      )
-      .join("")}</div>
-    <div class="form-grid"><label>Total budget ($m)<input id="budget" type="number" min="0.1" step="0.1" value="${t.budget / 10}" aria-describedby="budget-help" /></label><label>Carried transfer<select id="carry"><option value="0" ${t.carry === 0 ? "selected" : ""}>0 carried (2 free)</option><option value="1" ${t.carry === 1 ? "selected" : ""}>1 carried (3 free)</option></select></label></div>
-    <p class="hint" id="budget-help">Total team value + cash, not just cash. Selected cost: <strong>${money(total(chosen.map((a) => a.price_tenths_m)))}</strong>. Use your original race-week roster to count net transfers.</p>
-    <label class="check"><input type="checkbox" id="initial" ${t.initial ? "checked" : ""}/> My team has not scored a race yet</label>
-    <label class="check"><input type="checkbox" id="completed" ${t.completed ? "checked" : ""}/> I have completed a full race weekend</label>
-    <label class="check"><input type="checkbox" id="penalties" ${t.allowPenalties ? "checked" : ""}/> Allow paid transfers when worth the −10 points each</label>
-    <fieldset class="chips"><legend>Chips still available</legend>${CHIPS.map(
-      (c) => {
-        const supported = dataset.chip_support[c]?.available !== false;
-        return `<label class="chip-option" title="${esc(chipDescriptions[c])}"><input type="checkbox" data-chip="${c}" ${t.chips.includes(c) ? "checked" : ""} ${!supported ? "disabled" : ""}/><span>${chipNames[c]}</span><small>${supported ? (c === "final_fix" ? "After qualifying" : "Once this season") : "History unavailable"}</small></label>`;
-      },
-    ).join("")}</fieldset>
-    <details class="advanced"><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
-      t.active === "limitless"
-        ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
-            "DRIVER",
-            "CONSTRUCTOR",
-          ]
-            .map(
-              (k) =>
-                `<optgroup label="${k === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}">${dataset.assets
-                  .filter((a) => a.kind === k)
-                  .map(
-                    (a) =>
-                      `<option value="${a.id}" ${t.restore.includes(a.id) ? "selected" : ""}>${esc(a.name)}</option>`,
-                  )
-                  .join("")}</optgroup>`,
-            )
-            .join(
-              "",
-            )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. This restoration roster is required for a full-season plan.</p>`
-        : '<p class="hint">Active chips keep their effect even after being removed from your remaining inventory. Final Fix requires remaining-session planning outside this preview.</p>'
-    }</details>
-    <div class="import-export"><button id="export-team" class="quiet">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json" /></label></div>
-    <label class="check preview-consent"><input type="checkbox" id="preview-consent" ${previewAllowed ? "checked" : ""}/> Allow a published-snapshot preview if live prices cannot be verified</label>
-    <button id="optimize" class="primary" ${busy ? "disabled" : ""}>${busy ? "Planning the season…" : "Plan the rest of my season"}</button>${busy ? '<button id="cancel" class="quiet">Cancel planning</button>' : ""}<p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p><p class="hint">Changing inputs clears the plan. No website changes are submitted.</p></div>`;
+    `<div class="panel editor-body"><div class="section-heading"><div><span class="eyebrow accent">Strategy parameters</span><h2>Your balance sheet</h2></div>${icon("grid")}</div><label>Team name<input id="team-name" maxlength="32" value="${esc(t.name)}"/></label><div class="form-grid"><label>Total budget ($m)<input id="budget" type="number" min="0.1" step="0.1" value="${t.budget / 10}" aria-describedby="budget-help"/></label><label>Carried transfer<select id="carry"><option value="0" ${t.carry === 0 ? "selected" : ""}>0 · 2 free</option><option value="1" ${t.carry === 1 ? "selected" : ""}>1 · 3 free</option></select></label></div><p class="hint" id="budget-help">Total team value + cash, not just your bank balance.</p>
+  <label class="check"><input type="checkbox" id="initial" ${t.initial ? "checked" : ""}/>My team has not scored a race yet</label><label class="check"><input type="checkbox" id="completed" ${t.completed ? "checked" : ""}/>I have completed a full race weekend</label><label class="check"><input type="checkbox" id="penalties" ${t.allowPenalties ? "checked" : ""}/>Allow paid transfers when worth −10 points each</label>
+  <fieldset class="chips"><legend>Chips still available</legend>${CHIPS.map(
+    (c) => {
+      const supported = dataset.chip_support[c]?.available !== false;
+      return `<label class="chip-option" title="${esc(chipDescriptions[c])}"><input id="chip-${c}" type="checkbox" data-chip="${c}" ${t.chips.includes(c) ? "checked" : ""} ${!supported ? "disabled" : ""}/><span>${chipNames[c]}<small>${supported ? (c === "final_fix" ? "After qualifying · separate decision" : "Once this season") : "History unavailable"}</small></span>${icon(c === "x3" || c === "autopilot" ? "bolt" : "shield")}</label>`;
+    },
+  ).join("")}</fieldset>
+  <details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
+    t.active === "limitless"
+      ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
+          "DRIVER",
+          "CONSTRUCTOR",
+        ]
+          .map(
+            (kind) =>
+              `<optgroup label="${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}">${dataset.assets
+                .filter((a) => a.kind === kind)
+                .map(
+                  (a) =>
+                    `<option value="${esc(a.id)}" ${t.restore.includes(a.id) ? "selected" : ""}>${esc(a.name)}</option>`,
+                )
+                .join("")}</optgroup>`,
+          )
+          .join(
+            "",
+          )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. Required for full-season restoration.</p>`
+      : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
+  }</details>
+  <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div><label class="check preview-consent"><input type="checkbox" id="preview-consent" ${previewAllowed ? "checked" : ""}/>Allow a published-snapshot preview if live prices cannot be verified</label><button id="optimize" class="primary full-width" ${busy ? "disabled" : ""}>${busy ? "Planning the season…" : "Calculate season strategy"}${icon("arrow")}</button>${busy ? '<button id="cancel" class="full-width">Cancel planning</button>' : ""}<p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p><p class="hint">Changes clear your plan. Enter substitutions manually in the official game.</p></div>`;
   for (const id of [
     "budget",
     "carry",
@@ -262,13 +258,13 @@ function render() {
         "active-chip": "active",
       }[id];
       t[key] =
-        id === "budget"
-          ? parseMoney(value.value)
-          : id === "carry"
-            ? Number(value.value)
-            : id === "active-chip"
-              ? value.value
-              : value.checked;
+        value.type === "checkbox"
+          ? value.checked
+          : id === "budget"
+            ? parseMoney(value.value)
+            : id === "carry"
+              ? Number(value.value)
+              : value.value;
       if (t.initial) {
         t.carry = 0;
         t.completed = false;
@@ -324,37 +320,40 @@ function render() {
     .join("");
   renderStrategy();
   renderMarket();
+  renderInsights();
+  route();
+  if (focused && document.getElementById(focused))
+    document.getElementById(focused).focus({ preventScroll: true });
 }
-
 function renderMarket() {
   if (!dataset) return;
-  $("#drivers-tab").setAttribute(
-    "aria-pressed",
-    String(marketKind === "DRIVER"),
-  );
-  $("#constructors-tab").setAttribute(
-    "aria-pressed",
-    String(marketKind === "CONSTRUCTOR"),
-  );
+  document
+    .querySelectorAll("[data-kind]")
+    .forEach((b) =>
+      b.setAttribute("aria-pressed", String(marketKind === b.dataset.kind)),
+    );
   const query = $("#search").value.toLowerCase(),
     r = dataset.rounds[marketRound];
   const available = dataset.assets
     .filter(
-      (a) => a.kind === marketKind && a.name.toLowerCase().includes(query),
+      (a) =>
+        (marketKind === "ALL" || a.kind === marketKind) &&
+        `${a.name} ${constructorName(dataset, a)}`
+          .toLowerCase()
+          .includes(query),
     )
     .sort((a, b) => total(r.forecasts[b.id]) - total(r.forecasts[a.id]));
   $("#market-list").innerHTML =
-    `<div class="market-labels"><span>Selection / price</span><span>Predicted points</span><span></span></div>${available
+    available
       .map((a) => {
-        const selected = team().selected.includes(a.id);
-        const count = team().selected.filter(
-          (id) => asset(id)?.kind === a.kind,
-        ).length;
-        return `<div class="asset-row ${selected ? "selected" : ""}"><div><strong>${esc(a.name)}</strong><small>${esc(a.kind === "DRIVER" ? dataset.assets.find((c) => c.kind === "CONSTRUCTOR" && c.team_id === a.team_id)?.name || "" : "Constructor")} <span>${money(a.price_tenths_m)}</span></small></div><div class="asset-points"><strong>${points(total(r.forecasts[a.id]))}</strong><small>Q ${points(r.forecasts[a.id][0])} ${r.sprint ? `· S ${points(r.forecasts[a.id][1])}` : ""} · R ${points(r.forecasts[a.id][2])}</small></div><button data-select="${a.id}" aria-label="${selected ? "Remove" : "Add"} ${esc(a.name)}" aria-pressed="${selected}" ${!selected && count >= (a.kind === "DRIVER" ? 5 : 2) ? "disabled" : ""}>${selected ? "✓" : "+"}</button></div>`;
+        const selected = team().selected.includes(a.id),
+          count = team().selected.filter(
+            (id) => asset(id)?.kind === a.kind,
+          ).length;
+        return `<article class="market-card ${selected ? "selected" : ""}" style="--team-color:${teamColor(dataset, a)}"><div class="market-card-title"><span class="asset-monogram">${esc(a.tla || "F1")}</span><div><h3>${esc(a.name)}</h3><small>${esc(constructorName(dataset, a))}</small></div><strong>${money(a.price_tenths_m)}</strong></div><div class="market-splits"><span>Q ${points(r.forecasts[a.id][0])}</span>${r.sprint ? `<span>S ${points(r.forecasts[a.id][1])}</span>` : ""}<span>R ${points(r.forecasts[a.id][2])}</span></div><div class="market-card-bottom"><span>Projected <b>${points(total(r.forecasts[a.id]))} pts</b></span><button data-select="${esc(a.id)}" aria-label="${selected ? "Remove" : "Add"} ${esc(a.name)}" aria-pressed="${selected}" ${!selected && count >= (a.kind === "DRIVER" ? 5 : 2) ? "disabled" : ""}>${selected ? "− Remove" : "+ Add"}</button></div></article>`;
       })
-      .join(
-        "",
-      )}${available.length === 0 ? '<p class="empty">No matching selections. Try another name.</p>' : ""}`;
+      .join("") ||
+    '<p class="empty">No matching selections. Try another name.</p>';
   document.querySelectorAll("[data-select]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -367,46 +366,32 @@ function renderMarket() {
       }),
   );
 }
-
 function renderStrategy() {
-  if (!result) {
-    $("#strategy").innerHTML =
-      `<div class="empty-state"><div class="track-mark" aria-hidden="true"><svg viewBox="0 0 260 125"><path d="M20 85L55 30 125 20 150 50 225 40 240 65 185 100 110 105 85 75 45 100Z"/></svg></div><h2>${busy ? "Working through the possibilities" : "Build your season strategy"}</h2><p>${busy ? "Choosing lineups, transfer timing and chips together. Your browser stays responsive; a full season can take up to 90 seconds." : "Choose five drivers and two constructors, enter your available budget and chips, then plan all remaining rounds."}</p><div class="empty-key"><span>5 drivers + 2 constructors</span><span>Whole-season chip timing</span><span>Runs on your device</span></div></div>`;
-    return;
-  }
-  const baseline = total(
-    dataset.rounds.map((r) => {
-      const scores = team().selected.map((id) => total(r.forecasts[id]));
-      return (
-        total(scores) +
-        Math.max(
-          ...team()
-            .selected.filter((id) => asset(id).kind === "DRIVER")
-            .map((id) => total(r.forecasts[id])),
-        )
-      );
-    }),
+  $("#strategy").innerHTML = strategyMarkup(
+    dataset,
+    team(),
+    result,
+    busy,
+    selectedRound,
   );
-  $("#strategy").innerHTML =
-    `<div class="plan-summary"><div><span>${esc(team().name)} · ${dataset.season} season preview</span><h2>${points(result.points)} <small>predicted points</small></h2><p>${points(result.points - baseline)} vs keeping this roster with 2× only. Includes transfer penalties.</p></div><span class="solver-badge">Proven optimal<br><small>for these forecast inputs</small></span></div><div class="round-strip" aria-label="Season chip calendar">${result.rounds.map((r, i) => `<button data-round="${i}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(r.name.replace(" Grand Prix", ""))}</strong><span>${r.chip ? chipNames[r.chip] : "Save chips"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div><div class="plan-rounds">${result.rounds.map((r, i) => `<details class="round-detail" ${i === 0 ? "open" : ""} id="round-${i}"><summary><span class="round-number">R${r.round}</span><span class="round-name"><strong>${esc(r.name)}</strong><small>${r.sprint ? "Sprint weekend" : "Regular weekend"} · ${r.chip ? chipNames[r.chip] : "No chip"} · ${r.transfers} net transfers</small></span><strong class="round-total">${points(r.points)}<small>pts</small></strong></summary><div class="round-body"><div class="transfer-summary"><div><span>Bring in</span><strong>${r.in.map((id) => esc(asset(id).name)).join(", ") || "Keep all seven"}</strong></div><div><span>Move out</span><strong>${r.out.map((id) => esc(asset(id).name)).join(", ") || "No outgoing selections"}</strong></div></div><p class="chip-note">${r.chip ? esc(chipDescriptions[r.chip]) : "Keep unused chips for a more valuable round."} ${r.chip === "limitless" ? "The durable roster is restored for the following round." : ""}</p><div class="table-scroll"><table><caption>Predicted points including Boost and chip effects</caption><thead><tr><th>Selection</th><th>Q</th>${r.sprint ? "<th>Sprint</th>" : ""}<th>Race</th><th>Total</th></tr></thead><tbody>${r.entries.map((e) => `<tr><th>${esc(asset(e.id).name)} ${e.id === r.boost && r.chip !== "autopilot" ? '<span class="boost-tag">2×</span>' : ""}${e.id === r.x3 ? '<span class="boost-tag triple">3×</span>' : ""}</th><td>${points(e.sessions[0])}</td>${r.sprint ? `<td>${points(e.sessions[1])}</td>` : ""}<td>${points(e.sessions[2])}</td><td><strong>${points(e.points)}</strong></td></tr>`).join("")}</tbody></table></div><div class="round-footer"><span>Lineup ${money(r.cost)} ${r.chip === "limitless" ? "(uncapped)" : `/ ${money(team().budget)}`}</span><span>Penalty −${r.penalty} pts</span><span>${i < result.rounds.length - 1 ? `${r.carry} carried forward` : "Season horizon ends"}</span></div></div></details>`).join("")}</div><p class="plan-disclaimer">Planning preview from published data. Future prices held constant. Re-plan before every race; verify live eligibility and prices on the official game. Final Fix remains a separate post-qualifying decision.</p>`;
   document.querySelectorAll("[data-round]").forEach(
     (b) =>
       (b.onclick = () => {
-        const i = Number(b.dataset.round);
-        $(`#round-${i}`).open = true;
-        $(`#round-${i}`).scrollIntoView({
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "instant"
-            : "smooth",
-          block: "nearest",
-        });
-        marketRound = i;
-        $("#market-round").value = String(i);
-        renderMarket();
+        selectedRound = Number(b.dataset.round);
+        renderStrategy();
+        $(`[data-round="${selectedRound}"]`).focus({ preventScroll: true });
       }),
   );
+  if ($("#replan")) $("#replan").onclick = plan;
 }
-
+function renderInsights() {
+  $("#insights").innerHTML = insightsMarkup(dataset, team(), insightsRound);
+  $("#insights-round").onchange = (e) => {
+    insightsRound = Number(e.target.value);
+    renderInsights();
+    $("#insights-round").focus({ preventScroll: true });
+  };
+}
 async function load() {
   const request = ++revision;
   error = "";
@@ -418,6 +403,8 @@ async function load() {
     if (request !== revision) return;
     dataset = fresh;
     marketRound = 0;
+    insightsRound = 0;
+    selectedRound = 0;
     for (const t of profiles) {
       if (t.season !== null && t.season !== dataset.season) {
         t.selected = [];
@@ -438,7 +425,6 @@ async function load() {
   }
   render();
 }
-
 async function plan() {
   if (busy) return;
   try {
@@ -446,15 +432,17 @@ async function plan() {
   } catch (e) {
     error = e.message;
     render();
+    openGarage();
     $("#editor-error").focus();
     return;
   }
   busy = true;
   error = "";
   result = null;
+  selectedRound = 0;
   render();
-  const profile = active;
-  const request = ++revision;
+  const profile = active,
+    request = ++revision;
   try {
     const fresh = await fetchDataset();
     if (!busy || profile !== active || request !== revision) return;
@@ -482,6 +470,16 @@ async function plan() {
       result = data.result || null;
       error = data.error || "";
       render();
+      if (result) {
+        location.hash = "strategy";
+        route();
+        $("#strategy h1").setAttribute("tabindex", "-1");
+        $("#strategy h1").focus({ preventScroll: true });
+        window.scrollTo({ top: 0, behavior: "instant" });
+      } else {
+        openGarage();
+        $("#editor-error").focus();
+      }
     };
     worker.onerror = () => {
       if (request !== revision) return;
@@ -491,6 +489,8 @@ async function plan() {
       error =
         "The browser solver failed to load. Refresh or try a WebAssembly-capable browser.";
       render();
+      openGarage();
+      $("#editor-error").focus();
     };
     worker.postMessage({ dataset: fresh, team: structuredClone(team()) });
   } catch (e) {
@@ -498,9 +498,10 @@ async function plan() {
     busy = false;
     error = e.message;
     render();
+    openGarage();
+    $("#editor-error").focus();
   }
 }
-
 function exportTeam() {
   const t = team();
   const payload = {
@@ -526,7 +527,6 @@ function exportTeam() {
   a.click();
   URL.revokeObjectURL(url);
 }
-
 async function importTeam(e) {
   const profile = active,
     request = revision;
@@ -575,7 +575,6 @@ async function importTeam(e) {
     render();
   }
 }
-
 shell();
 render();
 load();

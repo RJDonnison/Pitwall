@@ -8,12 +8,15 @@
 - Container deployment has been removed. The existing CLI tools remain available. Pages publication needs a GitHub remote/account and repository Pages configuration.
 - Publication refreshes market inputs and forecasts every two hours; a separate daily/manual job updates the committed public historical dataset. These are scheduled snapshots, not live race streaming.
 
-## Next website versions — planned in this order
+## Website versions — implementation order
 
-### V5 — UI remake
+### V5 — UI remake (implemented)
 
-- Wait for the user's `design.md` and mockup screenshot before implementation.
-- Rebuild the interface against that supplied design while retaining team profiles, season optimization, accessible interactions and clear data-freshness labels.
+- Follow the supplied `DESIGN.md` Grand Prix Broadsheet system and the three Visual Strategy, Team Garage and Simulation/Insights Stitch references.
+- Image-led Strategy with transfer/Boost/chip directives, net score comparisons, cumulative remaining-season points, selectable round cards and exact seven-selection breakdowns.
+- Team Garage with three existing local profiles, illustrated roster cards, capital allocation, searchable asset registry, budget/transfer/chip settings and JSON import/export.
+- A visual Fantasy forecast explorer shows existing driver and constructor Q/S/R estimates and point-per-million comparisons. Real race probabilities, fastest-pit and FIA championship predictions remain V6.
+- Preserve the optimizer, local-storage format, explicit snapshot-preview consent, expiry checks, responsive layouts, keyboard focus and reduced-motion support. Mockup-only lock timers, weather and confidence statistics are not presented as live data.
 
 ### V6 — Race Insights page
 
