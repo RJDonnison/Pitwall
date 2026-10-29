@@ -1,18 +1,22 @@
-# Pitwall — F1 season strategy
+# Pitwall
 
-Pitwall is a static website where users enter their F1 Fantasy teams and plan the rest of the season. It jointly chooses five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points under the entered budget. Three independent teams stay in the user's browser, with JSON import/export. Every driver and constructor has qualifying, Sprint and race forecasts; the round-by-round strategy shows changes, penalties, multipliers and chip effects.
+**Season-long strategy planning for F1 Fantasy.**
 
-The exact mixed-integer optimizer runs in a browser worker using HiGHS WebAssembly. The Python forecast engine publishes only public, pre-weekend data. No F1 login, server-side team storage or automatic submission is needed to use the website. The existing Python CLI and **official F1 Predict** tools remain available; see [Predict commands and verification limits](docs/predict.md).
+Pitwall is a static website where you enter your F1 Fantasy teams and plan the rest of the season. It jointly optimises five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points under your budget.
 
-Completed-session inputs are included in [`data/history.json`](data/README.md)
-(about 2.4 MB), so Pages builds do not download years of raw FastF1 sessions.
-The separate **Refresh public history** action updates that dataset daily or on
-manual request, reusing completed race records and loading new ones. Normal
-publication still fetches current official prices, roster, schedule and Statistics.
-Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`; FastF1's optional live-feed
-authentication warning is not a request to add your account credentials.
+## Features
 
-## Run the website locally
+- **Season-wide planning:** plans every remaining published round, not a rolling horizon.
+- **Exact optimisation:** a mixed-integer optimiser (HiGHS WebAssembly) runs in a browser worker.
+- **Three independent teams:** stored in your browser, with JSON import/export.
+- **Detailed forecasts:** qualifying, Sprint and race projections for every driver and constructor.
+- **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.
+- **Privacy-friendly:** no F1 login, server-side team storage or automatic submission required.
+- **Companion CLI:** a Python CLI and official F1 Predict tooling (see [Predict commands](docs/predict.md)).
+
+## Quick start
+
+Requires Python 3.11+ and Node.js.
 
 ```sh
 python -m venv .venv
@@ -22,31 +26,29 @@ npm ci --prefix web
 npm run dev --prefix web
 ```
 
-Open the local URL printed by Vite. In **Team Garage**, pick your seven selections from the asset registry, enter **team value plus cash**, free transfers and remaining chips. Strategy updates automatically after edits; no calculation or preview-consent button is required. The **Strategy** view shows transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's exact selection breakdown. **Forecasts** is coming soon. The site plans every remaining published round, not a rolling three-round horizon. Final Fix is shown as a separate post-qualifying decision rather than assigned speculative pre-weekend points.
+Open the local URL printed by Vite.
 
-The V5 interface follows the supplied [`DESIGN.md`](DESIGN.md) and desktop/mobile Stitch mockups: a full-width Garage, compact mobile roster, bottom navigation, real recorded round-price trends and coloured chip controls. Driver/car images come from the requested TracingInsights 2026 collection; archival venue photographs and the circuit outline change with the selected round. Source and licence credits are in the footer. Existing saved teams and JSON exports remain compatible. See [website design and data boundaries](docs/website.md#design-and-accessibility) and [how to replace images](docs/media.md).
+## Using the website
 
-## Requirements
+1. In **Team Garage**, pick your seven selections from the asset registry.
+2. Enter **team value plus cash**, free transfers and remaining chips.
+3. Open **Strategy** to see transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's selection breakdown.
 
-- Python 3.11 or newer and an internet connection for F1 Fantasy and FastF1 data.
-- Disk space for a local historical cache if using `preload`; expect roughly 0.1–1 GB for three seasons in the default compact mode (estimates vary by season and session coverage). Allow extra temporary space while one session loads.
-- Recommendations default to your connected F1 account and chip inventory. For local previews without an account, use `--no-account`; add `--no-chips` if your import has no chip inventory.
+Strategy updates automatically as you edit. **Forecasts** is coming soon. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
 
-## Usage
+The interface follows [`DESIGN.md`](DESIGN.md), with a full-width Garage, compact mobile roster, bottom navigation, recorded round-price trends and coloured chip controls. Driver and car images come from the TracingInsights 2026 collection; venue photographs and circuit outline change with the selected round. Credits are in the footer.
 
-To recommend separately for different teams in the connected account:
+See [website design and data boundaries](docs/website.md#design-and-accessibility) and [replacing images](docs/media.md).
 
-```sh
-f1fantasy recommend --team 1
-f1fantasy recommend --team 2 --races 5
-f1fantasy recommend --team 3 --format json
-```
+## Data
 
-`--team` is read-only and requires account mode. It does not reconnect or change
-the single team bound to `account apply` or CLI automation. Omitting it keeps
-the connected-team default.
+Completed-session inputs ship in [`data/history.json`](data/README.md) (about 2.4 MB), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates it daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics.
 
-From this repository, install into a virtual environment:
+Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`. FastF1's optional live-feed authentication warning is not a request for your credentials.
+
+## Command-line interface
+
+Install into the virtual environment and activate it (or call `.venv/bin/f1fantasy` directly):
 
 ```sh
 python -m venv .venv
@@ -54,140 +56,44 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-Activation lets you type `f1fantasy` in zsh or bash. Without it, use `.venv/bin/f1fantasy` for every command.
-
-### Recommend a team
+Common commands:
 
 ```sh
-f1fantasy prices
-f1fantasy recommend --races 3
+f1fantasy prices                      # current roster and prices
+f1fantasy recommend --races 3         # recommend for your connected team
+f1fantasy recommend --team 2          # a specific team on the account
+f1fantasy recommend --no-account --no-chips --races 3   # local preview
+f1fantasy chips                       # chip planning
+f1fantasy statistics                  # official Fantasy Statistics rankings
+f1fantasy backtest --races 4 --show-points
 ```
 
-Each recommendation refreshes your connected team and fetches the next race's **current Fantasy roster and prices**, with chip planning enabled. Connect first using `account connect --team NUMBER` (see below). For local planning, use `recommend --no-account`; without a chip inventory, also use `--no-chips`. With no imported team in local mode, it assumes a new team with a $100m starting budget. Output includes budget, qualifying/Sprint/race estimates, Boost, net transfers and their penalties. Future prices are assumed unchanged until the next run. Always check the Fantasy website's team-lock deadline; the session start displayed by the CLI is not a verified lock time.
+Every command accepts `--format json` for versioned, machine-readable output. Prices are integer tenths of a million (`price_tenths_m`).
 
-If the next race-week feed is empty, you can preview with the last completed race's official prices:
+> Always check the Fantasy website's team-lock deadline. The session start shown by the CLI is not a verified lock time.
 
-```sh
-f1fantasy recommend --no-account --no-chips --races 3 --allow-old-prices
-```
+### Requirements
 
-This is labelled **provisional** because upcoming prices and driver availability have not been verified. Re-run without the flag before applying a lineup.
+- Python 3.11+ and an internet connection (F1 Fantasy and FastF1 data).
+- Optional: about 0.1–1 GB of disk for a three-season `preload` cache in compact mode.
 
-The CLI also checks the current race-week roster's prices and season-point totals against the [official Fantasy Statistics page](https://fantasy.formula1.com/en/statistics). To browse that page's rankings in the terminal, use `f1fantasy statistics`. A provisional old-price preview cannot be checked against the upcoming roster.
+### Documentation
 
-### Plan transfers from your team
+| Topic                                                                                | Guide                                                      |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| Full CLI reference (recommend, transfers, chips, Final Fix, preload, backtest, JSON) | [docs/cli.md](docs/cli.md)                                 |
+| Chip model                                                                           | [docs/chips.md](docs/chips.md)                             |
+| Account integration and applying changes                                             | [docs/account-integration.md](docs/account-integration.md) |
+| Scheduling                                                                           | [docs/scheduling.md](docs/scheduling.md)                   |
+| F1 Predict commands and verification limits                                          | [docs/predict.md](docs/predict.md)                         |
+| Website design and data boundaries                                                   | [docs/website.md](docs/website.md)                         |
+| Replacing images                                                                     | [docs/media.md](docs/media.md)                             |
+| Roadmap                                                                              | [roadmap.md](roadmap.md)                                   |
 
-Find active Fantasy IDs using `f1fantasy prices` (or `prices --allow-old-prices` for a provisional list). Import your actual team, current spendable budget in millions (team value plus remaining cash), and any one carried transfer:
+## Resources
 
-```sh
-f1fantasy init --drivers ID1 ID2 ID3 ID4 ID5 --constructors TEAM1 TEAM2 --budget 102.4 --carry 1
-f1fantasy recommend --no-account --no-chips --races 3
-```
-
-Alternatively, `f1fantasy init --import-file my-team.json` accepts `{"season": 2026, "budget": 102.4, "carry": 1, "drivers": ["ID1", "ID2", "ID3", "ID4", "ID5"], "constructors": ["TEAM1", "TEAM2"]}`. The CLI validates IDs against the fetched roster and stores your team at `.f1fantasy/team.json`, which Git ignores. Re-import after making changes on the Fantasy website. The optimizer uses two free net transfers after your first race, at most one carried transfer, and only permits extra −10-point transfers with `recommend --allow-penalties`.
-
-`f1fantasy clear-team` removes only the **locally imported** team; it works offline and does not change an F1 Fantasy account. After clearing, `recommend --no-account --no-chips` treats you as a new $100m team. Pass `--state PATH` **before** the command if you imported into a custom location.
-
-### Plan chips
-
-Chip planning is enabled by default for `recommend` and `account apply`; use `--no-chips` to disable new chip spending. An already-active chip remains effective. `recommend` and `chips` refresh your connected account by default; `--no-account` uses your local import. For local chip planning, add `available_chips` (a list of unused chip names), `completed_first_weekend: true` (eligibility for Wildcard/Limitless), and optionally `chip_reserve` (a name-to-points map). Names are `autopilot`, `x3`, `no_negative`, `wildcard`, `limitless`, `final_fix`. Autopilot/x3/No Negative are immediately available. Local inventory is user-supplied.
-
-```sh
-f1fantasy chips
-f1fantasy recommend --races 3
-f1fantasy recommend --chip x3 --chip-reserve limitless=90 --races 3
-```
-
-The optimizer allows one chip per weekend and each once per season. It keeps 2×/3× drivers distinct, values Autopilot using each scenario's best whole-weekend selected driver, and uses official category-adjusted No Negative history including constructors and Boost. Wildcard keeps the budget cap; Limitless temporarily removes it, restores the original roster for subsequent transfers, and clears carried transfers.
-
-Saving costs beyond the horizon are explicit **heuristics**: Autopilot 15, x3 40, No Negative 25, Wildcard 20, Limitless 80 points. Override with `chip_reserve` or repeatable `--chip-reserve NAME=POINTS`; zero is allowed. Defaults become zero when the horizon reaches season end. Within-horizon timing is jointly optimized. Empirical chip inputs use up to five completed same-format current-season weekends strictly before the forecast; missing common history fails closed. See [chip model details](docs/chips.md).
-
-Final Fix is re-evaluated separately after qualifying, when the server opens its window:
-
-```sh
-f1fantasy chips --final-fix --format json
-f1fantasy account apply --final-fix
-```
-
-These commands refresh the account, official window and still-unscored session boundaries. The preview forecasts only the remaining Sprint/race sessions using pre-weekend model inputs, preserves official accrued points, and considers one affordable replacement with inherited Boost. Apply verifies the original roster, retained points and window again immediately before submission, then reconciles the original and replacement entries on read-back. A closed window, another active chip or ambiguous scoring stops the action. If no replacement improves the forecast, it returns `unchanged` without consuming Final Fix.
-
-An offline **provisional** input remains available:
-
-```sh
-f1fantasy chips --no-account --final-fix remaining.json --format json
-```
-
-The imported team needs `boost_driver_id` and unused `final_fix`. Supply `gameday_id`, timezone-aware `window_open_utc`/`window_close_utc` enclosing now, multiplier-adjusted `accrued_points`, `remaining_sessions` (e.g. `["race"]`), and `remaining_points` keyed by **every active asset ID**, each with numeric `qualifying`, `sprint`, `race` fields. Elapsed sessions must be zero. The preview labels your window/forecasts as unverified, preserves accrued points, inherits Boost on replacement, and retains the original roster for restoration. It does not activate a chip.
-
-Official null-score weekends are excluded from the empirical joint sample for all assets. Recommendations report contributing game days and sample counts plus excluded game days; no complete common history fails closed.
-
-### Connect one account team and apply manually
-
-```sh
-.venv/bin/python -m pip install -e '.[account]'
-f1fantasy account connect --team 1
-f1fantasy account show --format json
-f1fantasy chips
-f1fantasy recommend --races 3
-f1fantasy account apply --races 3
-f1fantasy account audit --format json
-```
-
-The launcher automatically uses `chromium` or `chromium-browser` from your PATH, including Arch Linux's `/usr/bin/chromium`. Set `PLAYWRIGHT_CHROMIUM_PATH` to override the executable. If neither a system browser nor a Playwright browser is installed, install one before connecting; system Chromium needs no Playwright browser download.
-
-`connect --team 1` explicitly binds the official one-based team number. Sign in and complete MFA in the dedicated browser, then open My Team. No password is collected; the browser session persists. Private session/binding/journal storage defaults to `$XDG_STATE_HOME/f1fantasy/account` or `~/.local/state/f1fantasy/account`, outside the repository. Override with global `--account-dir PATH` **before** the command. An exclusive operation lock prevents concurrent profile use. Expired sessions require reconnecting.
-
-`account apply` recomputes forecasts and checks live event, roster/prices/statistics, budget, net-transfer penalties and chip eligibility. Immediately before preparing a mutation it re-fetches the official current-session lock flags; an explicit deadline, when available, is checked too. Each save requires fresh read-back. Chip planning is enabled by default; use `--chip NAME` to force a chip or `--no-chips` to disable it. To apply ordinary lineup changes without spending a chip, run `f1fantasy account apply --no-chips`. An `apply_status` of `unchanged` means the current lineup and Boost already match the recommendation, so no save is necessary. Text/JSON output reports success or nonzero failure; the offline audit records prepared/unknown/verified outcomes. On restart, apply reconciles a pending outcome before forecasting or writing again; uncertainty blocks further writes.
-
-Combined transfers/Boost changes plus Autopilot, No Negative or x3 activation work with the same `account apply` command. Both steps are validated up front; the lineup is saved and read back **before spending the chip**, then the chip is activated and read back. Each step re-checks the live lock and account state. These are separate server requests, not an atomic transaction. If the second step fails, the command reports the saved lineup and incomplete chip step. Run `account apply` again to reconcile the original saved plan and resume only an unsent step; a possibly sent chip activation is never blindly retried. Inspect progress with `account audit --format json`. Pending recovery runs before generating a new recommendation, even if you change planning flags.
-
-Repeating `account apply` after a completed chip activation checks the live team against the latest verified journal and returns the verified result if it still matches, without replanning or submitting again.
-
-To deliberately optimize and apply a new lineup with an already-active chip, use:
-
-```sh
-f1fantasy recommend --races 3
-f1fantasy account apply --replan --races 3
-```
-
-The active chip cannot be cancelled, replaced or charged another saving cost. Pending recovery still takes precedence over `--replan`. Active Limitless edits use the ordinary transfer endpoint without reactivating the chip. Its pre-activation roster is saved durably for subsequent-round planning. If Limitless was activated outside this tool and its restoration roster cannot be verified, planning is limited to the current weekend rather than inventing future transfers.
-
-**Live verification:** Combined transfer/x3 has been verified on Team 2. Final Fix's window was closed during development, so its successful mutation and non-x3 chip accounting remain live-unverified; every write still requires exact fresh read-back. The optional CLI daemon runs scheduled stages through these same account boundaries. See [account integration details](docs/account-integration.md) and [scheduling](docs/scheduling.md).
-
-### Preload history and compare forecasts
-
-```sh
-f1fantasy preload --seasons 3
-f1fantasy preload --status
-f1fantasy backtest --races 4 --lookback 5 --compare-telemetry
-```
-
-`preload` covers completed sessions in the current and previous two seasons and resumes already processed sessions. By default it saves compact, versioned telemetry features and small parsed FastF1 results, then removes each session's bulky parsed car/position data and HTTP responses after verifying the features. It keeps FastF1's smaller HTTP cache entries, especially the repeated schedule requests, to avoid its request limit. Missing sessions are reported. To try one session first: `f1fantasy preload --seasons 2 --year 2025 --round 20 --session Qualifying`. Use `--refresh` to rebuild selected features; that session's telemetry must then be downloaded again. If FastF1's request limit is reached, wait for it to reset and rerun the same command: saved sessions are reused. A full three-season preload is estimated to take around 2–5 hours depending on the connection and missing sessions, versus roughly 2–4 hours with the previous full cache. The old cache could use about 10–25 GB; compact storage is estimated at 0.1–1 GB after completion. These are estimates, not limits. This historical cache **never replaces** the fresh Fantasy price and roster fetch on recommendations.
-
-The model uses recent current-season Fantasy scores, FastF1 classification and grid form, earlier visits to each venue, and—when preloaded—circuit similarity and teammate-relative telemetry pace. Missing telemetry leaves the results-based forecast in place. `backtest` compares its point errors on regular and Sprint weekends; `recommend --no-telemetry` shows the results-only alternative. Past information is cut off before the predicted weekend. Estimated points are uncertain, especially for future bonus awards and changing car performance.
-
-Current-season FastF1 form has more influence than previous-season form (4× versus 1×, with older history weighted 0.5×). Current-season official Fantasy points remain the main scoring signal; older same-circuit evidence has a smaller adjustment. These are fixed weights, not a self-trained model.
-
-### Inspect scores and use JSON output
-
-```sh
-f1fantasy backtest --races 4 --lookback 5 --show-points
-f1fantasy backtest --races 4 --compare-telemetry --format json \
-  | jq '.data.rows[] | {race: .event.name, driver_mae: .mae_points.drivers}'
-f1fantasy recommend --races 3 --format json \
-  | jq '.data.lineups[] | {race: .event.name, boost: .boost_driver_id, points: .expected_points}'
-f1fantasy statistics --format json | jq '.data.entries | sort_by(.season_points) | reverse | .[:5]'
-```
-
-`--show-points` lists **predicted and actual qualifying, Sprint, race and total points for every driver and constructor** in each selected historical weekend. MAE means _mean absolute error_, measured in Fantasy points: e.g. a driver MAE of 9.6 means the average driver's weekend prediction missed their actual total by 9.6 points, regardless of direction. Constructor MAE uses only constructors; qualifying, Sprint and race MAEs each include both drivers and constructors. These session MAEs do not necessarily add up to the total MAE because prediction errors can cancel between sessions. `--races` selects how many recent finalized weekends to replay.
-
-Every command accepts `--format json` after the command (after the action for `account`, e.g. `account show --format json`). Text remains the default. JSON success is one versioned document on stdout, with timestamps, warnings, data-source status and numeric point fields; prices use **integer tenths of a million** (`price_tenths_m`). Progress/logging goes to stderr. On failure the CLI exits nonzero and writes a JSON error to stderr, leaving stdout empty; a partial preload reports its unavailable sessions as JSON and exits nonzero. `jq` is optional and only needed for the examples above.
-
-## Roadmap and data sources
-
-- [Simplified roadmap](roadmap.md) — V1 status and future V2/V3 milestones.
-- [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs) — roster, scoring, Boost, chips and transfers.
-- [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
-- [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics) — independent current-price and season-point verification and terminal rankings.
-- [FastF1 documentation](https://docs.fastf1.dev/) — session results, laps, car telemetry and weather.
-- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) and [FAQs](https://f1predict.formula1.com/en/faqs) — independent V4 question payouts, podium scoring and one boosted question per round.
+- [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs)
+- [F1 Fantasy public schedule feed](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json)
+- [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics)
+- [FastF1 documentation](https://docs.fastf1.dev/)
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) and [FAQs](https://f1predict.formula1.com/en/faqs)
