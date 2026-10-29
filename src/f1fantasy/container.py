@@ -148,8 +148,15 @@ def bootstrap(args):
 
 
 def health():
-    state = scheduler.status(cli.DEFAULT_ACCOUNT)
-    if state.get("status") != "running" or not state.get("checked_at"):
+    healthy = "running"
+    if os.environ.get("F1FANTASY_SERVICE") == "predict":
+        from . import predict_scheduler
+
+        state = predict_scheduler.status(cli.DEFAULT_ACCOUNT)
+        healthy = "active"
+    else:
+        state = scheduler.status(cli.DEFAULT_ACCOUNT)
+    if state.get("status") != healthy or not state.get("checked_at"):
         return 1
     age = (
         datetime.now(timezone.utc) - scheduler.timestamp(state["checked_at"])
@@ -168,10 +175,20 @@ def main(argv=None):
         if argv == ["health"]:
             return health()
         args = cli._parser().parse_args(argv)
-        if args.command != "daemon" or args.daemon_action != "run":
+        predict_daemon = (
+            args.command == "predict"
+            and args.predict_action == "daemon"
+            and args.predict_daemon_action == "run"
+        )
+        if not predict_daemon and (
+            args.command != "daemon" or args.daemon_action != "run"
+        ):
             return cli.main(argv)
         with desktop():
-            bootstrap(args)
+            if predict_daemon:
+                bootstrap_predict(args)
+            else:
+                bootstrap(args)
             return cli.main(argv)
     except DataError as exc:
         print(f"Container setup failed: {exc}", file=sys.stderr, flush=True)
@@ -185,6 +202,31 @@ def main(argv=None):
             flush=True,
         )
         return 1
+
+
+def bootstrap_predict(args):
+    """Predict has its own account/profile and cannot reuse a Fantasy binding."""
+    from . import predict_account
+
+    saved = predict_account.storage_directory(args.account_dir) / "binding.json"
+    if saved.exists() and os.environ.get("F1FANTASY_RECONNECT") != "1":
+        try:
+            with _browser_mode(True):
+                predict_account.show(args.account_dir, args.season, scope=args.scope)
+            return
+        except (DataError, OSError):
+            print(
+                "Predict session needs attention; opening official login.", flush=True
+            )
+    print(
+        "Sign into F1 Predict at http://localhost:6081/vnc.html?autoconnect=1&resize=scale ; complete MFA and open your predictions. Fantasy login remains separate.",
+        flush=True,
+    )
+    timeout = account._integer(
+        os.environ.get("F1FANTASY_LOGIN_TIMEOUT", "900"), "login timeout", 1
+    )
+    with _browser_mode(False):
+        predict_account.connect(args.account_dir, args.season, timeout_seconds=timeout)
 
 
 if __name__ == "__main__":

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "f1-fantasy-planner"
 version = "0.1.0"
-description = "F1 Fantasy chip-aware recommendations and manual one-team account management"
+description = "F1 Fantasy season management and official F1 Predict expected-points recommendations"
 requires-python = ">=3.11"
 dependencies = ["fastf1>=3.6,<4", "requests>=2.32,<3", "scipy>=1.13,<2"]
 

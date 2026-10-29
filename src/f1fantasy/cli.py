@@ -872,6 +872,9 @@ def _parser() -> argparse.ArgumentParser:
     warm.add_argument("--year", type=int)
     warm.add_argument("--round", type=int)
     warm.add_argument("--session", help="Optional session name, e.g. Qualifying")
+    from .predict_cli import register as register_predict
+
+    predict_commands = register_predict(commands)
     for command in (
         init,
         prices,
@@ -890,6 +893,7 @@ def _parser() -> argparse.ArgumentParser:
         daemon_audit,
         daemon_retry,
         daemon_cancel,
+        *predict_commands,
     ):
         command.add_argument(
             "--format",
@@ -936,6 +940,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Error: {exc}", file=sys.stderr)
         return 2
     try:
+        if args.command == "predict":
+            from .predict_cli import command as predict_command
+
+            return predict_command(args)
         if args.command == "daemon":
             return _daemon_command(args)
         if args.command == "account":

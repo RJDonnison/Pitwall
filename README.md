@@ -1,6 +1,8 @@
-# F1 Fantasy planner
+# F1 Fantasy and Predict planner
 
 This Python CLI recommends an F1 Fantasy team of five drivers and two constructors, chooses Boost and chips, and plans transfers within your budget. It estimates qualifying, Sprint and race points from completed Fantasy scores and FastF1 results. An optional historical preload adds lap-telemetry comparisons between similar circuits and teammates. An optional persistent-browser integration connects one account team and provides an explicit manual apply path with live read-back.
+
+V4 adds **official F1 Predict**: live questions and variable payouts, expected-points answer selection, ordered podium and question Boost, separate regular/Sprint and season-bonus models, archived chronological scoring/calibration, plus an isolated Predict account and scheduler. Start read-only with `f1fantasy predict recommend`; see [Predict commands, Docker setup and verification limits](docs/predict.md). Fantasy commands retain their defaults.
 
 V3 includes account/chip workflows and a Docker service for unattended scheduling. Account reads, changed-lineup saves, combined x3 activation and restart reconciliation have been verified with the connected Team 2. Saves check fresh official server lock flags; the website's countdown is not treated as an exact deadline. Timed early/final jobs require a verified Fantasy lock timestamp; if it is unavailable, the daemon reports blocked rather than guessing. Final Fix uses its separate official window. See [Docker scheduling](docs/scheduling.md).
 
@@ -181,4 +183,4 @@ Every command accepts `--format json` after the command (after the action for `a
 - [F1 Fantasy public feeds](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json) — event schedule; the CLI also fetches race-week driver/constructor prices and historical Fantasy scores.
 - [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics) — independent current-price and season-point verification and terminal rankings.
 - [FastF1 documentation](https://docs.fastf1.dev/) — session results, laps, car telemetry and weather.
-- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) — separate game planned for V4.
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) and [FAQs](https://f1predict.formula1.com/en/faqs) — independent V4 question payouts, podium scoring and one boosted question per round.
