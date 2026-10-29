@@ -3075,3 +3075,761 @@ footer > .hint {
     font-size: 10px;
   }
 }
+/* Final mobile pass: compact rows and bottom navigation from the mobile mockups. */
+.masthead nav .icon {
+  display: none;
+}
+.roster-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 16px;
+  margin: 24px 0 14px;
+}
+.roster-section-heading span {
+  font-size: 11px;
+  color: var(--muted);
+}
+#planning-status {
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+}
+.garage-config .chips {
+  margin: 12px 0;
+}
+.garage-config .chip-toggle {
+  padding: 12px 6px;
+}
+.garage-config .garage-actions {
+  justify-content: flex-end;
+}
+.garage-config .advanced {
+  margin: 10px 0;
+}
+.round-disclosure > summary {
+  display: none;
+}
+.round-disclosure {
+  margin-top: 24px;
+}
+.round-disclosure .round-detail {
+  margin-top: 0;
+}
+.horizon > p {
+  font-size: 11px;
+}
+.footer-status {
+  font-size: 10px;
+}
+@media (max-width: 650px) {
+  body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  main {
+    padding: 0 12px;
+  }
+  .header-inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: 16px 12px 12px;
+    gap: 12px;
+  }
+  .brand > strong {
+    font-size: 22px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .pitwall-logo {
+    width: 28px;
+    height: 28px;
+    flex-basis: 28px;
+  }
+  .header-tools {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0;
+    gap: 8px;
+  }
+  .header-tools .cap-tag {
+    display: block;
+    font-size: 10px;
+    border: 0;
+    padding: 0;
+    white-space: normal;
+  }
+  .header-tools .team-switch {
+    min-width: 0;
+    max-width: 140px;
+  }
+  .team-switch select {
+    max-width: 140px;
+    font-size: 11px;
+    min-height: 36px;
+    padding: 6px;
+    margin: 0;
+  }
+  .masthead nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    height: calc(70px + env(safe-area-inset-bottom));
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+    background: #fbfbfa;
+    border-top: 1px solid var(--rule);
+    gap: 0;
+  }
+  .masthead nav a {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    font-size: 9px;
+    min-height: 52px;
+    border: 0;
+  }
+  .masthead nav .icon {
+    display: block;
+    width: 22px;
+    height: 22px;
+  }
+  .masthead nav a[aria-current]::after {
+    display: none;
+  }
+  .page-heading {
+    margin: 18px 0 12px;
+    gap: 10px;
+  }
+  .page-heading h1 {
+    font-size: 18px;
+  }
+  #planning-status {
+    max-width: 55%;
+    font-size: 9px;
+  }
+  .profile-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 7px;
+    margin: 12px 0;
+    padding-bottom: 3px;
+  }
+  .profile-card {
+    flex: 0 0 130px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 10px;
+    border-radius: 9px;
+    min-height: 48px;
+    gap: 5px;
+  }
+  .profile-card.is-active {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  .profile-card > div:first-child {
+    display: block;
+    min-width: 0;
+  }
+  .profile-card h3 {
+    font-size: 10px;
+    overflow-wrap: anywhere;
+  }
+  .profile-card p,
+  .profile-card .tag,
+  .profile-card .ring,
+  .profile-metrics > span:last-child,
+  .profile-metrics small {
+    display: none;
+  }
+  .profile-metrics {
+    margin: 0;
+    gap: 0;
+  }
+  .profile-metrics strong {
+    font-size: 10px;
+  }
+  .profile-metrics span {
+    min-width: 0;
+  }
+  .garage-config {
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+  .garage-inputs {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .garage-inputs > label:first-child {
+    grid-column: 1 / -1;
+  }
+  .garage-config label {
+    font-size: 10px;
+  }
+  .garage-config .hint {
+    font-size: 9px;
+    margin: 8px 0;
+  }
+  .garage-config .chips {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .garage-config .chip-toggle {
+    padding: 8px 2px;
+    min-height: 58px;
+    gap: 6px;
+    font-size: 8px;
+    letter-spacing: 0;
+  }
+  .chip-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .garage-config .advanced {
+    font-size: 10px;
+  }
+  .garage-config .advanced summary {
+    min-height: 44px;
+  }
+  .garage-actions .import-export {
+    width: auto;
+  }
+  .import-export button,
+  .import-export .file-button {
+    min-height: 44px;
+    padding: 8px;
+    font-size: 8px;
+  }
+  .allocation {
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .allocation .section-heading {
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+  .allocation h2 {
+    font-size: 13px;
+  }
+  .allocation .section-heading > strong {
+    font-size: 12px;
+  }
+  .allocation-key strong {
+    font-size: 12px;
+  }
+  .allocation-key {
+    gap: 8px;
+  }
+  .allocation-key > span {
+    font-size: 8px;
+  }
+  .roster-section-heading {
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 650;
+    margin: 20px 2px 12px;
+  }
+  .roster-section-heading span {
+    font-size: 10px;
+  }
+  #page-garage .roster-cards:not(.constructor-cards),
+  #page-garage .constructor-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  #page-garage .roster-card {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 48px 64px;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: 9px;
+    padding: 12px 10px;
+    border-top-width: 1px;
+    border-left: 3px solid var(--team-color);
+    border-radius: 12px;
+    min-height: 78px;
+  }
+  .driver-card-top {
+    display: contents;
+  }
+  .driver-card-top > div:last-child {
+    display: none;
+  }
+  .driver-card-top .roster-photo {
+    width: 40px;
+    height: 48px;
+    grid-column: 1;
+    grid-row: 1 / 3;
+    border-radius: 8px;
+  }
+  #page-garage .roster-card > h3 {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 11px;
+    padding: 0;
+    min-height: 0;
+    line-height: 1.3;
+  }
+  .roster-price {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 10px;
+    padding: 4px 0 0;
+  }
+  #page-garage .roster-card .price-trend {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    margin: 0;
+    min-height: 0;
+    width: 48px;
+    display: block;
+  }
+  .roster-card .price-trend > span {
+    display: none;
+  }
+  .roster-card .price-trend svg {
+    width: 48px;
+    max-width: 48px;
+    height: 28px;
+  }
+  #page-garage .roster-card .card-action {
+    grid-column: 4;
+    grid-row: 1 / 3;
+    min-height: 44px;
+    padding: 6px;
+    border: 0;
+    border-radius: 22px;
+    font-size: 8px;
+    background: var(--inset);
+  }
+  .card-action .icon {
+    display: none;
+  }
+  .constructor-heading,
+  .constructor-heading > div,
+  .constructor-visual {
+    display: contents;
+  }
+  .constructor-heading small {
+    display: none;
+  }
+  .constructor-heading h3 {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 11px;
+    margin: 0;
+  }
+  .constructor-heading > strong {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 10px;
+  }
+  .constructor-visual .roster-photo {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    height: 44px;
+    width: 40px;
+  }
+  .market {
+    margin-top: 25px;
+  }
+  .market .section-heading {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .market h2 {
+    font-size: 13px;
+  }
+  .market .segments {
+    width: 100%;
+  }
+  .market .segments button {
+    font-size: 9px;
+    border-radius: 20px;
+  }
+  .market-tools input {
+    max-width: 100%;
+  }
+  .market-cards {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .market-card {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 66px;
+    column-gap: 10px;
+    row-gap: 3px;
+    padding: 12px;
+    border-radius: 12px;
+    min-height: 84px;
+  }
+  .market-card-title,
+  .market-card-title > div:nth-child(2) {
+    display: contents;
+  }
+  .registry-photo {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    width: 40px;
+    height: 48px;
+    border-radius: 8px;
+  }
+  .market-card-title h3 {
+    grid-column: 2;
+    grid-row: 1;
+    font-size: 11px;
+  }
+  .market-card-title small {
+    display: none;
+  }
+  .market-card-title > strong {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 10px;
+  }
+  .market-card > .price-trend {
+    grid-column: 2;
+    grid-row: 3;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    display: block;
+  }
+  .market-card > .price-trend small,
+  .market-card > .price-trend svg {
+    display: none;
+  }
+  .market-card > .price-trend strong {
+    font-size: 9px;
+  }
+  .market-card-bottom {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    padding: 0;
+    border: 0;
+  }
+  .market-card-bottom > span {
+    display: none;
+  }
+  .market-card-bottom button {
+    min-width: 64px;
+    min-height: 44px;
+    padding: 8px 5px;
+    border-radius: 22px;
+    font-size: 9px;
+  }
+  .circuit-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .race-title {
+    padding: 22px 18px 12px;
+  }
+  .race-title h1 {
+    font-size: 27px;
+  }
+  .race-title p {
+    font-size: 10px;
+  }
+  .race-title .button {
+    display: none;
+  }
+  .circuit-art {
+    max-width: 360px;
+    padding: 0 16px;
+  }
+  .circuit-art > span {
+    font-size: 9px;
+  }
+  .directive-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .directive {
+    padding: 16px;
+  }
+  .directive h2 {
+    font-size: 18px;
+  }
+  .directive-heading {
+    font-size: 9px;
+    margin-bottom: 12px;
+  }
+  .transfer-stack {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    position: relative;
+  }
+  .transfer-stack > div {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    min-height: 90px;
+  }
+  .transfer-stack .swap-mark {
+    display: none;
+  }
+  .transfer-stack strong {
+    font-size: 11px;
+  }
+  .transfer-stack small {
+    font-size: 10px;
+  }
+  .directive-footer {
+    font-size: 9px;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .boost-visual {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+  .boost-visual h2 {
+    font-size: 18px;
+  }
+  .boost-visual .helmet {
+    width: 44px;
+    height: 44px;
+  }
+  .boost-output {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px;
+    margin: 12px 0;
+  }
+  .boost-output > strong {
+    font-size: 30px;
+  }
+  .boost-output > span {
+    font-size: 10px;
+  }
+  .chip-callout {
+    flex-direction: row;
+    gap: 12px;
+    padding: 12px;
+  }
+  .chip-callout h2 {
+    font-size: 15px;
+  }
+  .chip-callout p {
+    display: none;
+  }
+  .chip-dots {
+    margin-top: 12px;
+  }
+  .chip-directive {
+    min-height: 0;
+  }
+  .score-panel {
+    padding: 18px;
+  }
+  .score-panel h2 {
+    font-size: 18px;
+  }
+  .score-panel .tag {
+    font-size: 7px;
+  }
+  .projected-number > strong {
+    font-size: 42px;
+  }
+  .projected-number p {
+    font-size: 10px;
+  }
+  .horizon {
+    padding: 18px;
+  }
+  .horizon h2 {
+    font-size: 18px;
+  }
+  .horizon .section-heading {
+    margin-bottom: 12px;
+    flex-wrap: nowrap;
+  }
+  .horizon-total {
+    text-align: right;
+  }
+  .horizon-total strong {
+    font-size: 21px;
+  }
+  .horizon-total small {
+    display: none;
+  }
+  .horizon > p {
+    font-size: 9px;
+    margin-bottom: 10px;
+  }
+  .chart-scroll {
+    display: none;
+  }
+  .round-strip {
+    grid-auto-columns: 155px;
+    margin-top: 15px;
+  }
+  .round-strip button {
+    padding: 12px;
+    min-height: 130px;
+    border-radius: 12px;
+  }
+  .round-strip button b {
+    font-size: 24px;
+  }
+  .round-disclosure > summary {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 60px;
+    padding: 15px;
+    font-size: 11px;
+    border: 1px solid var(--rule);
+    border-radius: 9px;
+    background: var(--paper);
+    cursor: pointer;
+  }
+  .round-disclosure > summary strong {
+    white-space: nowrap;
+  }
+  .round-disclosure > summary span {
+    font-size: 9px;
+  }
+  .round-disclosure .round-detail {
+    margin-top: 12px;
+    padding: 16px;
+  }
+  .round-detail h2 {
+    font-size: 18px;
+  }
+  .round-yield strong {
+    font-size: 25px;
+  }
+  footer {
+    margin-top: 25px;
+    padding-bottom: 20px;
+  }
+  #image-credits {
+    font-size: 10px;
+  }
+  .footer-status {
+    gap: 10px;
+  }
+  #publication-status {
+    font-size: 9px;
+  }
+}
+.circuit-hero {
+  position: relative;
+  overflow: hidden;
+}
+.race-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.circuit-hero:has(.race-photo)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #10101070;
+  pointer-events: none;
+}
+.circuit-hero:has(.race-photo) .race-title {
+  position: relative;
+  z-index: 1;
+  color: #fff;
+}
+.circuit-hero:has(.race-photo) .race-title p,
+.circuit-hero:has(.race-photo) .race-kicker {
+  color: #fff;
+}
+.circuit-hero:has(.race-photo) .circuit-art {
+  z-index: 1;
+  position: relative;
+  margin: 20px;
+  width: calc(100% - 40px);
+  border-radius: 8px;
+  background: #fbfbfaf5;
+}
+@media (max-width: 650px) {
+  .circuit-hero:has(.race-photo) {
+    min-height: 240px;
+    display: flex;
+    align-items: flex-end;
+    padding-top: 100px;
+  }
+  .circuit-hero:has(.race-photo) .race-title {
+    width: 100%;
+    gap: 10px;
+    padding: 20px 18px;
+  }
+  .circuit-hero:has(.race-photo) .circuit-art {
+    position: absolute;
+    width: 140px;
+    top: 12px;
+    right: 12px;
+    margin: 0;
+    padding: 3px;
+  }
+  .circuit-hero:has(.race-photo) .circuit-art > span {
+    display: none;
+  }
+  .circuit-hero:has(.race-photo) .race-title h1 {
+    max-width: 270px;
+    font-size: 26px;
+  }
+}
+.asset-photo.official-photo {
+  object-fit: contain;
+  object-position: center;
+}
+.circuit-hero:has(.race-photo) .race-kicker {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+@media (max-width: 650px) {
+  .transfer-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .transfer-stack > div,
+  .transfer-stack > div > div {
+    min-width: 0;
+  }
+  .transfer-stack > div {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .transfer-stack > div > div {
+    width: 100%;
+  }
+  .transfer-stack > div > div > span {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .transfer-stack strong {
+    overflow-wrap: anywhere;
+    font-size: 11px;
+  }
+  .transfer-stack small {
+    white-space: normal;
+  }
+}

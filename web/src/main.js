@@ -3,7 +3,13 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./style.css";
-import { CHIPS, PREWEEK, total, validateTeam } from "./optimizer.js";
+import {
+  CHIPS,
+  PREWEEK,
+  total,
+  validateTeam,
+  validateDataset,
+} from "./optimizer.js";
 import { fetchDataset, verifyLive } from "./data.js";
 import {
   esc,
@@ -82,7 +88,8 @@ let active = 0,
   worker = null,
   error = "",
   busy = false,
-  previewAllowed = false,
+  planningTimer = null,
+  verificationText = "Published snapshot",
   revision = 0;
 const team = () => profiles[active];
 const asset = (id) => dataset.assets.find((a) => a.id === id);
@@ -95,6 +102,7 @@ function save() {
   }
 }
 function invalidate() {
+  clearTimeout(planningTimer);
   revision++;
   worker?.terminate();
   worker = null;
@@ -103,14 +111,22 @@ function invalidate() {
   selectedRound = 0;
   error = "";
   save();
+  queuePlan();
+}
+function queuePlan() {
+  clearTimeout(planningTimer);
+  if (!dataset || team().selected.length !== 7) return;
+  planningTimer = setTimeout(plan, 700);
 }
 function switchTeam(i) {
   invalidate();
   active = i;
+  queuePlan();
   render();
 }
-function route() {
+function route({ scroll = false } = {}) {
   const name = location.hash.slice(1);
+  if (name === "main") return;
   const page =
     name === "garage" || name === "asset-registry"
       ? "garage"
@@ -125,26 +141,18 @@ function route() {
   document
     .querySelectorAll("[data-nav][aria-current]")
     .forEach((a) => a.setAttribute("aria-current", "page"));
-  if (name === "asset-registry")
+  if (scroll && name === "asset-registry")
     $("#asset-registry").scrollIntoView({ block: "start" });
-  else if (name === "image-credits") {
+  else if (scroll && name === "image-credits") {
     $("#image-credits").open = true;
     $("#image-credits").scrollIntoView({ block: "start" });
   }
 }
-function openGarage() {
-  location.hash = "garage";
-  route();
-}
 function shell() {
   $("#app").innerHTML =
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Team Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
-    <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Team Garage" hidden><div class="page-heading"><h1>Team Garage</h1><a class="button" href="#strategy">Strategy ${icon("arrow")}</a></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Market Asset Registry</h2><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All targets</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search drivers or teams…"/><small>Official round prices · not intraday trends</small></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main><footer><div class="footer-status"><span><b>Pitwall</b> · Independent F1 Fantasy planning</span><span id="publication-status" role="status">Loading public data…</span><button id="refresh">Refresh data</button></div><p class="hint">Manual teams · published forecasts. Check official prices, eligibility and lock before making changes. No account submission.</p>${creditsMarkup()}</footer>`;
+     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Team Garage" hidden><div class="page-heading"><h1>Team Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main><footer><div class="footer-status"><span><b>Pitwall</b> · No account submission</span><span id="publication-status" role="status">Loading public data…</span></div>${creditsMarkup()}</footer>`;
   $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
-  $("#refresh").onclick = () => {
-    invalidate();
-    load();
-  };
   $("#search").oninput = renderMarket;
   document.querySelectorAll("[data-kind]").forEach(
     (b) =>
@@ -153,11 +161,24 @@ function shell() {
         renderMarket();
       }),
   );
-  addEventListener("hashchange", route);
-  route();
+  addEventListener("hashchange", () => route({ scroll: true }));
+  document.querySelectorAll("[data-nav]").forEach((link) => {
+    link.insertAdjacentHTML(
+      "afterbegin",
+      icon(
+        link.dataset.nav === "strategy"
+          ? "flag"
+          : link.dataset.nav === "garage"
+            ? "grid"
+            : "bolt",
+      ),
+    );
+  });
+  route({ scroll: true });
 }
 function render() {
   const focused = document.activeElement?.id;
+  const focusedChip = document.activeElement?.dataset.chip;
   const advancedOpen = $("#active-setup")?.open || Boolean(team().active);
   $("#team-switch").innerHTML = profiles
     .map(
@@ -171,13 +192,10 @@ function render() {
     $("#allocation").innerHTML = "";
     $("#roster-board").innerHTML = "";
     $("#header-cap").textContent = "Awaiting verified inputs";
-    const message = `<div class="panel welcome"><span class="eyebrow">Public forecast publication</span><h2>Waiting for the grid.</h2><p>${esc(error || "Loading public roster and forecasts…")}</p><button data-reload class="primary">Refresh data</button></div>`;
+    const message = `<div class="panel welcome"><h2>${error ? "Forecasts unavailable" : "Loading…"}</h2><p>${esc(error || "Fetching the latest publication.")}</p></div>`;
     $("#strategy").innerHTML = message;
     $("#insights").innerHTML = message;
     $("#settings").innerHTML = message;
-    document
-      .querySelectorAll("[data-reload]")
-      .forEach((b) => (b.onclick = load));
     return;
   }
   const t = team(),
@@ -186,23 +204,29 @@ function render() {
   $("#header-cap").innerHTML =
     `Cap <b>${money(cost)}</b> / ${money(t.budget)} <strong class="${cost > t.budget ? "negative" : "positive"}">${money(t.budget - cost)} free</strong>`;
   $("#publication-status").textContent =
-    `Prices checked ${new Date(dataset.price_checked_at).toLocaleString()} · 6h expiry`;
+    `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString()} · expires after 6h`;
+  $("#planning-status").textContent = busy
+    ? "Updating strategy…"
+    : result
+      ? "Strategy up to date"
+      : error
+        ? "Check team settings"
+        : t.selected.length === 7
+          ? "Strategy updates automatically"
+          : "Choose five drivers and two constructors";
   $("#profile-cards").innerHTML = profilesMarkup(dataset, profiles, active);
   document
     .querySelectorAll("[data-team]")
     .forEach((b) => (b.onclick = () => switchTeam(Number(b.dataset.team))));
   $("#allocation").innerHTML = allocationMarkup(dataset, t);
-  $("#roster-board").innerHTML =
-    `<div class="section-heading"><h2>Active Roster Assets</h2><span class="tag">${chosen.filter((a) => a.kind === "DRIVER").length}/5 drivers · ${chosen.filter((a) => a.kind === "CONSTRUCTOR").length}/2 constructors</span></div>${rosterMarkup(dataset, t, dataset.rounds[0])}`;
+  $("#roster-board").innerHTML = rosterMarkup(dataset, t, dataset.rounds[0]);
   $("#settings").innerHTML =
     `<div class="panel garage-config"><div class="garage-inputs"><label>Team name<input id="team-name" maxlength="32" value="${esc(t.name)}"/></label><label>Total budget ($m)<input id="budget" type="number" min="0.1" step="0.1" value="${t.budget / 10}" aria-describedby="budget-help"/></label><label>Free transfers<select id="transfers"><option value="0" ${!t.initial && t.carry === 0 ? "selected" : ""}>2 free · established team</option><option value="1" ${!t.initial && t.carry === 1 ? "selected" : ""}>3 free · one carried</option><option value="initial" ${t.initial ? "selected" : ""}>Unlimited · new team</option></select></label></div><p class="hint" id="budget-help">Budget = team value + cash. Enter the original race-week roster; extra transfers cost −10 points each.</p>
-  <fieldset class="chips"><legend>Chips <small>Coloured = available · grey = used</small></legend>${CHIPS.map(
-    (c) => {
-      const supported = dataset.chip_support[c]?.available !== false;
-      const available = t.chips.includes(c) && t.active !== c;
-      return `<button type="button" class="chip-toggle chip-${c} ${available ? "available" : "used"}" data-chip="${c}" aria-pressed="${available}" aria-label="${chipNames[c]}: ${t.active === c ? "active" : available ? "available" : "used"}" ${!supported || t.active === c ? "disabled" : ""} title="${esc(supported ? chipDescriptions[c] : "History unavailable")}">${chipIcon(c)}<span>${chipNames[c]}</span><small>${!supported ? "No history" : t.active === c ? "Active" : available ? "Available" : "Used"}</small></button>`;
-    },
-  ).join("")}</fieldset>
+   <fieldset class="chips"><legend>Chips</legend>${CHIPS.map((c) => {
+     const supported = dataset.chip_support[c]?.available !== false;
+     const available = t.chips.includes(c) && t.active !== c;
+     return `<button type="button" class="chip-toggle chip-${c} ${available ? "available" : "used"}" data-chip="${c}" aria-pressed="${available}" aria-label="${chipNames[c]}: ${t.active === c ? "active" : available ? "available" : "used"}" ${!supported || t.active === c ? "disabled" : ""} title="${esc(supported ? chipDescriptions[c] : "History unavailable")}">${chipIcon(c)}<span>${chipNames[c]}</span></button>`;
+   }).join("")}</fieldset>
   <details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
     t.active === "limitless"
       ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
@@ -224,7 +248,7 @@ function render() {
           )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. Required for full-season restoration.</p>`
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
-   <div class="garage-actions"><div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div><label class="check preview-consent"><input type="checkbox" id="preview-consent" ${previewAllowed ? "checked" : ""}/>Use published prices if live verification is blocked</label><button id="optimize" class="primary" ${busy ? "disabled" : ""}>${busy ? "Calculating…" : "Calculate changes"}${icon("arrow")}</button>${busy ? '<button id="cancel">Cancel</button>' : ""}</div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
+    <div class="garage-actions"><div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
   for (const id of ["budget", "transfers", "active-chip"])
     $(`#${id}`).onchange = () => {
       const value = $(`#${id}`);
@@ -233,6 +257,7 @@ function render() {
           parseMoney(value.value);
         } catch (e) {
           invalidate();
+          clearTimeout(planningTimer);
           error = e.message;
           render();
           return;
@@ -279,15 +304,6 @@ function render() {
       invalidate();
       render();
     };
-  $("#preview-consent").onchange = (e) => {
-    previewAllowed = e.target.checked;
-  };
-  $("#optimize").onclick = plan;
-  if ($("#cancel"))
-    $("#cancel").onclick = () => {
-      invalidate();
-      render();
-    };
   $("#export-team").onclick = exportTeam;
   $("#import-team").onchange = importTeam;
   renderStrategy();
@@ -296,6 +312,8 @@ function render() {
   route();
   if (focused && document.getElementById(focused))
     document.getElementById(focused).focus({ preventScroll: true });
+  else if (focusedChip)
+    $(`[data-chip="${focusedChip}"]`)?.focus({ preventScroll: true });
 }
 function renderMarket() {
   if (!dataset) return;
@@ -347,6 +365,8 @@ function renderStrategy() {
     result,
     busy,
     selectedRound,
+    error,
+    matchMedia("(max-width: 650px)").matches,
   );
   document.querySelectorAll("[data-round]").forEach(
     (b) =>
@@ -356,7 +376,6 @@ function renderStrategy() {
         $(`[data-round="${selectedRound}"]`).focus({ preventScroll: true });
       }),
   );
-  if ($("#replan")) $("#replan").onclick = plan;
   if (result && result.rounds[0].transfers === 0) {
     const next = result.rounds.slice(1).find((r) => r.transfers > 0);
     $(".directive-grid").insertAdjacentHTML(
@@ -368,47 +387,54 @@ function renderStrategy() {
 function renderInsights() {
   $("#insights").innerHTML = insightsMarkup();
 }
+function acceptDataset(fresh) {
+  dataset = fresh;
+  for (const t of profiles) {
+    if (t.season !== null && t.season !== dataset.season) {
+      t.selected = [];
+      t.chips = [...CHIPS];
+      t.active = "";
+      t.restore = [];
+    }
+    t.season = dataset.season;
+    t.allowPenalties = true;
+    t.chips = t.chips.filter(
+      (c) => dataset.chip_support[c]?.available !== false,
+    );
+  }
+  save();
+}
 async function load() {
-  const request = ++revision;
-  error = "";
-  dataset = null;
-  result = null;
-  render();
+  if (busy) return;
+  const request = revision;
   try {
     const fresh = await fetchDataset();
     if (request !== revision) return;
-    dataset = fresh;
-    selectedRound = 0;
-    for (const t of profiles) {
-      if (t.season !== null && t.season !== dataset.season) {
-        t.selected = [];
-        t.chips = [...CHIPS];
-        t.active = "";
-        t.restore = [];
-      }
-      t.season = dataset.season;
-      t.allowPenalties = true;
-      t.chips = t.chips.filter(
-        (c) => dataset.chip_support[c]?.available !== false,
-      );
+    if (JSON.stringify(fresh) === JSON.stringify(dataset)) {
+      if (!result) queuePlan();
+      return;
     }
-    save();
+    invalidate();
+    acceptDataset(fresh);
+    verificationText = "Published snapshot";
+    queuePlan();
   } catch (e) {
     if (request !== revision) return;
+    invalidate();
+    clearTimeout(planningTimer);
+    dataset = null;
     error = e.message;
     $("#publication-status").textContent = error;
   }
   render();
 }
 async function plan() {
-  if (busy) return;
+  if (busy || !dataset || team().selected.length !== 7) return;
   try {
     validateTeam(dataset, team());
   } catch (e) {
     error = e.message;
     render();
-    openGarage();
-    $("#editor-error").focus();
     return;
   }
   busy = true;
@@ -417,22 +443,19 @@ async function plan() {
   selectedRound = 0;
   render();
   const profile = active,
-    request = ++revision;
+    request = revision;
   try {
     const fresh = await fetchDataset();
     if (!busy || profile !== active || request !== revision) return;
     if (JSON.stringify(fresh) !== JSON.stringify(dataset)) {
-      dataset = fresh;
-      throw new Error(
-        "New forecasts have arrived. Check the updated grid and run your plan again.",
-      );
+      acceptDataset(fresh);
+      validateTeam(fresh, team());
     }
     const check = await verifyLive(fresh);
     if (!busy || profile !== active || request !== revision) return;
-    if (!check.verified && !previewAllowed)
-      throw new Error(
-        "Live prices cannot be verified. Tick the published-snapshot preview option to continue, or use the Python CLI with live feeds.",
-      );
+    verificationText = check.verified
+      ? "Live prices verified"
+      : "Published-snapshot preview · live verification unavailable";
     worker = new Worker(new URL("./worker.js", import.meta.url), {
       type: "module",
     });
@@ -443,17 +466,13 @@ async function plan() {
       busy = false;
       result = data.result || null;
       error = data.error || "";
-      render();
-      if (result) {
-        location.hash = "strategy";
-        route();
-        $("#strategy h1").setAttribute("tabindex", "-1");
-        $("#strategy h1").focus({ preventScroll: true });
-        window.scrollTo({ top: 0, behavior: "instant" });
-      } else {
-        openGarage();
-        $("#editor-error").focus();
+      try {
+        validateDataset(dataset);
+      } catch (e) {
+        result = null;
+        error = e.message;
       }
+      render();
     };
     worker.onerror = () => {
       if (request !== revision) return;
@@ -463,8 +482,6 @@ async function plan() {
       error =
         "The browser solver failed to load. Refresh or try a WebAssembly-capable browser.";
       render();
-      openGarage();
-      $("#editor-error").focus();
     };
     worker.postMessage({ dataset: fresh, team: structuredClone(team()) });
   } catch (e) {
@@ -472,8 +489,6 @@ async function plan() {
     busy = false;
     error = e.message;
     render();
-    openGarage();
-    $("#editor-error").focus();
   }
 }
 function exportTeam() {
@@ -544,6 +559,7 @@ async function importTeam(e) {
     profiles[active] = imported;
     save();
     render();
+    queuePlan();
   } catch (e) {
     error = `Cannot import team: ${e.message}`;
     render();
@@ -552,3 +568,9 @@ async function importTeam(e) {
 shell();
 render();
 load();
+setInterval(() => {
+  if (!document.hidden) load();
+}, 60_000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) load();
+});

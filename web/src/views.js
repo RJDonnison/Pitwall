@@ -1,6 +1,11 @@
 import { total } from "./optimizer.js";
 import { esc } from "./text.js";
-import { portrait, priceTrend, circuitMarkup } from "./visuals.js";
+import {
+  portrait,
+  priceTrend,
+  circuitMarkup,
+  racePhotoMarkup,
+} from "./visuals.js";
 export { esc } from "./text.js";
 export const points = (value) =>
   Number(value).toLocaleString(undefined, {
@@ -94,7 +99,7 @@ export function rosterMarkup(dataset, team, round) {
   return ["DRIVER", "CONSTRUCTOR"]
     .map(
       (kind) =>
-        `<div class="roster-cards ${kind === "CONSTRUCTOR" ? "constructor-cards" : ""}">${Array.from(
+        `<h2 class="roster-section-heading">${kind === "DRIVER" ? "Active drivers" : "Constructors"}<span>${team.selected.filter((id) => dataset.assets.find((a) => a.id === id)?.kind === kind).length}/${kind === "DRIVER" ? 5 : 2}</span></h2><div class="roster-cards ${kind === "CONSTRUCTOR" ? "constructor-cards" : ""}">${Array.from(
           { length: kind === "DRIVER" ? 5 : 2 },
           (_, i) => {
             const a = dataset.assets.filter(
@@ -137,7 +142,7 @@ export function heroMarkup(
   selectedRound = result?.selectedRound || 0,
 ) {
   const r = dataset.rounds[selectedRound];
-  return `<section class="race-hero circuit-hero"><div class="race-title"><span class="race-kicker">Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><h1>${esc(r.name)}</h1><p>${dataset.rounds.length} rounds remaining · ${esc(new Date(r.first_session_utc).toLocaleDateString(undefined, { day: "numeric", month: "long" }))}</p><a class="button" href="#garage">${result ? "Edit team" : "Team Garage"} ${icon("arrow")}</a></div>${circuitMarkup(r.name)}</section>`;
+  return `<section class="race-hero circuit-hero">${racePhotoMarkup(r.name)}<div class="race-title"><span class="race-kicker">Round ${r.round} · ${r.sprint ? "Sprint" : "Regular"} weekend</span><h1>${esc(r.name)}</h1><p>${dataset.rounds.length} rounds remaining · ${esc(new Date(r.first_session_utc).toLocaleDateString(undefined, { day: "numeric", month: "long" }))}</p></div>${circuitMarkup(r.name)}</section>`;
 }
 export function referencePoints(dataset, team) {
   if (team.selected.length !== 7) return null;
@@ -171,13 +176,20 @@ function boostDirective(dataset, round) {
     : entry.total;
   return `<section class="panel directive boost-directive">
     <div class="directive-heading"><span>${icon("bolt")}Regular Boost · next round</span><span class="tag">2×</span></div>
-    <div class="boost-visual">${helmet()}<div><span class="eyebrow">${automatic ? "Autopilot chooses after scoring" : "Designated driver"}</span><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Highest total across the whole weekend" : esc(constructorName(dataset, driver))}</p></div></div>
+    <div class="boost-visual">${helmet()}<div><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Autopilot · whole-weekend winner" : esc(constructorName(dataset, driver))}</p></div></div>
     <div class="boost-output"><strong>${points(value)}</strong><span>${automatic ? "expected extra Boost points" : "forecast pts including 2×"}</span></div>
-    <p>${automatic ? "The scoring driver varies across the model’s joint scenarios." : round.x3 ? `Separate 3×: ${esc(dataset.assets.find((a) => a.id === round.x3).name)}.` : "Regular 2× applies to one selected driver."}</p>
-    <div class="directive-footer">${round.chip === "no_negative" ? "Includes category-specific No Negative uplift" : "Whole-weekend scoring, including Sprint when present"}</div>
+     ${automatic ? '<p class="hint">Scenario-dependent winner.</p>' : round.x3 ? `<p>3×: ${esc(dataset.assets.find((a) => a.id === round.x3).name)}.</p>` : ""}
   </section>`;
 }
-export function strategyMarkup(dataset, team, result, busy, selectedRound) {
+export function strategyMarkup(
+  dataset,
+  team,
+  result,
+  busy,
+  selectedRound,
+  error = "",
+  compact = false,
+) {
   // Presentation summaries distinguish each selection's gross total from the
   // round's net points after transfer penalties.
   if (result)
@@ -191,7 +203,7 @@ export function strategyMarkup(dataset, team, result, busy, selectedRound) {
       })),
     };
   if (!result)
-    return `${heroMarkup(dataset, team, result)}<section class="panel welcome"><h2>${busy ? "Calculating…" : team.selected.length === 7 ? "Your team is ready" : "Choose your starting seven"}</h2><p>${busy ? "Optimizing lineups, transfers and chips across the season. This can take up to 90 seconds." : team.selected.length === 7 ? "Calculate to see the recommended swaps, Boost and chip timing." : "Add five drivers and two constructors in the Garage."}</p>${team.selected.length === 7 && !busy ? '<button id="replan" class="primary">Calculate changes</button>' : '<a class="button primary" href="#garage">Team Garage</a>'}</section>`;
+    return `${heroMarkup(dataset, team, result)}<section class="panel welcome" role="status"><h2>${busy ? "Updating strategy…" : error ? "Strategy unavailable" : team.selected.length === 7 ? "Preparing strategy…" : "Choose your starting seven"}</h2><p>${error ? esc(error) : busy ? "Optimizing the remaining season." : team.selected.length === 7 ? "Changes are calculated automatically." : "Five drivers and two constructors in the Garage."}</p></section>`;
   const first = result.rounds[0],
     round = result.rounds[selectedRound];
   const reference = referencePoints(dataset, team),
@@ -219,13 +231,13 @@ export function strategyMarkup(dataset, team, result, busy, selectedRound) {
     .map((c) => `<i class="${team.chips.includes(c) ? "available" : ""}"></i>`)
     .join(
       "",
-    )}<small>${team.chips.length} of 6 marked available</small></div><div class="directive-footer">Next planned chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "No further pre-weekend chip"}</span></div></section></div>
+    )}</div><div class="directive-footer">Next chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "None planned"}</span></div></section></div>
   <section class="panel score-panel"><div class="section-heading"><div><span class="eyebrow accent">Expected score summary · next round</span><h2>Projected output. Not a promise.</h2></div><span class="tag">Conditional optimality · exact solve</span></div><div class="score-comparison"><div class="projected-number"><strong>${points(first.points)}</strong><span>Fantasy points · after penalties</span><p><b class="${first.points < reference[0] ? "negative" : "positive"}">${delta(first.points - reference[0])} pts</b> versus the unchanged roster with best 2×, without chips.</p></div><div><div class="comparison-label"><span>Unchanged roster · best 2× only</span><strong>${points(reference[0])}</strong></div><div class="comparison-track"><i style="width:${(100 * Math.max(0, reference[0])) / denominator}%"></i></div><div class="comparison-label accent"><span>Recommended roster · Boost + chip</span><strong>${points(first.points)}</strong></div><div class="comparison-track recommended"><i style="width:${(100 * Math.max(0, first.points)) / denominator}%"></i></div><div class="score-components"><span>Drivers <b>${points(driverScore)}</b></span><span>Constructors <b>${points(constructorScore)}</b></span><span>Transfer penalty <b>−${first.transfer_penalty}</b></span></div></div></div></section>
-  <section class="panel horizon"><div class="section-heading"><div><span class="eyebrow">Remaining rounds trajectory</span><h2>A championship-length view.</h2></div><div class="horizon-total"><strong>${points(result.points)} pts</strong><small>${delta(result.points - baseline)} vs 2×-only reference</small></div></div><p>Cumulative Fantasy points after transfer penalties. Future prices stay fixed at this snapshot; this is not a confidence interval or FIA championship projection.</p><div class="chart-scroll">${chart(
+  <section class="panel horizon"><div class="section-heading"><h2>Season plan</h2><div class="horizon-total"><strong>${points(result.points)} pts</strong><small>${delta(result.points - baseline)} vs 2×-only reference</small></div></div><p>Predicted Fantasy points after penalties · future prices held constant.</p><div class="chart-scroll">${chart(
     result.rounds.map((r) => (cumulative += r.points)),
     result.rounds.map((r) => `R${r.round}`),
   )}</div><div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="${r.chip ? "accent" : ""}">${r.chip ? chipNames[r.chip] : "Save chips"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>
-  ${roundMarkup(dataset, team, round)}<div class="plan-endnote"><span>${icon("shield")}Proven optimal for these forecast inputs and entered rules.</span><button id="replan" class="primary">Recalculate season ${icon("arrow")}</button></div>`;
+  <details class="round-disclosure" ${compact ? "" : "open"}><summary>R${round.round} · ${esc(shortRace(round.name))}<strong>${points(round.points)} pts</strong><span>Breakdown ↓</span></summary>${roundMarkup(dataset, team, round)}</details>`;
 }
 function roundMarkup(dataset, team, r) {
   // Autopilot's expected extra points are distributed over scenario winners,
@@ -242,5 +254,5 @@ function roundMarkup(dataset, team, r) {
     )}</tbody></table></div><div class="round-finances"><span>Lineup valuation <b>${money(r.cost)}</b> ${r.chip === "limitless" ? "· temporarily uncapped" : `/ ${money(team.budget)} cap`}</span><span>Penalty <b>−${r.transfer_penalty} pts</b></span><span>Carry forward <b>${r.carry} transfer</b></span></div></section>`;
 }
 export function insightsMarkup() {
-  return `<section class="coming-soon panel"><span class="coming-mark">${icon("clock")}</span><h1>Forecasts</h1><p>Coming soon.</p><a class="button" href="#strategy">Back to strategy</a></section>`;
+  return `<section class="coming-soon panel"><span class="coming-mark">${icon("clock")}</span><h1>Forecasts</h1><p>Coming soon.</p></section>`;
 }

@@ -4,19 +4,19 @@
 
 - Static, responsive Pitwall interface with three locally saved manual teams, budgets, carried transfers and remaining/active chips.
 - Browser HiGHS WebAssembly optimizes the remaining season jointly; show every selection's Q/S/R points, Boost, chips, changes, budget and penalties by round.
-- GitHub Pages workflow publishes fresh public Python forecasts every two hours. Browser CORS restrictions require explicit labelled snapshot-preview consent when live verification fails; publications expire after six hours.
-- Container deployment has been removed. The existing CLI tools remain available. Pages publication needs a GitHub remote/account and repository Pages configuration.
+- GitHub Pages workflow publishes fresh public Python forecasts every two hours. Browser CORS restrictions use a labelled snapshot preview automatically when live verification is unavailable; publications still expire after six hours.
+- Container deployment has been removed. The existing CLI tools remain available; publication uses the repository's GitHub Pages workflow.
 - Publication refreshes market inputs and forecasts every two hours; a separate daily/manual job updates the committed public historical dataset. These are scheduled snapshots, not live race streaming.
 
 ## Website versions — implementation order
 
 ### V5 — UI remake (implemented)
 
-- Follow the supplied `DESIGN.md` Grand Prix Broadsheet system and the three Visual Strategy, Team Garage and Simulation/Insights Stitch references.
+- Follow the supplied `DESIGN.md` Grand Prix Broadsheet system and the Visual Strategy/Garage and dedicated mobile Stitch references, with compact roster rows, horizontal team tabs and fixed mobile navigation.
 - Race-specific circuit Strategy with transfer/Boost/chip directives, net score comparisons, cumulative remaining-season points, selectable round cards and exact seven-selection breakdowns.
 - Full-width Team Garage with three existing local profiles, licensed driver/car photographs, actual recorded round-price sparklines, capital allocation, price-focused asset registry, coloured/grey chip controls, budget/free-transfer settings and JSON import/export.
-- Forecasts is a Coming soon page. Real race probabilities, fastest-pit and FIA championship predictions remain V6. Image/circuit authors, open licences and archival-photo caveats are available in the website credits.
-- Preserve the optimizer, local-storage format, explicit snapshot-preview consent, expiry checks, responsive layouts, keyboard focus and reduced-motion support. Mockup-only lock timers, weather and confidence statistics are not presented as live data.
+- Forecasts is a Coming soon page. Real race probabilities, fastest-pit and FIA championship predictions remain V6. The requested TracingInsights 2026 driver/car set is matched by current team and driver; exact source/licence records and separately licensed archival venue photos are in the credits.
+- Calculate automatically after complete-team changes and foreground publication updates, without changing page, focus or chip-toggle scroll position. Preserve the optimizer, local-storage format, labelled snapshot state, expiry/conflict checks, keyboard focus and reduced-motion support. Mockup-only lock timers, weather and confidence statistics are not presented as live data.
 
 ### V6 — Race Insights page
 

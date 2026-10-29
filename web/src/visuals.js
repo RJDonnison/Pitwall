@@ -1,5 +1,6 @@
 import photos from "./media.json" with { type: "json" };
 import circuits from "./circuits.json" with { type: "json" };
+import racePhotos from "./race-media.json" with { type: "json" };
 import { esc } from "./text.js";
 
 export const logo = () =>
@@ -7,16 +8,16 @@ export const logo = () =>
 export function portrait(asset, fallback = "") {
   const photo = photos[asset.id];
   return photo
-    ? `<img class="asset-photo ${asset.kind === "CONSTRUCTOR" ? "car-photo" : ""}" src="${esc(photo.path)}" alt="${esc(photo.subject)} (archive photograph)" title="${esc(photo.author)} · ${esc(photo.license)} · full attribution in footer" loading="lazy" width="480" height="480"/>`
+    ? `<img class="asset-photo ${asset.kind === "CONSTRUCTOR" ? "car-photo" : ""} ${photo.repository ? "official-photo" : ""}" src="${esc(photo.path)}${photo.revision ? `?v=${esc(photo.revision.slice(0, 12))}` : ""}" alt="${esc(photo.subject)}${photo.repository ? "" : " (archive photograph)"}" title="${esc(photo.author)} · ${esc(photo.license)} · full attribution in footer" loading="lazy" width="480" height="480"/>`
     : fallback;
 }
 export function creditsMarkup() {
-  return `<details id="image-credits"><summary>Image & circuit credits</summary><p>Archive photos may show earlier clothing or livery. Resized WebP copies retain the source licence; photos do not imply endorsement.</p><ul>${Object.values(
-    photos,
+  return `<details id="image-credits"><summary>Image & circuit credits</summary><p>Driver and car images: Formula 1, via the requested TracingInsights 2026 repository (Apache-2.0 repository licence). Source imagery is not labelled Creative Commons. Venue photographs retain their individual Commons licences. No endorsement is implied.</p><ul>${Object.values(
+    { ...photos, ...racePhotos },
   )
     .map(
       (p) =>
-        `<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} · ${esc(p.subject)}</a> — ${esc(p.author)} · <a href="${esc(p.license_url)}" target="_blank" rel="noopener noreferrer">${esc(p.license)}</a>. ${esc(p.changes)}</li>`,
+        `<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} · ${esc(p.subject)}</a> — ${esc(p.author)} · <a href="${esc(p.license_url)}" target="_blank" rel="noopener noreferrer">${esc(p.license)}</a>${p.repository ? ` · <a href="${esc(p.repository)}" target="_blank" rel="noopener noreferrer">Pinned source</a>` : ""}. ${esc(p.changes)}</li>`,
     )
     .join(
       "",
@@ -96,6 +97,12 @@ export function chipIcon(name) {
       '<path d="m4 20 11-11m-3-5a6 6 0 0 0 8 8l-4-4 1-3 3-1a6 6 0 0 0-8 0ZM3 17l4 4"/>',
   };
   return `<svg class="chip-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || ""}</svg>`;
+}
+export function racePhotoMarkup(name) {
+  const photo = racePhotos[circuitForRace(name)?.id];
+  return photo
+    ? `<img class="race-photo" src="${esc(photo.path)}" alt="${esc(photo.subject)} (archive venue photograph)" title="${esc(photo.author)} · ${esc(photo.license)} · attribution in footer" width="1100" height="600"/>`
+    : "";
 }
 export function priceTrend(dataset, asset) {
   const rows = dataset.price_history?.[asset.id]?.slice(-4) || [];

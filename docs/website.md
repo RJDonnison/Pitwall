@@ -19,7 +19,7 @@ season optimization. It requires known elapsed points and remaining-session
 eligibility in the actual post-qualifying window; the optional account CLI retains
 that workflow. A season plan's projected total excludes hypothetical Final Fix
 benefits. Future prices are held constant and no future race result is used as
-an input. Re-plan after each race or price/roster/budget/chip change.
+an input. Update your manual team after a race; the browser replans after edits.
 
 No passwords, cookies, account identifiers or users' teams are sent to a server.
 Local storage is browser/origin-specific; export a team to move devices or preserve
@@ -75,7 +75,7 @@ A Pages site cannot bypass that with client JavaScript or a secret embedded in
 the bundle. Before **every** solve the site re-fetches the publication and attempts
 fresh official roster, price, Statistics and schedule/lock checks. A successful
 check detecting changed prices/roster or a locked event stops planning. A network/
-CORS failure permits only an explicitly consented, labelled **snapshot preview**.
+CORS failure uses a labelled **published-snapshot preview** automatically.
 It never says manual budget, transfer state or chip inventory are account-verified.
 
 Published data expires after six hours. Started or locked target weekends are
@@ -84,6 +84,14 @@ unavailable manifest instead of silently presenting prior data as fresh. CI or
 deployment failures can leave an older site online, but browser expiry still
 blocks its data. Truly live verified account recommendations on a static Pages
 origin need a separately deployed backend/proxy, which is not part of this site.
+
+With seven selections, edits are debounced for 700 milliseconds before planning.
+Further edits terminate the old worker; replies from obsolete work are discarded.
+Calculations stay on the current page and do not move focus or scroll position.
+The foreground page checks for a new publication every minute and when returning
+to a backgrounded tab. Only a changed publication or changed team requires a new
+solve. Missing/expired data clears the old plan and retries on a later refresh;
+the six-hour limit and readable official-feed conflicts still stop planning.
 
 ## Run and check locally
 
@@ -140,6 +148,8 @@ tabular figures. The exact Stitch project `6085770950590244465` references are:
 - `8c7013a0b2254d19b7293cfe93cdd18b`: Visual Strategy & Season Breakdown.
 - `202e82a082484112bf664e97e619b45f`: Visual Team Garage.
 - `999e252f73234cf290cbc36dfbef6bd4`: Visual Race Simulation & Insights.
+- `67e915462af84cd2869006d89d411a16`: Strategy (Mobile).
+- `215de48ec39247258ab4a50bc1803b96`: Team Garage (Mobile).
 
 Strategy includes an actual circuit-coordinate outline, transfer/Boost/chip directives,
 next-round net score comparison, cumulative Fantasy trajectory and selectable
@@ -155,19 +165,23 @@ a new team). The removed new-team/completed/paid checkboxes are replaced by this
 single control and a fixed net-points policy: extra transfers always cost −10.
 Chip icons are coloured when available and grey when marked used; toggles do not
 activate anything on the official game. An active chip is still configured in
-the advanced section. Predictions need an explicit Calculate changes action;
-zero current swaps can be optimal, with later planned changes explained.
+the advanced section. There are no manual Calculate, Recalculate, Refresh or
+snapshot-consent controls. Zero current swaps can be optimal, with later planned
+changes explained. Chip state is shown by colour and accessible pressed-state
+labels rather than repetitive Available/Used text. Redraws do not re-scroll to
+the registry hash anchor; automatic completion never changes the selected page.
 
-All 33 current assets have locally hosted Commons photographs under CC BY,
-CC BY-SA or CC0, with source, author, licence and modification credits in the
-footer and `web/public/media/ATTRIBUTION.json`. Photos can show earlier clothing
-or car livery; they are not generated portraits or claims about current imagery.
-Resized derivatives retain their respective source licences. Circuit outlines
-use the MIT-licensed `bacinger/f1-circuits` coordinate dataset and change when
-the selected strategy round changes. Unknown circuits are labelled unavailable.
-`scripts/fetch_open_media.py` reproducibly imports only verified open licences
-(developer refresh requires requests and Pillow); licence exceptions are not
-silently treated as Creative Commons.
+All 33 current assets have locally hosted 2026 images from the requested
+`TracingInsights/2026` collection, matched by current constructor and driver TLA.
+Headshots are preferred; a missing headshot uses the matching upper-body cutout.
+Transparent car sideviews are retained. The upstream repository uses Apache-2.0
+and identifies Formula 1 as the image source; these images are not labelled
+Creative Commons. The exact commit, original CDN URL and transformations are
+recorded in the footer and `web/public/media/ATTRIBUTION.json`. The five remaining
+venue photographs have separate Commons licences and archival dates. Circuit
+outlines use the MIT-licensed `bacinger/f1-circuits` coordinates. Both venue photo
+and circuit change with the selected round; unknown circuits are unavailable.
+See [media replacement and provenance](media.md) for both importers and crops.
 
 Sparklines use the latest four available official round-price observations in
 `data/history.json`, followed by the freshly verified current price. These are
@@ -180,8 +194,7 @@ championship predictions remain V6; weather remains V8. The mockups' sample
 confidence, weather, league rankings and lock countdowns are not measurements.
 
 The large preview banner is removed; the footer retains the price-check time,
-six-hour expiry, refresh control, manual-input disclosure and image credits.
-Explicit snapshot consent remains next to Calculate changes. Inputs and chip controls
+six-hour expiry, live/snapshot status and image credits. Inputs and chip controls
 are labelled; keyboard focus, skip navigation and reduced-motion preferences
 are supported. Charts have textual values/accessible descriptions and signed
 point tables. Tables and round cards scroll within their regions on narrow

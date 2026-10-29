@@ -1,0 +1,57 @@
+{
+  "mx-1962": {
+    "path": "./media/mx-1962.webp",
+    "name": "mx-1962",
+    "subject": "Autódromo Hermanos Rodríguez, June 4, 2018 SkySat (cropped).jpg",
+    "author": "Planet Labs, Inc.",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Aut%C3%B3dromo_Hermanos_Rodr%C3%ADguez,_June_4,_2018_SkySat_(cropped).jpg",
+    "date": "2018-06-04",
+    "changes": "Resized and converted to WebP. Archival venue photograph, not a live race image."
+  },
+  "br-1940": {
+    "path": "./media/br-1940.webp",
+    "name": "br-1940",
+    "subject": "Autódromo de Interlagos em Dezembro de 2023.jpg",
+    "author": "Boaventuravinicius",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Aut%C3%B3dromo_de_Interlagos_em_Dezembro_de_2023.jpg",
+    "date": "10 December 2023 (according to Exif data)",
+    "changes": "Resized and converted to WebP. Archival venue photograph, not a live race image."
+  },
+  "us-2023": {
+    "path": "./media/us-2023.webp",
+    "name": "us-2023",
+    "subject": "Bellagio Fountain Club (2023).jpg",
+    "author": "Tomás Del Coro",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Bellagio_Fountain_Club_(2023).jpg",
+    "date": "2023-10-14",
+    "changes": "Resized and converted to WebP. Archival venue photograph, not a live race image."
+  },
+  "qa-2004": {
+    "path": "./media/qa-2004.webp",
+    "name": "qa-2004",
+    "subject": "Title board LIS.JPG",
+    "author": "Trinidade",
+    "license": "CC BY-SA 3.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+    "source": "https://commons.wikimedia.org/wiki/File:Title_board_LIS.JPG",
+    "date": "2013-04-04 18:15:03",
+    "changes": "Resized and converted to WebP. Archival venue photograph, not a live race image."
+  },
+  "ae-2009": {
+    "path": "./media/ae-2009.webp",
+    "name": "ae-2009",
+    "subject": "North Grandstand at the Yas Marina circuit in Abu Dhabi.jpg",
+    "author": "TravelPhotosNL",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:North_Grandstand_at_the_Yas_Marina_circuit_in_Abu_Dhabi.jpg",
+    "date": "2024-02-24 14:03:11",
+    "changes": "Resized and converted to WebP. Archival venue photograph, not a live race image."
+  }
+}

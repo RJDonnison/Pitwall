@@ -108,3 +108,16 @@ test("Forecasts is explicitly coming soon without showing model scores", () => {
   assert.doesNotMatch(html, /-5\.0|Forecast round|<table/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });
+test("Strategy updates automatically without manual calculation controls", () => {
+  const { data, team } = fixture();
+  const html = strategyMarkup(data, team, null, false, 0);
+  assert.match(html, /automatically/);
+  assert.doesNotMatch(
+    html,
+    /id="replan"|Calculate changes|Recalculate|href="#garage"/,
+  );
+  assert.match(
+    strategyMarkup(data, team, null, false, 0, "Bad budget"),
+    /Bad budget/,
+  );
+});
