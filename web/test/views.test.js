@@ -104,6 +104,30 @@ test("Autopilot displays scenario-dependent extra points without naming a fixed 
   assert.doesNotMatch(html, /2× Boost<\/span>/);
 });
 
+test("a selected future Autopilot round explains the Boost already included in its net total", () => {
+  const { data, team, result } = fixture();
+  const round = structuredClone(result.rounds[0]);
+  round.round = 11;
+  round.chip = "autopilot";
+  round.entries.forEach((e, i) => {
+    e.extra = [0, 0, i === 0 ? 4 : i === 1 ? 8 : 0];
+    e.sessions = e.base.map((v, k) => v + e.extra[k]);
+    e.points = 10 + e.extra[2];
+  });
+  round.points = 72;
+  result.rounds.push(round);
+  result.points = 142;
+  const html = strategyMarkup(data, team, result, false, 1);
+  assert.match(html, /R11 · Autopilot 2× included/);
+  assert.match(
+    html,
+    /70\.0<\/strong> unboosted team \+ <strong>12\.0<\/strong> expected 2× extra − <strong>10\.0<\/strong> transfer penalty = <strong>72\.0 pts/,
+  );
+  assert.match(html, /no single forecast row necessarily doubles/);
+  assert.equal((html.match(/Autopilot eligible/g) || []).length, 5);
+  assert.doesNotMatch(html, /NaN|undefined/);
+});
+
 test("Race Insights reports missing publication evidence without fabricated scores", () => {
   const { data, team } = fixture();
   data.rounds[0].forecasts["0"] = [-5, 0, 0];

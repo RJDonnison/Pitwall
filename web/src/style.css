@@ -17,6 +17,22 @@
   line-height: 1.55;
   font-size: 14px;
 }
+
+.autopilot-summary {
+  padding: 24px;
+}
+.autopilot-summary p {
+  line-height: 1.6;
+}
+.autopilot-summary p:last-child {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+@media (max-width: 600px) {
+  .autopilot-summary {
+    padding: 16px;
+  }
+}
 .insights-page {
   display: grid;
   gap: 24px;

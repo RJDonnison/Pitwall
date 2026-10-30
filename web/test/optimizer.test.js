@@ -186,6 +186,39 @@ test("Autopilot selects one whole-weekend winner per joint scenario", () => {
   assert.ok(Math.abs(r.points - python(data, team).points) < 1e-5);
 });
 
+test("Autopilot total includes exactly one extra copy of the best whole-weekend driver in each scenario", () => {
+  const { data, team } = fixture();
+  data.rounds = [data.rounds[1]];
+  team.active = "autopilot";
+  const round = data.rounds[0];
+  for (const a of data.assets) {
+    round.forecasts[a.id] = a.kind === "DRIVER" ? [1, 0, 1] : [0, 0, 0];
+    if (a.kind === "DRIVER")
+      round.autopilot.forEach((s) => (s[a.id] = [1, 0, 1]));
+  }
+  round.autopilot[0]["0"] = [10, 0, 30];
+  round.autopilot[1]["0"] = [0, 20, 0];
+  round.forecasts["0"] = [5, 10, 15];
+  round.autopilot[0]["1"] = [0, 0, 10];
+  round.autopilot[1]["1"] = [10, 0, 50];
+  round.forecasts["1"] = [5, 0, 30];
+  round.forecasts.c0 = [3, 0, 4];
+  round.forecasts.c1 = [1, 0, 2];
+  const result = optimize(highs, data, team);
+  const r = result.rounds[0];
+  // Unboosted team = 81. Winners score 40 and 60: mean extra = 50.
+  // Highest mean driver alone scores 35; choosing that driver in advance is 116.
+  assert.equal(r.points, 131);
+  assert.equal(result.points, 131);
+  assert.deepEqual(r.sessions, [27, 10, 94]);
+  assert.equal(total(r.entries.map((e) => total(e.base))), 81);
+  assert.equal(total(r.entries.map((e) => total(e.extra))), 50);
+  assert.deepEqual(r.entries.find((e) => e.id === "0").extra, [5, 0, 15]);
+  assert.deepEqual(r.entries.find((e) => e.id === "1").extra, [5, 0, 25]);
+  assert.equal(r.entries.find((e) => e.id === "c0").points, 7);
+  assert.equal(r.entries.find((e) => e.id === "c1").points, 3);
+});
+
 test("missing chip evidence, invalid teams and unknown restoration fail", () => {
   const { data, team } = fixture();
   team.active = "limitless";

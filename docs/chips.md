@@ -102,6 +102,14 @@ Under Autopilot it remains the fallback fixed Boost; scoring uses scenario
 winners. The X3 driver is selected, distinct from Boost, and gets two additional
 copies of its score alongside the ordinary 2× driver.
 
+The website shows an explicit breakdown for the selected Autopilot round:
+unboosted team + expected 2× extra − transfer penalty = net team points.
+The extra is already included in each driver's session and total columns,
+distributed over the drivers who win the joint scenarios. A single driver's
+forecast row need not be exactly doubled: the winning driver can change between
+scenarios. Constructors receive no Autopilot multiplier, and the ordinary fixed
+Boost is replaced rather than added again.
+
 Wildcard permits unlimited net transfers within budget with no penalty.
 Limitless removes the scoring team's cap and transfer restriction, while
 freezing a separate durable roster at its prior selection. `limitless_restore`

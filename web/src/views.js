@@ -290,7 +290,7 @@ export function strategyMarkup(
      result.rounds.map((r) => (cumulative += r.points)),
      result.rounds.map((r) => `R${r.round}`),
    )}</div><div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="plan-chip ${r.chip ? `chip-${r.chip}` : "saved-chip"}">${r.chip ? chipIcon(r.chip) : icon("shield")}${r.chip ? chipNames[r.chip] : "Save"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>
-   ${roundMarkup(dataset, team, round)}`;
+    ${round.chip === "autopilot" ? `<section class="panel autopilot-summary" aria-label="Autopilot points breakdown"><div class="section-heading"><h2>R${round.round} · Autopilot 2× included</h2></div><p><strong>${points(total(round.entries.map((e) => total(e.base))))}</strong> unboosted team + <strong>${points(total(round.entries.map((e) => total(e.extra))))}</strong> expected 2× extra − <strong>${points(round.transfer_penalty)}</strong> transfer penalty = <strong>${points(round.points)} pts</strong>.</p><p>One extra copy of the best selected driver's whole-weekend score is included in every scenario. Different drivers can win different scenarios, so the expected extra is shared across their rows below; no single forecast row necessarily doubles.</p></section>` : ""}${roundMarkup(dataset, team, round)}`;
 }
 function roundMarkup(dataset, team, r) {
   // Autopilot's expected extra points are distributed over scenario winners,
