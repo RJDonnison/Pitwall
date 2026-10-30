@@ -19,7 +19,7 @@ from . import (
     accuracy,
 )
 from .chips import CHIPS, components, load_chip_values, valid_estimate
-from .projections import estimate_assets
+from .projections import Estimate, estimate_assets
 from .race_context import race_context
 
 
@@ -65,6 +65,29 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
     document = (public_history.current() or {}).get("document", {})
     archive = archive if archive is not None else {"schema": 1, "forecasts": []}
     forecasts = estimate_assets(live.assets, weekends, use_telemetry=telemetry)
+    weather_models = []
+    for t, weekend in enumerate(weekends):
+        weather = weather_model.candidate(
+            live.assets,
+            weekend,
+            {a.id: components(forecasts[t, a.id]) for a in live.assets},
+            contexts[t].get("weather", {}),
+            document,
+            cutoff,
+        )
+        if weather["status"] == "candidate":
+            weather["applied"] = any(n >= 3 for n in weather["samples"].values())
+            weather["status"] = (
+                "selected" if weather["applied"] else "insufficient_history"
+            )
+            weather["reason"] = (
+                "Pre-weekend weather adjustment selected"
+                if weather["applied"]
+                else "Fewer than three matching same-format weather observations; base estimates retained"
+            )
+            for a in live.assets:
+                forecasts[t, a.id] = Estimate(*weather["forecasts"][a.id])
+        weather_models.append(weather)
     for t, weekend in enumerate(weekends):
         for asset in live.assets:
             if not valid_estimate(forecasts[t, asset.id]):
@@ -84,14 +107,7 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         )
         row.update(contexts[t])
         row["forecasts"] = {a.id: components(forecasts[t, a.id]) for a in live.assets}
-        row["weather_model"] = weather_model.candidate(
-            live.assets,
-            weekend,
-            row["forecasts"],
-            row.get("weather", {}),
-            document,
-            cutoff,
-        )
+        row["weather_model"] = weather_models[t]
         if values is not None:
             row["no_negative"] = {
                 a.id: components(values.no_negative[t, a.id]) for a in live.assets
@@ -121,9 +137,6 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
             telemetry=telemetry,
         ),
         "price_gameday_id": live.weekend.gameday_id,
-        "weather_evaluation": weather_model.evaluation(
-            forecast_archive.settled(archive, document, generated)
-        ),
         "price_history": price_history(live),
         "assets": [{**output.asset(a), "tla": a.tla} for a in live.assets],
         "rounds": rounds,
@@ -132,6 +145,8 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         "model": {
             "telemetry": telemetry,
             "risk": True,
+            "weather": weather_model.VERSION,
+            "historical_mae_scope": "Base Fantasy model replay excludes weather; weather_evaluation and accuracy use archived forward forecasts",
             "future_prices_assumed_constant": True,
             "fantasy": {
                 k: v
@@ -146,8 +161,12 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         "preview_only": True,
         "notice": "Published forecasts are a planning preview. Verify current prices, roster, budget, transfers and chip eligibility on the official game before changing your team.",
     }
+    settlements = forecast_archive.settled(archive, document, cutoff)
+    publication["weather_evaluation"] = weather_model.evaluation(
+        settlements, publication["model"]
+    )
     publication["accuracy"] = accuracy.report(
-        forecast_archive.settled(archive, document, cutoff),
+        settlements,
         publication["model"],
         generated,
     )

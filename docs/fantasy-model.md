@@ -80,6 +80,28 @@ evaluation. Static publication exposes group selection and metrics under
 can supply existing Fantasy score proxies without raw-session reloads; these
 simplified position/grid/NC proxies remain distinct from official category scores.
 
+## Selected website weather adjustment and MAE scope
+
+The public website now applies V7's weather analogue to the base estimates before
+chip inputs and optimizer selections are built. Verified pre-first-session daily
+outlooks condition earlier finalized same-format official scores; at least three
+matching observations are required, with shrinkage toward the base estimate.
+Sparse or unavailable weather leaves that session unchanged. This adjustment
+does not change the separate Race Insights probabilities.
+
+The table above and `data/fantasy-evaluation.json` evaluate the base model only.
+The qualifying/race aggregates pool regular and Sprint weekends; Sprint-session
+evidence has only two weekends. An independent audit recomputed all reported MAE
+values and checked all 858 targets against official Q/S/final-total-derived race
+labels, with training-round metadata preceding every target. Those figures are
+not weather-adjusted forward accuracy or an untouched holdout.
+
+The live archive preserves both weather-adjusted and weather-free forecasts for
+paired forward MAE by population, session, format and model configuration. It
+does not manufacture historical issued forecasts from observed weather. See
+[website.md](website.md#v7--selected-weather-adjustments-and-forward-archive)
+for the selection, provenance and accuracy-range boundaries.
+
 ## Wildcard comparisons
 
 Wildcard makes transfers free **within the team's budget**. It does not equalize

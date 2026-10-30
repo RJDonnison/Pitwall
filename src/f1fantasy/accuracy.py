@@ -16,6 +16,7 @@ def identity(model):
     configuration = {
         "telemetry": model.get("telemetry"),
         "risk": model.get("risk"),
+        "weather": model.get("weather"),
         "fantasy": fantasy.get("model"),
         "selected": {
             k: v.get("selected") for k, v in fantasy.get("groups", {}).items()
@@ -35,7 +36,8 @@ def baseline(assets, document, cutoff, sprint):
         matches = [
             r
             for r in document.get("racing", [])
-            if abs(
+            if public_history.date(r["end"]) < cutoff
+            and abs(
                 (
                     public_history.date(r["end"]) - public_history.date(end)
                 ).total_seconds()

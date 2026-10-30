@@ -136,3 +136,34 @@ def test_price_history_uses_recorded_values_and_fresh_current_price(
         {"gameday_id": 19, "price_tenths_m": 50},
     ]
     assert result["price_history"]["1"] == [{"gameday_id": 19, "price_tenths_m": 50}]
+
+
+def test_selected_weather_forecasts_feed_chip_planning_and_publication(
+    public, monkeypatch
+):
+    def candidate(assets, weekend, forecasts, weather, document, cutoff):
+        return dict(
+            status="candidate",
+            samples={"0/Q": 3},
+            applied=False,
+            baseline_forecasts=forecasts,
+            forecasts={key: [q + 3, s, r + 7] for key, (q, s, r) in forecasts.items()},
+        )
+
+    seen = {}
+
+    monkeypatch.setattr(web_data.weather_model, "candidate", candidate)
+
+    # No empirical chip samples, so only inspect the forecasts supplied to chips.
+    def unavailable_chips(assets, weekends, forecasts):
+        seen.update(forecasts)
+        raise DataError("No same-format chip history")
+
+    monkeypatch.setattr(web_data, "load_chip_values", unavailable_chips)
+    result = web_data.build(2026)
+    assert result["rounds"][0]["forecasts"]["0"] == (5, 0, 17)
+    assert seen[0, "0"] == Estimate(5, 0, 17)
+    weather = result["rounds"][0]["weather_model"]
+    assert weather["applied"] and weather["status"] == "selected"
+    assert weather["baseline_forecasts"]["0"] == (2, 0, 10)
+    assert result["model"]["weather"] == web_data.weather_model.VERSION

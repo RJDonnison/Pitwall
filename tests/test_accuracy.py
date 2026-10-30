@@ -67,6 +67,12 @@ def test_sprint_and_model_version_evidence_are_separate():
     assert r["groups"]["DRIVER/S/sprint"]["radius"] is None
     changed = {**MODEL, "fantasy": {"model": "test-v2", "groups": {}}}
     assert accuracy.report(data, changed, NOW)["status"] == "insufficient_history"
+    assert (
+        accuracy.report(data, {**MODEL, "weather": "weather-analogue-v2"}, NOW)[
+            "status"
+        ]
+        == "insufficient_history"
+    )
 
 
 def test_baseline_excludes_later_and_other_format_results():

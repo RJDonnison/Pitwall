@@ -192,8 +192,8 @@ are omitted for a cleaner panel. These are air forecasts, not track temperatures
 that the entire race is wet. Beyond the 16-day window, missing/invalid weather or
 an API outage displays an unavailable state; it cannot prevent publication of valid
 Fantasy forecasts. No browser API key or account credentials are involved. The optional
-weather request runs with each two-hour public-data publication; weather is display
-context only and does not influence scoring, selection or the optimizer. Unknown
+weather request runs with each two-hour public-data publication. V7 uses verified
+daily forecasts to adjust selected Fantasy session estimates before chip planning. Unknown
 circuits/seasons do not inherit another venue's specifications.
 
 The Garage retains `pitwall-teams-v1` storage and JSON import/export. Settings
@@ -253,8 +253,8 @@ not intraday quotes or price forecasts. Missing history shows an unavailable
 label rather than a synthetic trend. Historical prices do not replace current
 market verification or change the constant-future-price optimizer assumption.
 
-Race Insights implements V6; weather's integration into the race model remains
-V8. Mockup confidence, league rankings, track temperatures and lock countdowns are
+Race Insights implements V6; V7 adjusts selected Fantasy forecasts, while racing
+outcome probabilities retain their existing joint model. Mockup confidence, league rankings, track temperatures and lock countdowns are
 not measurements. The footer mirrors Stitch's strategic-principle, optimizer,
 forecasts and privacy sections while retaining actual data status and image credits.
 
@@ -319,7 +319,7 @@ are published alongside the weekend aggregates. Values retain units, UTC dates,
 fetch time and attribution in the export and site source information. The repeated
 weather footer is removed; Open-Meteo attribution remains in the site footer.
 Out-of-horizon/missing weather stays unavailable;
-air temperature is not labelled track temperature and weather remains display-only.
+air temperature is not labelled track temperature. See V7 for the daily-weather Fantasy adjustment.
 
 `f1fantasy.insights` adds an optional `insights` object to the existing schema-1
 forecast publication. It uses 4,000 seeded joint racing draws per remaining round,
@@ -428,33 +428,43 @@ The Fantasy output chart separately shows unboosted Q/S/R predictions and
 weekend totals, excluding chips and transfer penalties. Insights needs no complete
 Garage team. Missing Insights does not block valid Fantasy forecasts. Six-hour
 freshness and price verification still apply. Model, seed, samples, cutoff and
-sources are disclosed. V7 question recommendations, V8 weather modeling and V9
-calibrated accuracy remain planned.
-# V7 — Weather-aware candidate and forward archive
+sources are disclosed. V7 weather and V8 accuracy are implemented; V9 website
+question recommendations remain planned.
+# V7 — Selected weather adjustments and forward archive
 
 The selected round exposes a timestamped Open-Meteo daily outlook (CC BY 4.0).
 Dry means a maximum daily precipitation probability below 30%, wet at least
 70%, and changeable the intervening range. These are forecast classifications,
 not observed track conditions or session-specific rainfall probabilities.
 
-`weather_model.py` builds separate Q/S/R candidates from earlier official Fantasy
-session scores matched to observed historical dry/wet/mixed regimes. At least
+`weather_model.py` builds separate Q/S/R adjustments from earlier, finalized official Fantasy
+session scores from the same regular/Sprint format, matched to historical dry/wet/mixed regimes. At least
 three matching observations are required; differences from unconditional form
 are shrunk with eight prior observations. Pace, incident and reliability effects
 remain combined in the official scores; separate causal effects are not claimed.
 Missing weather or sparse analogues retain the existing session estimate.
 
-Weather is a shadow candidate, not a claimed improvement. The website reports
-paired candidate/existing-model MAE separately for regular and Sprint weekends.
+At the user's request, verified weather now changes the selected Fantasy forecasts
+before empirical chip inputs are built, so ordinary selection, Boosts and chip planning
+share the same adjusted means. Missing weather or fewer than three matching observations
+retain the original estimate. Race Insights win/podium/placement odds are not adjusted
+by this Fantasy-score analogue. The verbose weather-model panel has been removed;
+weather provenance and diagnostics remain in the public dataset.
+
+The archive stores both the selected adjustment and its original weather-free
+forecast. Paired forward MAE compares identical entrants separately by driver/constructor,
+Q/S/R and regular/Sprint format, averaging entrant errors within each weekend before
+averaging weekends. It never compares the adjusted forecast against itself.
+No improvement is claimed merely because the adjustment is selected.
 Only actual archived forecasts, retrieved before the first session, can enter
 these forward comparisons. No observed historical weather is substituted for
 an unavailable historical issued forecast. Daily maxima are a coarse proxy;
-session-specific predictions and automatic promotion require stronger evidence.
+session-specific rainfall predictions require stronger evidence.
 
 Pages preserves the first publication for the nearest upcoming round in
 `data/forecast-archive.json`. Later runs never rewrite that prediction. The
 archive includes generation/cutoff times, models, roster, weather, selected and
-candidate session scores. Settlement requires matching season/round, completed
+weather-free session scores. Settlement requires matching season/round, completed
 official Fantasy totals and a completed racing record. A new archive starts
 empty: waiting for finalized outcomes is an honest unavailable state.
 # V8 — Forward accuracy and visual uncertainty
@@ -488,8 +498,8 @@ conservative and provisional until later coverage is available.
 Every interval is frozen in its original pre-weekend archive. Coverage is
 computed against those original bounds, never bounds refitted using that
 weekend's outcome. Evaluation/calibration only uses official settlements earlier
-than the publication cutoff. Model algorithm versions, telemetry/risk settings
-and selected group modes define a configuration fingerprint; different
+than the publication cutoff. Model algorithm versions, telemetry/risk settings,
+weather-adjustment version and selected group modes define a configuration fingerprint; different
 configurations are not pooled. Retrained parameters within that configuration
 remain part of the evolving forecasting procedure.
 
@@ -499,3 +509,7 @@ constructor, qualifying, Sprint and race errors remain separate, as do regular
 and Sprint weekends. Individual errors are not summed into team/transfer/chip
 uncertainty. The archive starts empty and acquires real evidence over time;
 retrospective reconstructed folds are not relabelled as published predictions.
+The historical `model.fantasy.groups[*].mae` values are base-model chronological
+replays, not MAE for the newly selected weather adjustment. `model.historical_mae_scope`
+makes that distinction explicit. Weather-specific MAE remains unavailable until
+genuinely archived pre-weekend weather forecasts have finalized outcomes.

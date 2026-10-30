@@ -1,10 +1,11 @@
-"""Pre-cutoff empirical weather analogues with forward-only promotion evidence."""
+"""Pre-cutoff weather adjustments and paired forward-only accuracy evidence."""
 
 import numpy as np
 
 from . import public_history
+from .accuracy import identity
 
-VERSION = "weather-analogue-v1"
+VERSION = "weather-analogue-v2"
 
 
 def classify(probability):
@@ -33,38 +34,48 @@ def candidate(assets, weekend, forecasts, weather, document, cutoff):
         condition=condition,
         reason="Experimental daily-weather analogue; forward evidence required",
         forecasts={},
+        baseline_forecasts={key: list(value) for key, value in forecasts.items()},
     )
     racing = [
-        r for r in document.get("racing", []) if public_history.date(r["end"]) < cutoff
+        r
+        for r in document.get("racing", [])
+        if public_history.date(r["end"]) < cutoff
+        and ("S" in r.get("sessions", {})) == weekend.sprint
     ]
+    samples = []
+    for record in racing:
+        days = [
+            day
+            for day, end in document.get("fantasy_events", {}).items()
+            if public_history.date(end) < cutoff
+            and abs(
+                (
+                    public_history.date(end) - public_history.date(record["end"])
+                ).total_seconds()
+            )
+            < 43200
+        ]
+        if len(days) != 1:
+            continue
+        samples.append(
+            (
+                record,
+                {
+                    str(r["PlayerId"]): r
+                    for r in document.get("fantasy", {}).get(days[0], [])
+                },
+            )
+        )
     for asset in assets:
         scores = list(forecasts[asset.id])
         for i, kind in enumerate(("Q", "S", "R")):
             if kind == "S" and not weekend.sprint:
                 continue
             all_values, conditioned = [], []
-            for record in racing:
-                days = [
-                    day
-                    for day, end in document.get("fantasy_events", {}).items()
-                    if abs(
-                        (
-                            public_history.date(end)
-                            - public_history.date(record["end"])
-                        ).total_seconds()
-                    )
-                    < 43200
-                ]
-                if len(days) != 1:
+            for record, rows in samples:
+                if kind not in record.get("sessions", {}):
                     continue
-                row = next(
-                    (
-                        r
-                        for r in document.get("fantasy", {}).get(days[0], [])
-                        if str(r["PlayerId"]) == asset.id
-                    ),
-                    None,
-                )
+                row = rows.get(asset.id)
                 if row is None:
                     continue
                 try:
@@ -75,7 +86,7 @@ def candidate(assets, weekend, forecasts, weather, document, cutoff):
                         if kind == "S"
                         else float(row["GamedayPoints"])
                         - float(row["QualifyingPoints"])
-                        - float(row.get("SprintPoints") or 0)
+                        - (float(row["SprintPoints"]) if weekend.sprint else 0)
                     )
                 except (KeyError, TypeError, ValueError):
                     continue
@@ -100,45 +111,61 @@ def candidate(assets, weekend, forecasts, weather, document, cutoff):
     return result
 
 
-def evaluation(settlements):
+def evaluation(settlements, configuration=None):
     groups = []
-    for sprint in (False, True):
-        for kind_index, kind in enumerate(("Q", "S", "R")):
-            if kind == "S" and not sprint:
-                continue
-            pairs = []
-            for row in settlements:
-                model = row.get("weather_model") or {}
-                if (
-                    row["sprint"] != sprint
-                    or model.get("model") != VERSION
-                    or model.get("status") != "candidate"
-                ):
+    for population in ("DRIVER", "CONSTRUCTOR"):
+        for sprint in (False, True):
+            for kind_index, kind in enumerate(("Q", "S", "R")):
+                if kind == "S" and not sprint:
                     continue
-                errors = [
-                    (
-                        abs(model["forecasts"][a][kind_index] - y[kind_index]),
-                        abs(row["forecasts"][a][kind_index] - y[kind_index]),
-                    )
-                    for a, y in row["actual"].items()
-                    if a in model.get("forecasts", {}) and a in row["forecasts"]
-                ]
-                if errors:
-                    pairs.append(np.mean(errors, axis=0))
-            groups.append(
-                {
-                    "sprint": sprint,
-                    "session": kind,
-                    "weekends": len(pairs),
-                    "candidate_mae": float(np.mean(pairs, axis=0)[0])
-                    if pairs
-                    else None,
-                    "baseline_mae": float(np.mean(pairs, axis=0)[1]) if pairs else None,
-                }
-            )
+                pairs = []
+                for row in settlements:
+                    model = row.get("weather_model") or {}
+                    if (
+                        row["sprint"] != sprint
+                        or (
+                            configuration is not None
+                            and identity(row["model"]) != identity(configuration)
+                        )
+                        or model.get("model") != VERSION
+                        or model.get("status")
+                        not in {"candidate", "selected", "insufficient_history"}
+                        or "baseline_forecasts" not in model
+                    ):
+                        continue
+                    baseline = model["baseline_forecasts"]
+                    eligible = {
+                        a["id"] for a in row["assets"] if a["kind"] == population
+                    }
+                    errors = [
+                        (
+                            abs(model["forecasts"][a][kind_index] - y[kind_index]),
+                            abs(baseline[a][kind_index] - y[kind_index]),
+                        )
+                        for a, y in row["actual"].items()
+                        if a in eligible
+                        and a in model.get("forecasts", {})
+                        and a in baseline
+                    ]
+                    if errors:
+                        pairs.append(np.mean(errors, axis=0))
+                groups.append(
+                    {
+                        "sprint": sprint,
+                        "kind": population,
+                        "session": kind,
+                        "weekends": len(pairs),
+                        "candidate_mae": float(np.mean(pairs, axis=0)[0])
+                        if pairs
+                        else None,
+                        "baseline_mae": float(np.mean(pairs, axis=0)[1])
+                        if pairs
+                        else None,
+                    }
+                )
     return {
         "model": VERSION,
-        "status": "shadow",
+        "status": "forward_evaluation",
         "groups": groups,
-        "reason": "Candidate retained for chronological forward comparison; no improvement claimed or automatic promotion",
+        "reason": "Paired archived weather-adjusted and weather-free forecasts; no improvement claimed before finalized forward evidence",
     }

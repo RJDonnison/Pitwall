@@ -23,7 +23,8 @@ are never substituted. Coverage begins at the 2024 US GP and remains incomplete.
 Missing durations are not inferred. The archive holds summaries, not raw telemetry
 or account data. Current-weekend practice and actual grids remain excluded because
 post-session editing authority has not been verified. Website weather forecasts
-are display-only.
+adjust selected Fantasy session points through V7's separate score analogue;
+they do not change this racing model's win/podium/placement probabilities.
 
 ## Nested walk-forward comparison
 

@@ -70,7 +70,7 @@ function curve(asset, p, label) {
       values.length - 1,
     ]),
   ];
-  return `<svg class="placement-curve" viewBox="0 0 460 160" role="group" aria-label="${esc(asset.name)} ${label} position probabilities"><title>${values.map((v, i) => `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(v)}`).join("; ")}</title><text x="30" y="18">${pct(peak)}</text><path class="curve-grid" d="M30 28H430 M30 77H430 M30 126H430 M400 28V126"/><path class="curve-area" d="${line} L${coords[p.positions.length - 1][0]},126 L30,126Z"/><path class="curve-line" d="${line}"/>${coords
+  return `<svg class="placement-curve" viewBox="0 0 460 160" role="group" aria-label="${esc(asset.name)} ${label} position probabilities"><title>${values.map((v, i) => `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(v)}`).join("; ")}</title><text x="30" y="18">Peak outcome: ${pct(peak)}</text><path class="curve-grid" d="M30 28H430 M30 77H430 M30 126H430 M400 28V126"/><path class="curve-area" d="${line} L${coords[p.positions.length - 1][0]},126 L30,126Z"/><path class="curve-line" d="${line}"/>${coords
     .map(([x, y], i) => {
       const text = `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(values[i])}`;
       return `<g class="curve-point" tabindex="0" role="img" aria-label="${text}"><circle class="curve-hit" cx="${x}" cy="${y}" r="8"/><circle cx="${x}" cy="${y}" r="2"/><g class="curve-tooltip" transform="translate(${Math.min(350, Math.max(0, x - 52))},${Math.max(0, y - 38)})"><rect width="104" height="30" rx="4"/><text x="52" y="20" text-anchor="middle">${text}</text></g></g>`;

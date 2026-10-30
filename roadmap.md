@@ -31,7 +31,7 @@
 - Add sourced, timestamped weather forecasts and condition classification, such as dry, wet and changeable, to the race model.
 - Evaluate effects on pace, reliability and qualifying/Sprint/race outcomes using only weather information available at prediction time.
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
-- Daily weather classifications drive a shrunk official-score analogue candidate for Q/S/R. Candidate predictions stay separate from the selected optimizer until forward evidence supports a change. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages.
+- Daily weather classifications drive a shrunk same-format official-score adjustment for selected Q/S/R Fantasy forecasts and chip planning. Weather-free counterfactuals are archived for paired forward MAE by population/session/format; selection is not an improvement claim. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages. Race Insights odds retain the joint racing model.
 
 ### V8 — Forecast confidence and accuracy scores (implemented; forward archive collecting)
 
