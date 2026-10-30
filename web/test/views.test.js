@@ -165,6 +165,33 @@ test("regular Boost uses its driver's real portrait, not an arbitrary Autopilot 
   assert.doesNotMatch(automatic, /class="boost-backdrop"/);
 });
 
+test("3× Boost features the tripled driver, portrait and score while retaining the separate 2× driver", () => {
+  const { data, team, result } = fixture();
+  data.assets[1].id = "131";
+  data.assets[1].name = "Max <Verstappen>";
+  const round = result.rounds[0];
+  round.chip = "x3";
+  round.x3 = "131";
+  round.entries[1] = {
+    ...round.entries[1],
+    id: "131",
+    extra: [4, 0, 16],
+    sessions: [6, 0, 24],
+    points: 30,
+  };
+  const html = strategyMarkup(data, team, result, false);
+  const boost = html.slice(
+    html.indexOf('<section class="panel directive boost-directive'),
+    html.indexOf('<section class="panel directive chip-directive'),
+  );
+  assert.match(boost, /Driver Boost<\/span><span class="tag">3×/);
+  assert.match(boost, /<h2>Max &lt;Verstappen&gt;<\/h2>/);
+  assert.match(boost, /boost-backdrop[^>]*><img[^>]*media\/131.webp/);
+  assert.match(boost, /30.0<\/strong><span>forecast pts including 3×/);
+  assert.match(boost, /2×: Selection 0/);
+  assert.doesNotMatch(boost, /NaN|undefined|including 2×/);
+});
+
 test("roster changes separate removal and arrival lists without implying swap pairs", () => {
   const { data } = fixture();
   const html = transfersMarkup(data, ["0", "5"], ["1", "6"]);

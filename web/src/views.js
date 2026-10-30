@@ -204,14 +204,16 @@ function transferDirective(dataset, team, round) {
 }
 function boostDirective(dataset, round) {
   const automatic = round.chip === "autopilot";
-  const driver = dataset.assets.find((a) => a.id === round.boost);
-  const entry = round.entries.find((e) => e.id === round.boost);
+  const boostedId = round.x3 || round.boost;
+  const multiplier = round.x3 ? 3 : 2;
+  const driver = dataset.assets.find((a) => a.id === boostedId);
+  const entry = round.entries.find((e) => e.id === boostedId);
   const value = automatic
     ? total(round.entries.map((e) => total(e.extra)))
     : entry.total;
   return `<section class="panel directive boost-directive ${automatic ? "boost-automatic" : "boost-driver"}">
     ${!automatic ? `<div class="boost-backdrop" aria-hidden="true">${portrait(driver, helmet())}</div>` : ""}
-    <div class="directive-heading"><span>${icon("bolt")}Driver Boost</span><span class="tag">2×</span></div>
+    <div class="directive-heading"><span>${icon("bolt")}Driver Boost</span><span class="tag">${multiplier}×</span></div>
     <div class="boost-visual">${
       automatic
         ? `<div class="boost-candidates" aria-label="Autopilot selects among these five drivers">${round.entries
@@ -229,8 +231,8 @@ function boostDirective(dataset, round) {
             .join("")}</div>`
         : ""
     }<div><h2>${automatic ? "Best selected driver" : esc(driver.name)}</h2><p>${automatic ? "Autopilot · whole-weekend winner" : esc(constructorName(dataset, driver))}</p></div></div>
-    <div class="boost-output"><strong>${points(value)}</strong><span>${automatic ? "expected extra Boost points" : "forecast pts including 2×"}</span></div>
-     ${!automatic && round.x3 ? `<p>3×: ${esc(dataset.assets.find((a) => a.id === round.x3).name)}</p>` : ""}
+    <div class="boost-output"><strong>${points(value)}</strong><span>${automatic ? "expected extra Boost points" : `forecast pts including ${multiplier}×`}</span></div>
+     ${!automatic && round.x3 ? `<p>2×: ${esc(dataset.assets.find((a) => a.id === round.boost).name)}</p>` : ""}
   </section>`;
 }
 export function strategyMarkup(
