@@ -2,7 +2,7 @@
 
 ## What users can do
 
-- Save three independent teams locally, name them, and import/export JSON.
+- Save independent teams locally, add a blank team with **New team**, name them, and import/export JSON.
 - Enter the original race-week five drivers/two constructors, total budget
   (roster value plus cash), one carried transfer, initial-team status and chips.
 - Allow paid net transfers only when their predicted gain justifies their cost.
@@ -23,7 +23,10 @@ an input. Update your manual team after a race; the browser replans after edits.
 
 No passwords, cookies, account identifiers or users' teams are sent to a server.
 Local storage is browser/origin-specific; export a team to move devices or preserve
-it when clearing site data. Three team profiles can belong to different people.
+it when clearing site data. Saved teams can belong to different people. Garage's
+**New team** button adds and selects a separate blank roster without overwriting
+existing teams. It starts with a $100m budget, all chips available, no carried
+transfers and unlimited initial team selection; additional teams persist after reload.
 
 ## Exact browser optimization
 

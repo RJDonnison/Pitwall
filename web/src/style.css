@@ -609,6 +609,17 @@ article {
 .page-heading > label {
   min-width: 230px;
 }
+.garage-heading > div {
+  min-width: 0;
+}
+.garage-heading #planning-status {
+  display: block;
+  max-width: none;
+  color: var(--muted);
+}
+#new-team {
+  flex-shrink: 0;
+}
 .full-width {
   width: 100%;
 }
