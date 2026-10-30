@@ -90,3 +90,51 @@ an explicit time-decayed finalized official-winner prior is retained. Publicatio
 cutoffs survive backfilled labels; unknown winner-team mappings fail closed.
 Repair/red-flag services do not set the normal-service centre. This is not a
 lap-by-lap strategy simulator; teams without timing history borrow the field prior.
+
+## Not-classified probabilities
+
+Race Insights shows a per-driver "not classified" probability and, for teams, the
+probability that **either** car is not classified. Both come from the joint draws.
+
+**What the data contains.** In the 2024-2026 archive all 180 retirements carry the
+generic status `Retired`, so `racing_data.cause()` labels every one of them
+`unknown`. No retirement is identified as mechanical, collision or driver error.
+The team-pooled *mechanical* path therefore has no failures to learn from, and all
+retirements enter the shared incident count.
+
+**What that did.** The shared count was assigned to drivers uniformly at random, so
+every driver received almost the same probability (about 15% on the published
+Round 19 forecast, 14.5%-17.1%, differing only by Monte Carlo noise) and every
+team about 28%-30% for "either car". Observed 2026 rates differ widely by team
+(for example 38% for Aston Martin and 36% for Cadillac over the first 18 rounds).
+
+**The level was not too high.** Over the 42 races of 2025-2026, walk-forward, the
+mean predicted probability was 14.9% against 14.6% observed (either car: 27.5%
+against 25.8%). It looks high next to 2024 (9.8%) and 2025 (11.5%) because 2026
+is 18.7% so far; the model follows recent races with a two-event half-life.
+
+**The change.** The shared event count is kept (so the number of retirements still
+varies from race to race), but *who* retires is now drawn in proportion to each
+team's recent retirement propensity: event-decayed (half-life 6 events) team
+rates, pooled toward the field with a prior of 16 driver-races
+(`RETIREMENT_HALF_LIFE`, `RETIREMENT_PRIOR`). Disqualifications, did-not-starts and
+identified mechanical failures are excluded from the propensity (they have their
+own paths). Teams without history take the field rate.
+
+| Walk-forward, 42 races (2025-2026) | Uniform assignment | Team-weighted | Paired difference [90% interval] |
+|---|---:|---:|---|
+| Per-driver NC Brier | 0.1252 | 0.1222 | -0.0029 [-0.0049, -0.0010] |
+| Either-car NC Brier | 0.1920 | 0.1844 | -0.0075 [-0.0124, -0.0025] |
+| Winner Brier | | | +0.0006 [-0.0051, +0.0064] |
+| Podium Brier | | | +0.0001 [-0.0006, +0.0010] |
+| Position RPS | | | -0.0007 [-0.0018, +0.0003] |
+
+Reproduce with `python -m f1fantasy.nc_walkforward`. The pooling settings were
+chosen on these races, but every setting tried (half-life 4-12, prior 8-32) was
+within 0.0005 Brier of the others. `data/racing-evaluation.json` was **not**
+regenerated; winner/pole/podium scores were unchanged within noise.
+
+**Still missing.** Real retirement causes. Until the archive records them (race
+control messages, a source with detailed statuses, or at least the first-lap
+flag already stored), mechanical reliability, collisions and driver errors cannot
+be separated, and team propensity is the only structure available.

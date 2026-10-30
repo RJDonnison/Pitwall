@@ -143,6 +143,47 @@ def _form(records, drivers, kind, params):
     return means, noise, teams
 
 
+# Retirement propensity used to decide *who* retires in a shared incident count.
+# Chosen on the 2025-2026 walk-forward in docs/racing-model.md (not-classified
+# section): a slower decay than the pace half-life and a pooling prior of 16
+# driver-races toward the field rate.
+RETIREMENT_HALF_LIFE = 6.0
+RETIREMENT_PRIOR = 16.0
+
+
+def _retirement_propensity(records, kind, team_ids, teams, drivers):
+    """Per-team not-classified rate, pooled toward the field, in event-decayed counts.
+
+    Counts every retirement that is not a disqualification, a did-not-start or an
+    identified mechanical failure (those have their own paths). Teams without
+    history take the field rate.
+    """
+    from .racing_data import cause
+
+    exposures = dict.fromkeys(team_ids, 0.0)
+    failures = dict.fromkeys(team_ids, 0.0)
+    by_name = {}
+    for team in team_ids:
+        original = next(d["team_id"] for d in drivers if str(d["team_id"]) == team)
+        by_name[teams[original]] = team
+    for age, rec in enumerate(reversed(records[-24:])):
+        weight = 2.0 ** (-age / RETIREMENT_HALF_LIFE)
+        for row in rec["sessions"].get(kind, []):
+            team = by_name.get(row.get("team_name"))
+            reason = cause(row.get("status", ""))
+            if team is None or reason in {"disqualified", "did_not_start"}:
+                continue
+            exposures[team] += weight
+            failures[team] += weight * (not row["classified"] and reason != "mechanical")
+    field = (sum(failures.values()) + 0.5) / (sum(exposures.values()) + 1.0)
+    return np.array(
+        [
+            (failures[t] + RETIREMENT_PRIOR * field) / (exposures[t] + RETIREMENT_PRIOR)
+            for t in team_ids
+        ]
+    )
+
+
 def draw(records, drivers, simulations, rng, telemetry, params):
     from .racing_data import cause
 
@@ -261,7 +302,12 @@ def draw(records, drivers, simulations, rng, telemetry, params):
             counts = np.array(incident_counts)[sampled]
             # One sampled event count is shared by the field. Drivers are chosen
             # without replacement, so a multi-car incident remains a joint event.
-            order = np.argsort(rng.random((simulations, n)), axis=1)
+            # Selection is weighted by each team's recent retirement propensity
+            # (Gumbel top-k), because most retirements carry no usable cause and
+            # would otherwise be spread uniformly over the grid.
+            propensity = _retirement_propensity(records, kind, team_ids, teams, drivers)
+            keys = np.log(propensity)[ti][None, :] + rng.gumbel(size=(simulations, n))
+            order = np.argsort(-keys, axis=1)
             incident_rank = np.argsort(order, axis=1)
             classified &= incident_rank >= counts[:, None]
         performance += (~classified) * (

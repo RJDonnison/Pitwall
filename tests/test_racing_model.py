@@ -156,3 +156,57 @@ def test_stationary_minimum_uses_service_time_and_opportunity_counts():
     p = pitstop_model.simulate(events, ["A", "B"], str, simulations=3000, prior=1)
     assert p["A"] > 0.95
     assert sum(p.values()) == pytest.approx(1)
+
+
+def retiring_history(count=12):
+    """Team B's cars retire in most races with the generic status 'Retired'."""
+    records = history(count)
+    for rec in records:
+        for row in rec["sessions"]["R"]:
+            if row["team_name"] == "B":
+                row["classified"] = False
+                row["status"] = "Retired"
+    return records
+
+
+def test_retirement_propensity_follows_team_history_and_pools_toward_field():
+    records = retiring_history()
+    drivers = racing_model.roster(records[-1])
+    team_ids = sorted({str(d["team_id"]) for d in drivers})
+    teams = {d["team_id"]: d["team_name"] for d in drivers}
+    rates = racing_model._retirement_propensity(records, "R", team_ids, teams, drivers)
+    by_team = dict(zip(team_ids, rates))
+    # Pooling toward the field keeps both rates away from 0 and 1.
+    assert by_team["B"] > 2.5 * by_team["A"]
+    assert (rates > 0).all() and (rates < 1).all()
+    # Without any history every team takes the same (field) rate.
+    fresh = racing_model._retirement_propensity([], "R", team_ids, teams, drivers)
+    assert np.allclose(fresh, fresh[0])
+
+
+def test_incident_assignment_is_weighted_by_team_but_keeps_shared_count():
+    records = retiring_history()
+    drivers = racing_model.roster(records[-1])
+    draws = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, racing_model.PARAMETERS[0]
+    )
+    nc = ~draws["R"]["classified"]
+    team_b = [i for i, d in enumerate(drivers) if d["team_name"] == "B"]
+    team_a = [i for i, d in enumerate(drivers) if d["team_name"] == "A"]
+    assert nc[:, team_b].mean() > nc[:, team_a].mean() + 0.2
+    # The sampled event count is shared: two of four cars retired in every race.
+    assert abs(nc.sum(axis=1).mean() - 2.0) < 0.15
+
+
+def test_uniform_history_keeps_not_classified_flat_across_teams():
+    records = history()
+    for rec in records:
+        for i, row in enumerate(rec["sessions"]["R"]):
+            row["classified"] = (rec["round"] + i) % 4 != 0
+            row["status"] = "Finished" if row["classified"] else "Retired"
+    drivers = racing_model.roster(records[-1])
+    draws = racing_model.draw(
+        records, drivers, 6000, np.random.default_rng(5), {}, racing_model.PARAMETERS[0]
+    )
+    rates = (~draws["R"]["classified"]).mean(axis=0)
+    assert rates.max() - rates.min() < 0.08
