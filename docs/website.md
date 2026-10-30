@@ -366,6 +366,9 @@ The visible distributions use monotone cubic curves through the actual classifie
 position bins, with NC shown separately. Hover or keyboard-focus a point for its
 position and percentage; interpolation does not change the probabilities.
 Compact position labels and border-free inner placement sections reduce visual noise.
+Each session distinguishes its most likely result and probability from its average
+classified position: a 48.1% win chance can coexist with an average near P2.
+Tied most-likely outcomes are shown together, and NC can be the most likely result.
 Accessible SVG titles retain every numeric probability. The selected
 driver's identity appears once in the sidebar, above the larger qualifying/race
 positions and curves.

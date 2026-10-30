@@ -73,7 +73,16 @@ function placements(asset, data, sprint, named) {
       const p = data?.[kind],
         label = { Q: "Qualifying", S: "Sprint", R: "Race" }[kind];
       if (!p) return `<p>${label}: placement estimates unavailable.</p>`;
-      return `<section class="placement-session"><div class="placement-session-heading"><h4>${label}</h4><strong class="position-estimate" aria-label="Expected classified ${label.toLowerCase()} position ${esc(position(p.mean))}">${position(p.mean)}</strong></div>${curve(asset, p, label)}</section>`;
+      const outcomes = [...p.positions, p.nc];
+      const peak = Math.max(...outcomes);
+      const modes = outcomes.flatMap((value, i) =>
+        Math.abs(value - peak) < 1e-9
+          ? [i === p.positions.length ? "NC" : `P${i + 1}`]
+          : [],
+      );
+      const mostLikely =
+        modes.length <= 2 ? modes.join(" / ") : `${modes.length} tied outcomes`;
+      return `<section class="placement-session"><div class="placement-session-heading"><h4>${label}</h4><div class="placement-result"><span>Most likely result</span><strong class="position-estimate">${mostLikely}</strong><small>${pct(peak)}${modes.length > 1 ? " each" : ""}</small></div></div><p class="placement-average">Average classified position <strong>${position(p.mean)}</strong></p>${curve(asset, p, label)}</section>`;
     })
     .join("")}</article>`;
 }
@@ -154,7 +163,7 @@ export function teamOutlook(dataset, round, probabilities) {
         .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)
         .join(
           "",
-        )}</dl><div class="team-member-placements">${drivers.map((a) => `<div>${image(a)}<strong>${esc(a.name)}</strong><span>Qualifying <b>${position(probabilities?.placements?.[a.id]?.Q?.mean)}</b></span><span>Race <b>${position(probabilities?.placements?.[a.id]?.R?.mean)}</b></span></div>`).join("")}</div></article>`;
+        )}</dl><div class="team-member-placements">${drivers.map((a) => `<div>${image(a)}<strong>${esc(a.name)}</strong><span>Average qualifying <b>${position(probabilities?.placements?.[a.id]?.Q?.mean)}</b></span><span>Average race <b>${position(probabilities?.placements?.[a.id]?.R?.mean)}</b></span></div>`).join("")}</div></article>`;
     })
     .join("")}</div></section>`;
 }

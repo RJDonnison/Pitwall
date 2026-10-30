@@ -194,7 +194,9 @@ test("driver and team deep dives show selected participants and classified posit
   };
   const driver = insightsMarkup(data, { entity: "1" });
   assert.match(driver, /Driver deep dive/);
-  assert.match(driver, /position-estimate"[^>]*>P1.5/);
+  assert.match(driver, /position-estimate">P1 \/ P2/);
+  assert.match(driver, /Average classified position <strong>P1.5/);
+  assert.match(driver, /40.0% each/);
   assert.match(driver, /NC: 20.0%/);
   assert.match(driver, /class="placement-curve"/);
   assert.match(driver, /position probabilities/);
@@ -217,6 +219,29 @@ test("driver and team deep dives show selected participants and classified posit
   assert.match(team, /Alpha &lt;Test&gt;/);
   assert.match(team, /detail-identity/);
   assert.doesNotMatch(team, /NaN|undefined/);
+});
+
+test("most likely result and average classified position describe different quantities", () => {
+  const data = publication();
+  data.insights.rounds[0].drivers["1"].win = 0.481;
+  data.insights.rounds[0].placements = {
+    1: { R: { mean: 2, positions: [0.481, 0.238, 0.081, 0.2], nc: 0 } },
+  };
+  const html = insightsMarkup(data, { entity: "1" });
+  assert.match(
+    html,
+    /Most likely result<\/span><strong class="position-estimate">P1<\/strong><small>48.1%/,
+  );
+  assert.match(html, /Average classified position <strong>P2.0/);
+  data.insights.rounds[0].placements["1"].R = {
+    mean: 1.667,
+    positions: [0.1, 0.2],
+    nc: 0.7,
+  };
+  assert.match(
+    insightsMarkup(data),
+    /position-estimate">NC<\/strong><small>70.0%/,
+  );
 });
 
 test("Fantasy graphics preserve negative session components and keep F1 projections separate", () => {

@@ -769,27 +769,6 @@ article {
   color: var(--ink);
   font: inherit;
 }
-.garage-config .limitless-followup-setting {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin: 16px 0;
-  text-transform: none;
-  letter-spacing: normal;
-}
-.limitless-followup-setting small {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-weight: 400;
-}
-.garage-config .limitless-followup-setting input {
-  width: 16px;
-  flex: 0 0 16px;
-  height: 16px;
-  min-height: 16px;
-  margin: 0;
-}
 @supports (appearance: base-select) {
   .team-switch select,
   .team-switch select::picker(select) {

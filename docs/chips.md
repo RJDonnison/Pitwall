@@ -126,13 +126,12 @@ records the current seven before activation and exposes them on later reads.
 
 ### Optional custom post-Limitless transfers
 
-Garage's **Unlimited swaps the weekend after Limitless** switch enables the user's
-custom planning rule. It is enabled for the local three-slot setup and clearly
-labelled as custom: the [official FAQ](https://fantasy.formula1.com/en/faqs) grants
-unlimited transfers only in the Limitless raceweek and carries none into the next.
-Turn the switch off to plan with those official rules.
+The local planner uses the user's custom post-Limitless planning rule internally,
+without a Garage toggle. This differs from the [official FAQ](https://fantasy.formula1.com/en/faqs),
+which grants unlimited transfers only in the Limitless raceweek and carries none
+into the next. Stored profiles are normalized to the planner's enabled setting.
 
-With the custom rule on, both optimizers waive transfer limits and penalties for
+With the custom planning rule, both optimizers waive transfer limits and penalties for
 exactly the following weekend, while restoring the original roster and enforcing
 the ordinary budget cap. The waiver then expires; it does not grant another chip,
 extend the uncapped budget, or carry unused Limitless transfers. Local after-weekend

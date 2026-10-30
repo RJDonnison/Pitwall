@@ -155,6 +155,25 @@
   font-weight: 600;
   letter-spacing: -0.04em;
 }
+.placement-result {
+  display: grid;
+  justify-items: end;
+  text-align: right;
+  gap: 3px;
+}
+.placement-result > span,
+.placement-result > small,
+.placement-average {
+  font-size: 11px;
+  color: var(--muted);
+}
+.placement-average {
+  margin: 8px 0 0;
+}
+.placement-average strong {
+  color: var(--ink);
+  font-weight: 500;
+}
 .placement-curve {
   display: block;
   width: 100%;
