@@ -306,6 +306,4 @@ function roundMarkup(dataset, team, r) {
       "",
     )}</tbody></table></div><div class="round-finances"><span>Value <b>${money(r.cost)}</b> ${r.chip === "limitless" ? "· Limitless" : `/ ${money(team.budget)}`}</span><span>Penalty <b>−${points(r.transfer_penalty)} pts</b></span><span>Carry <b>${r.carry}</b></span></div></section>`;
 }
-export function insightsMarkup() {
-  return `<section class="coming-soon panel"><span class="coming-mark">${icon("clock")}</span><h1>Forecasts</h1><p>Coming soon.</p></section>`;
-}
+export { insightsMarkup } from "./insights.js";

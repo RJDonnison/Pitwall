@@ -104,11 +104,11 @@ test("Autopilot displays scenario-dependent extra points without naming a fixed 
   assert.doesNotMatch(html, /2× Boost<\/span>/);
 });
 
-test("Forecasts is explicitly coming soon without showing model scores", () => {
+test("Race Insights reports missing publication evidence without fabricated scores", () => {
   const { data, team } = fixture();
   data.rounds[0].forecasts["0"] = [-5, 0, 0];
-  const html = insightsMarkup(data, team, 0);
-  assert.match(html, /Coming soon/);
+  const html = insightsMarkup(data);
+  assert.match(html, /Race Insights is unavailable/);
   assert.doesNotMatch(html, /-5\.0|Forecast round|<table/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });

@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import data, output, public_history
+from . import data, output, public_history, insights
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
 from .race_context import race_context
@@ -92,6 +92,12 @@ def build(season: int, *, telemetry: bool = True) -> dict:
         "price_checked_at": live.fetched_at.isoformat(),
         "price_published_at": live.published_at.isoformat(),
         "forecast_cutoff": min(weekends[0].first_session, generated).isoformat(),
+        "insights": insights.build(
+            live.assets,
+            weekends,
+            min(weekends[0].first_session, generated),
+            telemetry=telemetry,
+        ),
         "price_gameday_id": live.weekend.gameday_id,
         "price_history": price_history(live),
         "assets": [{**output.asset(a), "tla": a.tla} for a in live.assets],

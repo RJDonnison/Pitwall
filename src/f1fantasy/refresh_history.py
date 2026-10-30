@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import data, history, predict_model, public_history, web_data
+from . import data, history, predict_model, public_history, web_data, insights
 
 
 def main(argv=None):
@@ -38,6 +38,7 @@ def main(argv=None):
         for day in document["fantasy_events"]:
             public_history.fantasy_feed(f"drivers/{day}_en.json", data._get_json)
         predict_model._history(args.season, now)
+        insights.refresh_pitstops(document, args.season, now)
         # This exercises the actual upcoming-venue/session/chip inputs, not an
         # unrelated bulk download. Existing completed racing rows are reused.
         result = web_data.build(args.season)

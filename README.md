@@ -10,6 +10,7 @@ Pitwall is a static website where you enter your F1 Fantasy teams and plan the r
 - **Exact optimisation:** a mixed-integer optimiser (HiGHS WebAssembly) runs in a browser worker.
 - **Three independent teams:** stored in your browser, with JSON import/export.
 - **Detailed forecasts:** qualifying, Sprint and race projections for every driver and constructor.
+- **Race Insights:** historical driver/team statistics, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
 - **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.
 - **Privacy-friendly:** no F1 login, server-side team storage or automatic submission required.
 - **Companion CLI:** a Python CLI and official F1 Predict tooling (see [Predict commands](docs/predict.md)).
@@ -34,7 +35,7 @@ Open the local URL printed by Vite.
 2. Enter **team value plus cash**, free transfers and remaining chips.
 3. Open **Strategy** to see transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's selection breakdown.
 
-Strategy updates automatically as you edit. **Forecasts** is coming soon. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
+Strategy updates automatically as you edit. Open **Race Insights** to select a remaining round, compare drivers or teams, search historical results and explore championship projections. Observed points, real F1 predictions and Fantasy forecasts are separate; probabilities and ranges are explicitly uncalibrated. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
 
 The interface follows [`DESIGN.md`](DESIGN.md), with a full-width Garage, compact mobile roster, bottom navigation, recorded round-price trends and coloured chip controls. Driver and car images come from the TracingInsights 2026 collection; venue photographs and circuit outline change with the selected round. Credits are in the footer.
 

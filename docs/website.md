@@ -168,7 +168,7 @@ with the circuit inside that context panel on desktop. Mobile stacks the photo,
 circuit and track/weather data vertically. The three desktop recommendation cards share a compact 340-pixel height;
 transfers scroll within their card rather than stretching the row. Stacked mobile
 cards keep their natural compact heights.
-The logo opens Strategy; navigation contains Garage and Forecasts. Mobile hides
+The logo opens Strategy; navigation contains Garage and Race Insights. Mobile hides
 the budget header, and race breakdowns stay expanded at every size. Season cards
 reuse the coloured chip icons, with stronger selected-card outlines.
 
@@ -239,8 +239,7 @@ not intraday quotes or price forecasts. Missing history shows an unavailable
 label rather than a synthetic trend. Historical prices do not replace current
 market verification or change the constant-future-price optimizer assumption.
 
-Forecasts is explicitly Coming soon. Real race probabilities, pit-stop and FIA
-championship predictions remain V6; weather's integration into the race model remains
+Race Insights implements V6; weather's integration into the race model remains
 V8. Mockup confidence, league rankings, track temperatures and lock countdowns are
 not measurements. The footer mirrors Stitch's strategic-principle, optimizer,
 forecasts and privacy sections while retaining actual data status and image credits.
@@ -261,3 +260,55 @@ repository paths without a server-side routing rewrite.
 
 The prior Dockerfile/Compose/bootstrap and container-only tests were removed;
 existing private host session directories were not deleted.
+
+## V6 Race Insights
+
+The desktop/mobile page adapts Stitch project `6085770950590244465`, dashboard
+`52730fb5dc454fce9b40080dd77c0495` and mobile `9f99673b1923479895259aaa89f2971a`:
+editorial race heading, portrait-led probability rankings, constructor comparisons
+and championship range bars. The requested V6 edit timed out; the existing
+downloadable designs supplied the layout references. Illustrative confidence,
+weather effects, timings and title odds are not published as data.
+
+`f1fantasy.insights` adds an optional `insights` object to the existing schema-1
+forecast publication. It uses 4,000 seeded joint racing draws per remaining round,
+the CLI rank-bootstrap model and earlier cached telemetry. A single cutoff, the
+earlier of publication time and first target session, applies to racing records,
+telemetry features and pit-label completion/publication dates across the horizon.
+
+Driver probabilities cover GP win, podium, pole, top ten and not classified, plus
+Sprint outcomes on Sprint weekends. A team probability means **at least one car**,
+calculated from joint samples rather than adding individual probabilities. Not
+classified does not necessarily mean mechanical retirement. The history updater
+archives the latest eight finalized official F1 Predict fastest-stationary-stop
+winners, joined by exact team names/explicit aliases rather than cross-game IDs.
+A symmetric one-win-per-team prior smooths those probabilities. Source, dated
+winner evidence and sample count are visible; missing/unmapped labels are unavailable.
+These are not stop-duration estimates or pit-lane transit measurements.
+
+Historical tables enumerate included rounds against completed scheduled rounds.
+GP weekends, individual car entries, classifications, wins, podiums, poles and
+Sprint wins/entries are separate. The current archive covers all 18 completed
+2026 GPs and the final eight GPs of 2025; partial seasons are explicitly labelled.
+Historical participants remain visible outside the current roster, and past team
+points retain their recorded constructor. Observed real F1 points sum FastF1
+Race/Sprint session points, not Fantasy scores or an independently reconciled FIA
+standings feed; subsequent non-session championship adjustments may differ.
+
+Championship projections require complete current-season Race, qualifying, Sprint
+and session-point coverage. Observed points plus simulated remaining GP points
+(25–18–15–12–10–8–6–4–2–1) and Sprint points (8–1) yield expected final points,
+assuming full-distance scoring and no fastest-lap bonus. Inactive participants
+retain earned points and receive no future starts. Current roster and historical
+form remain fixed; future weekends are drawn independently without feeding
+simulated results back into form. Constructor intervals sum both cars in each
+sample before computing quantiles. Central 80% ranges are **uncalibrated scenario
+ranges**, not confidence scores. Expected-point order is not official countback
+ranking or a title-odds model.
+
+The expandable Fantasy table separately shows unboosted Q/S/R predictions and
+weekend totals, excluding chips and transfer penalties. Insights needs no complete
+Garage team. Missing Insights does not block valid Fantasy forecasts. Six-hour
+freshness and price verification still apply. Model, seed, samples, cutoff and
+sources are disclosed. V7 question recommendations, V8 weather modeling and V9
+calibrated accuracy remain planned.

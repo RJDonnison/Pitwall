@@ -15,14 +15,15 @@
 - Follow the supplied `DESIGN.md` Grand Prix Broadsheet system and the Visual Strategy/Garage and dedicated mobile Stitch references, with compact roster rows, horizontal team tabs and fixed mobile navigation.
 - Race-specific circuit Strategy with transfer/Boost/chip directives, net score comparisons, cumulative remaining-season points, selectable round cards and exact seven-selection breakdowns.
 - Full-width Team Garage with three existing local profiles, licensed driver/car photographs, actual recorded round-price sparklines, capital allocation, price-focused asset registry, coloured/grey chip controls, budget/free-transfer settings and JSON import/export.
-- Forecasts is a Coming soon page. Real race probabilities, fastest-pit and FIA championship predictions remain V6. The requested TracingInsights 2026 driver/car set is matched by current team and driver; exact source/licence records and separately licensed archival venue photos are in the credits.
+- The requested TracingInsights 2026 driver/car set is matched by current team and driver; exact source/licence records and separately licensed archival venue photos are in the credits.
 - Calculate automatically after complete-team changes and foreground publication updates, without changing page, focus or chip-toggle scroll position. Preserve the optimizer, local-storage format, labelled snapshot state, expiry/conflict checks, keyboard focus and reduced-motion support. Mockup-only lock timers, weather and confidence statistics are not presented as live data.
 
-### V6 — Race Insights page
+### V6 — Race Insights page (implemented)
 
-- Add driver and constructor statistics, race-outcome probabilities, fastest-pit-stop probabilities and projected championship points.
-- Separate observed statistics, real F1 championship points and Fantasy scoring; show sample sizes, uncertainty and forecast cutoffs.
-- Include all season participants when reconciling championship totals, including drivers no longer on the active roster. No implementation yet.
+- Stitch-derived responsive page with per-round driver/team probabilities, regular/Sprint outcome selection, searchable historical seasons and a separate Fantasy breakdown.
+- Official finalized stationary-stop winner history supplies prior-smoothed fastest-stop probabilities with dated evidence.
+- Real F1 championship projections retain historical participants and original team attribution. Central 80% ranges use joint season samples; missing current-season coverage disables totals and partial seasons are labelled.
+- Visible sample sizes, cutoff, model/seed, sources and uncalibrated status. See [methodology](docs/website.md#v6-race-insights).
 
 ### V7 — Website prediction system
 
