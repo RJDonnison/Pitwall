@@ -44,6 +44,7 @@ def optimize(
     forced_chip: str | None = None,
     active_chip: str | None = None,
     limitless_restore: frozenset[str] | None = None,
+    limitless_followup: bool = False,
 ) -> list[Lineup]:
     """Maximize total predicted points with net transfers and carry-over.
 
@@ -316,6 +317,9 @@ def optimize(
         for name in ("wildcard", "limitless"):
             if name in h:
                 coefficients[h[name]] = -8
+        # Optional custom rule; official Limitless itself only covers its own race.
+        if limitless_followup and t and "limitless" in chips[t - 1]:
+            coefficients[chips[t - 1]["limitless"]] = -8
         row(coefficients, high=allowance)
 
     for name in PREWEEK_CHIPS:

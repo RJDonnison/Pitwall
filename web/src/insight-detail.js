@@ -24,13 +24,25 @@ function curve(asset, p, label) {
       : 30 + (i * 340) / Math.max(1, p.positions.length - 1),
     126 - (98 * v) / peak,
   ]);
-  const line = coords
-    .slice(0, -1)
+  const classified = coords.slice(0, -1);
+  const secants = classified
+    .slice(1)
+    .map(([x, y], i) => (y - classified[i][1]) / (x - classified[i][0]));
+  // Monotone cubic interpolation preserves every probability, without bumps
+  // beyond neighbouring observations or a flat tangent at every single point.
+  const slopes = classified.map((_, i) => {
+    if (!i) return secants[0] || 0;
+    if (i === classified.length - 1) return secants[i - 1] || 0;
+    const a = secants[i - 1],
+      b = secants[i];
+    return a * b > 0 ? (2 * a * b) / (a + b) : 0;
+  });
+  const line = classified
     .map(([x, y], i) => {
       if (!i) return `M${x},${y}`;
       const [px, py] = coords[i - 1],
         dx = (x - px) / 3;
-      return `C${px + dx},${py} ${x - dx},${y} ${x},${y}`;
+      return `C${px + dx},${py + dx * slopes[i - 1]} ${x - dx},${y - dx * slopes[i]} ${x},${y}`;
     })
     .join(" ");
   const ticks = [
@@ -41,7 +53,14 @@ function curve(asset, p, label) {
       values.length - 1,
     ]),
   ];
-  return `<svg class="placement-curve" viewBox="0 0 460 160" role="img" aria-label="${esc(asset.name)} ${label} position probabilities"><title>${values.map((v, i) => `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(v)}`).join("; ")}</title><text x="30" y="18">${pct(peak)}</text><path class="curve-grid" d="M30 28H430 M30 77H430 M30 126H430 M400 28V126"/><path class="curve-area" d="${line} L${coords[p.positions.length - 1][0]},126 L30,126Z"/><path class="curve-line" d="${line}"/>${coords.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="2"><title>${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(values[i])}</title></circle>`).join("")}${ticks.map((i) => `<text x="${coords[i][0]}" y="150" text-anchor="middle">${i === values.length - 1 ? "NC" : `P${i + 1}`}</text>`).join("")}</svg>`;
+  return `<svg class="placement-curve" viewBox="0 0 460 160" role="group" aria-label="${esc(asset.name)} ${label} position probabilities"><title>${values.map((v, i) => `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(v)}`).join("; ")}</title><text x="30" y="18">${pct(peak)}</text><path class="curve-grid" d="M30 28H430 M30 77H430 M30 126H430 M400 28V126"/><path class="curve-area" d="${line} L${coords[p.positions.length - 1][0]},126 L30,126Z"/><path class="curve-line" d="${line}"/>${coords
+    .map(([x, y], i) => {
+      const text = `${i === values.length - 1 ? "NC" : `P${i + 1}`}: ${pct(values[i])}`;
+      return `<g class="curve-point" tabindex="0" role="img" aria-label="${text}"><circle class="curve-hit" cx="${x}" cy="${y}" r="8"/><circle cx="${x}" cy="${y}" r="2"/><g class="curve-tooltip" transform="translate(${Math.min(350, Math.max(0, x - 52))},${Math.max(0, y - 38)})"><rect width="104" height="30" rx="4"/><text x="52" y="20" text-anchor="middle">${text}</text></g></g>`;
+    })
+    .join(
+      "",
+    )}${ticks.map((i) => `<text x="${coords[i][0]}" y="150" text-anchor="middle">${i === values.length - 1 ? "NC" : `P${i + 1}`}</text>`).join("")}</svg>`;
 }
 
 function placements(asset, data, sprint, named) {
@@ -65,7 +84,7 @@ function championshipStats(row) {
       "Post-race championship",
       row ? `${points(row.points)} pts` : "Unavailable",
     ],
-    ["Championship position", position(row?.standing_mean)],
+    ["Post-race championship position", position(row?.standing_mean)],
     ["Weekend points", row ? `+${points(row.round_points)}` : "Unavailable"],
   ];
 }
@@ -97,11 +116,7 @@ export function participantDetail(
     .map((a) => {
       const search =
         `${a.name} ${a.tla || ""} ${constructorName(dataset, a)}`.toLowerCase();
-      const q = probabilities?.placements?.[a.id]?.Q?.mean,
-        r = probabilities?.placements?.[a.id]?.R?.mean;
-      const standings =
-        after?.status === "ready" ? after[population]?.[a.id] : null;
-      return `<button type="button" class="participant-tile" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" data-participant-search="${esc(search)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}" ${search.includes(query.trim().toLowerCase()) ? "" : "hidden"}>${image(a)}<span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span><span class="participant-tile-positions">${a.kind === "DRIVER" ? `<span>Qualifying<strong>${position(q)}</strong></span><span>Race<strong>${position(r)}</strong></span>` : `<span>Championship<strong>${position(standings?.standing_mean)}</strong></span>`}</span><span class="participant-tile-metric"><strong>${standings ? `${points(standings.points)} <small>pts</small>` : "Unavailable"}</strong><span>Post-race championship</span></span></button>`;
+      return `<button type="button" class="participant-tile" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" data-participant-search="${esc(search)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}" ${search.includes(query.trim().toLowerCase()) ? "" : "hidden"}>${image(a)}<span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span></button>`;
     })
     .join(
       "",

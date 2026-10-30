@@ -389,6 +389,54 @@ def test_limitless_clears_carried_transfer_even_when_no_transfer_is_used():
     assert second.transfer_penalty == 30
 
 
+@pytest.mark.parametrize("custom", [False, True])
+def test_optional_limitless_followup_swaps_keep_budget_and_restore_baseline(custom):
+    assets, weekends, scores, previous = transfer_fixture()
+    first, second = optimize(
+        assets,
+        weekends,
+        scores,
+        70,
+        previous,
+        allow_penalties=True,
+        available_chips=frozenset({"limitless"}),
+        forced_chip="limitless",
+        limitless_followup=custom,
+    )
+    assert first.chip == "limitless"
+    assert second.transfers == 5
+    assert second.transfers == len(ids(second) - previous)
+    assert second.transfer_penalty == (0 if custom else 30)
+    assert second.cost <= 70
+    assert second.chip is None
+
+
+def test_custom_limitless_followup_expires_after_one_budget_capped_weekend():
+    assets, _, _, previous = transfer_fixture()
+    _, weekends, _, _ = fixture(3)
+    scores = {
+        (t, a.id): Estimate(
+            0, 0, (1000 if t == 1 else 100) if (a.id not in previous) == (t == 1) else 0
+        )
+        for t in range(3)
+        for a in assets
+    }
+    plan = optimize(
+        assets,
+        weekends,
+        scores,
+        70,
+        previous,
+        available_chips=frozenset({"limitless"}),
+        forced_chip="limitless",
+        limitless_followup=True,
+    )
+    assert plan[1].transfers == 5
+    assert plan[1].transfer_penalty == 0
+    assert plan[2].transfers <= 2
+    assert all(r.cost <= 70 for r in plan[1:])
+
+
 def test_sprint_forecast_and_nn_uplift_both_receive_boost():
     assets, weekends, estimates, _ = fixture(1)
     weekends[0] = replace(weekends[0], sprint=True)

@@ -463,6 +463,8 @@ export function buildModel(data, team) {
     }
     for (const name of ["wildcard", "limitless"])
       if (name in h) coefficients.push([h[name], -8]);
+    if (team.limitlessFollowup === true && t && "limitless" in chips[t - 1])
+      coefficients.push([chips[t - 1].limitless, -8]);
     row(coefficients, -Infinity, allowance);
   }
   for (const name of PREWEEK)

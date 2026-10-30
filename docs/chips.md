@@ -124,6 +124,21 @@ For already-active Limitless, a multi-week horizon requires verified restoration
 IDs. Without them only a single-weekend plan is permitted. The account journal
 records the current seven before activation and exposes them on later reads.
 
+### Optional custom post-Limitless transfers
+
+Garage's **Unlimited swaps the weekend after Limitless** switch enables the user's
+custom planning rule. It is enabled for the local three-slot setup and clearly
+labelled as custom: the [official FAQ](https://fantasy.formula1.com/en/faqs) grants
+unlimited transfers only in the Limitless raceweek and carries none into the next.
+Turn the switch off to plan with those official rules.
+
+With the custom rule on, both optimizers waive transfer limits and penalties for
+exactly the following weekend, while restoring the original roster and enforcing
+the ordinary budget cap. The waiver then expires; it does not grant another chip,
+extend the uncapped budget, or carry unused Limitless transfers. Local after-weekend
+adoption preserves that one-week unlimited allowance. The Python API opts in with
+`limitless_followup=True`; CLI/account callers retain official behavior by default.
+
 ## Final Fix
 
 ```python

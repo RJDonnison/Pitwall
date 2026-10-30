@@ -626,7 +626,7 @@
 .signed-chart .signed-negative {
   justify-content: flex-start;
   flex-direction: row-reverse;
-  border-right: 1px solid #777;
+  box-shadow: inset -1px 0 #777;
 }
 .signed-chart i {
   display: block;

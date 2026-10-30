@@ -338,10 +338,20 @@ remain explicit. Names/aliases join sources rather than cross-game IDs; source
 links remain visible, with sample counts and dated evidence retained in the publication. Transit
 times are never service times.
 
+Fantasy session bars reserve negative-axis space only when one of the displayed
+forecasts is negative, proportionally to the positive/negative shared scales;
+positive-only comparisons start at the left edge. Championship summaries separate
+scored points, expected gain, scenario range and maximum into labelled values.
+Probability lists retain right-side breathing room for their percentages.
+Garage omits the successful "Strategy up to date" message, while pending/error
+statuses remain visible. The navbar team selector uses a themed native popup where
+supported, with the standard accessible select as fallback.
+
 Race probabilities precede the deep dive. Its searchable participant grid replaces
 the participant dropdown: search by name, team or driver code, then choose a
-portrait/car card showing larger qualifying/race position estimates and projected
-post-race championship points. The deep dive is racing-only; Fantasy predictions
+portrait/car card showing only the participant's name, team and image. Qualifying/race
+estimates and projected post-race championship points stay in the prediction sidebar.
+Championship position is explicitly labelled post-race. The deep dive is racing-only; Fantasy predictions
 remain in their separate output chart. Selection uses the highlighted card rather
 than repeated "Selected"/"View predictions" labels.
 Selected predictions occupy a right-hand sidebar on desktop and stack beneath
@@ -352,8 +362,11 @@ remain. Portraits/car images accompany names in both the deep dive and Strategy'
 race breakdown. Qualifying, race and Sprint distributions come from the same joint
 draws as the overview: classified-position bins plus NC sum to one. Expected
 position and exported central 80% ranges condition on classification and are uncalibrated.
-The visible distributions are smooth curves through the actual probability bins,
-including NC; accessible SVG titles retain every numeric probability. The selected
+The visible distributions use monotone cubic curves through the actual classified
+position bins, with NC shown separately. Hover or keyboard-focus a point for its
+position and percentage; interpolation does not change the probabilities.
+Compact position labels and border-free inner placement sections reduce visual noise.
+Accessible SVG titles retain every numeric probability. The selected
 driver's identity appears once in the sidebar, above the larger qualifying/race
 positions and curves.
 Teams show each current driver's distribution, not a fictitious constructor race

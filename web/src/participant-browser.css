@@ -114,7 +114,9 @@
 .participant-prediction .placement-card {
   grid-template-columns: minmax(0, 1fr);
   margin-top: 16px;
-  padding: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
 }
 .participant-prediction .placement-session {
   min-width: 0;
@@ -148,7 +150,7 @@
   margin: 0;
 }
 .position-estimate {
-  font-size: 38px;
+  font-size: 26px;
   line-height: 1.1;
   font-weight: 600;
   letter-spacing: -0.04em;
@@ -163,7 +165,7 @@
 }
 .placement-curve text {
   fill: var(--muted);
-  font-size: 18px;
+  font-size: 14px;
 }
 .curve-grid {
   stroke: var(--rule);
@@ -181,6 +183,56 @@
 }
 .placement-curve circle {
   fill: currentColor;
+}
+.placement-curve .curve-hit {
+  fill: transparent;
+}
+.curve-point > circle:not(.curve-hit) {
+  pointer-events: none;
+}
+.curve-point {
+  outline: none;
+  cursor: crosshair;
+}
+.curve-point:hover > circle:not(.curve-hit),
+.curve-point:focus > circle:not(.curve-hit) {
+  stroke: var(--paper);
+  stroke-width: 2;
+  r: 4;
+}
+.curve-tooltip {
+  visibility: hidden;
+  pointer-events: none;
+}
+.curve-tooltip rect {
+  fill: var(--ink);
+}
+.placement-curve .curve-tooltip text {
+  fill: white;
+  font-size: 14px;
+}
+.curve-point:hover .curve-tooltip,
+.curve-point:focus .curve-tooltip {
+  visibility: visible;
+}
+.champ-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 12px 0 0;
+}
+.champ-breakdown dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+.champ-breakdown dd {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.insights-page .probability-list,
+.insights-page .pitstop-list {
+  padding-right: 12px;
 }
 .team-outlook-grid {
   display: grid;

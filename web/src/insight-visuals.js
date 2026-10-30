@@ -99,11 +99,16 @@ function rankedAssets(dataset, round, population) {
 
 export function fantasyChart(dataset, round, population) {
   const rows = rankedAssets(dataset, round, population).slice(0, 8);
-  const max = Math.max(
-    1,
-    ...rows.map(({ scores }) => scores.reduce((s, v) => s + Math.abs(v), 0)),
+  const negativeMax = Math.max(
+    0,
+    ...rows.map(({ scores }) => total(scores.map((v) => Math.max(0, -v)))),
   );
-  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, -v)) / max}%"></i>`).join("")}</span><span class="signed-positive">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / max}%"></i>`).join("")}</span></div></li>`).join("")}</ol></section>`;
+  const positiveMax = Math.max(
+    1,
+    ...rows.map(({ scores }) => total(scores.map((v) => Math.max(0, v)))),
+  );
+  const negativeShare = negativeMax / (negativeMax + positiveMax);
+  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative" style="flex:0 0 ${100 * negativeShare}%">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${negativeMax ? (100 * Math.max(0, -v)) / negativeMax : 0}%"></i>`).join("")}</span><span class="signed-positive" style="flex:1">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / positiveMax}%"></i>`).join("")}</span></div></li>`).join("")}</ol></section>`;
 }
 
 export function championshipChart(dataset, insight, population) {
@@ -117,7 +122,7 @@ export function championshipChart(dataset, insight, population) {
   return `<section class="panel insight-champ-chart"><div class="section-heading"><div><span class="insight-kicker">End-of-season projection</span><h2>Championship horizon</h2></div></div><div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows
     .map((r) => {
       const a = dataset.assets.find((a) => a.id === r.asset_id);
-      return `<li style="--team-color:${a ? teamColor(dataset, a) : "#68635f"}"><div><span>${esc(r.name)}</span><strong>${points(r.projected)} <small>pts</small></strong></div><div class="champ-stacked-bar" aria-hidden="true"><i style="width:${(100 * r.observed) / max}%"></i><b style="width:${(100 * r.remaining) / max}%"></b></div><p>${points(r.observed)} observed + ${points(r.remaining)} expected · 80% range ${points(r.interval80[0])}–${points(r.interval80[1])} · maximum possible ${points(r.max_final)}</p></li>`;
+      return `<li style="--team-color:${a ? teamColor(dataset, a) : "#68635f"}"><div><span>${esc(r.name)}</span><strong>${points(r.projected)} <small>pts</small></strong></div><div class="champ-stacked-bar" aria-hidden="true"><i style="width:${(100 * r.observed) / max}%"></i><b style="width:${(100 * r.remaining) / max}%"></b></div><dl class="champ-breakdown"><div><dt>Scored</dt><dd>${points(r.observed)}</dd></div><div><dt>Expected gain</dt><dd>+${points(r.remaining)}</dd></div><div><dt>80% range</dt><dd>${points(r.interval80[0])}–${points(r.interval80[1])}</dd></div><div><dt>Maximum</dt><dd>${points(r.max_final)}</dd></div></dl></li>`;
     })
     .join("")}</ol></section>`;
 }

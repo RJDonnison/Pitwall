@@ -129,10 +129,20 @@ function python(data, team) {
     (existsSync("../.venv/bin/python") ? "../.venv/bin/python" : "python3");
   const script = `import json,sys\nfrom datetime import datetime\nfrom f1fantasy.data import Asset,Weekend\nfrom f1fantasy.projections import Estimate\nfrom f1fantasy.chips import ChipValues\nfrom f1fantasy.optimizer import optimize\nd,t=json.load(sys.stdin)\na=tuple(Asset(x['id'],x['name'],x['kind'],x['team_id'],x['price_tenths_m']) for x in d['assets'])\nw=[Weekend(x['season'],x['round'],x['name'],x['gameday_id'],datetime.fromisoformat(x['first_session_utc'].replace('Z','+00:00')),x['sprint'],False) for x in d['rounds']]\ne={(i,k):Estimate(*v) for i,r in enumerate(d['rounds']) for k,v in r['forecasts'].items()}\nn={(i,k):Estimate(*v) for i,r in enumerate(d['rounds']) for k,v in r['no_negative'].items()}\np={i:tuple({k:Estimate(*v) for k,v in s.items()} for s in r['autopilot']) for i,r in enumerate(d['rounds'])}\nelig={i:frozenset(c for c in t['chips'] if c not in ('wildcard','limitless') or i>0 or t['completed']) for i in range(len(w))}\nr=optimize(a,w,e,t['budget'],None if t['initial'] else frozenset(t['selected']),t['carry'],t['allowPenalties'],available_chips=frozenset(t['chips']),chip_values=ChipValues(n,p),eligible_chips=elig,active_chip=t['active'] or None,limitless_restore=frozenset(t['restore'] or t['selected']))\nprint(json.dumps({'points':sum(x.expected_points for x in r),'rounds':[{'points':x.expected_points,'penalty':x.transfer_penalty,'chip':x.chip} for x in r]}))`;
   return JSON.parse(
-    execFileSync(executable, ["-c", script], {
-      input: JSON.stringify([data, team]),
-      encoding: "utf8",
-    }),
+    execFileSync(
+      executable,
+      [
+        "-c",
+        script.replace(
+          "limitless_restore=",
+          "limitless_followup=t.get('limitlessFollowup',False),limitless_restore=",
+        ),
+      ],
+      {
+        input: JSON.stringify([data, team]),
+        encoding: "utf8",
+      },
+    ),
   );
 }
 
@@ -168,6 +178,54 @@ for (const chip of [
       assert.ok(Math.abs(total(r.sessions) - r.penalty - r.points) < 1e-6);
     }
   });
+
+test("custom post-Limitless transfers match Python, exceed two swaps and retain the budget cap", () => {
+  const { data, team } = fixture();
+  data.assets = [
+    ...Array.from({ length: 8 }, (_, i) => ({
+      id: String(i),
+      name: `Driver ${i}`,
+      kind: "DRIVER",
+      team_id: `t${i % 4}`,
+      price_tenths_m: 50,
+    })),
+    ...Array.from({ length: 4 }, (_, i) => ({
+      id: `c${i}`,
+      name: `Team ${i}`,
+      kind: "CONSTRUCTOR",
+      team_id: `t${i}`,
+      price_tenths_m: 50,
+    })),
+  ];
+  team.budget = 350;
+  team.active = "limitless";
+  team.chips = ["limitless"];
+  team.restore = [...team.selected];
+  data.rounds.forEach((r, t) => {
+    r.sprint = false;
+    r.forecasts = Object.fromEntries(
+      data.assets.map((a) => [
+        a.id,
+        [
+          0,
+          0,
+          team.selected.includes(a.id) === (t === 0) ? (t ? 1000 : 100) : 0,
+        ],
+      ]),
+    );
+    r.no_negative = {};
+    r.autopilot = [];
+  });
+  for (const custom of [false, true]) {
+    team.limitlessFollowup = custom;
+    const result = optimize(highs, data, team),
+      reference = python(data, team);
+    assert.ok(Math.abs(result.points - reference.points) < 1e-5);
+    assert.equal(result.rounds[1].transfers, custom ? 5 : 2);
+    assert.equal(result.rounds[1].penalty, 0);
+    assert.ok(result.rounds[1].cost <= team.budget);
+  }
+});
 
 test("saves x3 for a valuable late round and selects distinct multipliers", () => {
   const { data, team } = fixture();

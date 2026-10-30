@@ -136,6 +136,21 @@ test("uncompleted, missing-end and wrong-season suggestions cannot be adopted", 
   }
 });
 
+test("custom Limitless follow-up persists unlimited selection only into the next adopted weekend", () => {
+  const { team, old, result, fresh } = fixture("limitless");
+  team.limitlessFollowup = true;
+  team.weekendSuggestion = rememberWeekend(old, team, result);
+  const next = adoptWeekend(fresh, team, now);
+  assert.equal(next.initial, true);
+  assert.equal(next.completed, true);
+  assert.equal(next.carry, 0);
+  const later = {
+    ...next,
+    weekendSuggestion: { ...team.weekendSuggestion, chip: null },
+  };
+  assert.equal(adoptWeekend(fresh, later, now).initial, false);
+});
+
 test("stale data, inactive selections and malformed saved budget never overwrite a profile", () => {
   const { team, old, result, fresh } = fixture();
   team.weekendSuggestion = rememberWeekend(old, team, result);

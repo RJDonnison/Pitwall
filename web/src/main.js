@@ -46,6 +46,7 @@ const blank = (i) => ({
   completed: true,
   initial: false,
   allowPenalties: true,
+  limitlessFollowup: true,
   active: "",
   restore: [],
 });
@@ -250,7 +251,7 @@ function render() {
   $("#planning-status").textContent = busy
     ? "Updating strategy…"
     : result
-      ? "Strategy up to date"
+      ? ""
       : error
         ? "Check team settings"
         : t.selected.length === 7
@@ -291,6 +292,17 @@ function render() {
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
     <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
+  $("#settings .garage-inputs").insertAdjacentHTML(
+    "afterend",
+    `<label class="limitless-followup-setting"><input id="limitless-followup" type="checkbox" ${t.limitlessFollowup ? "checked" : ""}/> Unlimited swaps the weekend after Limitless <small>Custom planning rule · official rules give unlimited swaps only for the Limitless weekend.</small></label>`,
+  );
+  $("#limitless-followup").onchange = (e) => {
+    t.limitlessFollowup = e.target.checked;
+    invalidate();
+    render();
+  };
+  $("#transfers option[value=initial]").textContent =
+    "Unlimited · new / post-Limitless";
   for (const id of ["budget", "transfers", "active-chip"])
     $(`#${id}`).onchange = () => {
       const value = $(`#${id}`);

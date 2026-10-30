@@ -79,7 +79,7 @@ export function adoptWeekend(dataset, team, now = Date.now()) {
     budget: value + saved.cash,
     carry: saved.chip === "limitless" ? 0 : saved.carry,
     chips: team.chips.filter((c) => c !== saved.chip),
-    initial: false,
+    initial: saved.chip === "limitless" && team.limitlessFollowup === true,
     completed: true,
     active: "",
     restore: [],

@@ -96,7 +96,7 @@ function publication(sprint = false) {
 test("Insights keeps probabilities, championship ranges and Fantasy scores without accordions or history", () => {
   const html = insightsMarkup(publication());
   assert.match(html, /25\.0%/);
-  assert.match(html, /80% range 25.0–45.0/);
+  assert.match(html, /<dt>80% range<\/dt><dd>25.0–45.0/);
   assert.match(html, /Post-race championship/);
   assert.match(html, /No verified winners\./);
   assert.match(html, /Alpha &lt;Test&gt;/);
@@ -198,6 +198,11 @@ test("driver and team deep dives show selected participants and classified posit
   assert.match(driver, /NC: 20.0%/);
   assert.match(driver, /class="placement-curve"/);
   assert.match(driver, /position probabilities/);
+  assert.match(
+    driver,
+    /class="curve-point" tabindex="0" role="img" aria-label="P1: 80.0%"/,
+  );
+  assert.match(driver, /class="curve-tooltip"/);
   assert.doesNotMatch(driver, /insight-contenders|insight-podiums/);
   assert.equal(
     (driver.match(/<h2>Championship horizon<\/h2>/g) || []).length,
@@ -223,8 +228,10 @@ test("Fantasy graphics preserve negative session components and keep F1 projecti
   assert.match(html, /R 12.0/);
   assert.match(html, /4.0 <small>pts/);
   assert.match(html, /signed-negative/);
+  assert.match(html, /signed-negative" style="flex:0 0 40%/);
   assert.match(html, /60.0%/);
-  assert.match(html, /25.0 observed \+ 10.0 expected/);
+  assert.match(html, /<dt>Scored<\/dt><dd>25.0/);
+  assert.match(html, /<dt>Expected gain<\/dt><dd>\+10.0/);
   assert.doesNotMatch(html, /Negative components extend left of zero/);
   assert.doesNotMatch(html, /NaN|undefined|Alpha <Test>/);
 });
@@ -246,7 +253,13 @@ test("Championship horizon excludes eliminated entrants and historical records a
   const html = insightsMarkup(data);
   assert.doesNotMatch(html, /Eliminated racer|999\.0|Historical record/);
   assert.doesNotMatch(html, /mathematically eliminated entrants hidden/);
-  assert.match(html, /maximum possible 50\.0/);
+  assert.match(html, /<dt>Maximum<\/dt><dd>50\.0/);
+});
+
+test("positive Fantasy charts start at the left instead of reserving a blank negative half", () => {
+  const html = insightsMarkup(publication());
+  assert.match(html, /signed-negative" style="flex:0 0 0%/);
+  assert.match(html, /session-r" style="width:80%/);
 });
 
 test("racing-only deep dives and team outlook use post-round championship totals without repeated names or copy", () => {
@@ -259,11 +272,15 @@ test("racing-only deep dives and team outlook use post-round championship totals
   const sidebar = detail.slice(
     detail.indexOf('<aside class="participant-prediction"'),
   );
-  assert.match(detail, /40.0 <small>pts/);
+  const catalogue = detail.slice(0, detail.indexOf("<aside"));
+  assert.doesNotMatch(
+    catalogue,
+    /participant-tile-positions|participant-tile-metric|40.0/,
+  );
   assert.match(sidebar, /40.0 pts/);
-  assert.match(sidebar, /Championship position<\/dt><dd>P1.4/);
+  assert.match(sidebar, /Post-race championship position<\/dt><dd>P1.4/);
   assert.match(html, /80.0 pts/);
-  assert.match(html, /Championship position<\/dt><dd>P2.2/);
+  assert.match(html, /Post-race championship position<\/dt><dd>P2.2/);
   assert.doesNotMatch(
     detail,
     /Fantasy|View predictions|Selected|selected driver|detail-fantasy-sessions/,
