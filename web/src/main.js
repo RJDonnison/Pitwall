@@ -26,6 +26,11 @@ import {
   insightsMarkup,
 } from "./views.js";
 import { logo, chipIcon, footerMarkup } from "./visuals.js";
+import {
+  rememberWeekend,
+  weekendReady,
+  adoptWeekend,
+} from "./team-progress.js";
 
 const $ = (query) => document.querySelector(query);
 const blank = (i) => ({
@@ -143,7 +148,7 @@ function route({ scroll = false } = {}) {
 }
 function shell() {
   $("#app").innerHTML =
-    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#strategy" data-nav="strategy">Strategy</a><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
+    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Forecasts</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
      <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading"><h1>Garage</h1><span id="planning-status" role="status"></span></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Forecasts" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
   $("#search").oninput = renderMarket;
@@ -158,13 +163,7 @@ function shell() {
   document.querySelectorAll("[data-nav]").forEach((link) => {
     link.insertAdjacentHTML(
       "afterbegin",
-      icon(
-        link.dataset.nav === "strategy"
-          ? "flag"
-          : link.dataset.nav === "garage"
-            ? "grid"
-            : "bolt",
-      ),
+      icon(link.dataset.nav === "garage" ? "grid" : "bolt"),
     );
   });
   route({ scroll: true });
@@ -270,6 +269,29 @@ function render() {
       invalidate();
       render();
     };
+  if (t.weekendSuggestion) {
+    const saved = t.weekendSuggestion;
+    const ready = weekendReady(dataset, saved);
+    $(".garage-utilities").insertAdjacentHTML(
+      "afterend",
+      `<section class="weekend-update" aria-label="After-weekend team update"><div><strong>Saved R${esc(saved.round)} · ${esc(saved.name)}</strong><p>${ready ? "Use only if you followed this suggestion. Cash is retained; team value uses the current prices. Check your official budget and transfers afterward." : "Available once this weekend has ended and the next round is published."}</p></div><button id="adopt-weekend" ${ready ? "" : "disabled"}>Update local team</button><button id="dismiss-weekend">Discard suggestion</button></section>`,
+    );
+    $("#adopt-weekend").onclick = () => {
+      try {
+        profiles[active] = adoptWeekend(dataset, team());
+        invalidate();
+        render();
+      } catch (e) {
+        error = e.message;
+        render();
+      }
+    };
+    $("#dismiss-weekend").onclick = () => {
+      team().weekendSuggestion = null;
+      save();
+      render();
+    };
+  }
   $("#team-name").onchange = (e) => {
     t.name = e.target.value.trim() || `Team ${active + 1}`;
     save();
@@ -278,9 +300,14 @@ function render() {
   document.querySelectorAll("[data-remove]").forEach(
     (b) =>
       (b.onclick = () => {
+        marketKind = dataset.assets.find((a) => a.id === b.dataset.remove).kind;
+        $("#search").value = "";
         t.selected = t.selected.filter((id) => id !== b.dataset.remove);
         invalidate();
         render();
+        location.hash = "asset-registry";
+        route({ scroll: true });
+        $("#search").focus({ preventScroll: true });
       }),
   );
   document.querySelectorAll("[data-chip]").forEach(
@@ -353,7 +380,6 @@ function renderStrategy() {
     busy,
     selectedRound,
     error,
-    matchMedia("(max-width: 650px)").matches,
   );
   document.querySelectorAll("[data-round]").forEach(
     (b) =>
@@ -374,9 +400,6 @@ function renderStrategy() {
 function renderInsights() {
   $("#insights").innerHTML = insightsMarkup();
 }
-matchMedia("(max-width: 650px)").addEventListener("change", () => {
-  if (dataset) renderStrategy();
-});
 function acceptDataset(fresh) {
   dataset = fresh;
   for (const t of profiles) {
@@ -385,6 +408,7 @@ function acceptDataset(fresh) {
       t.chips = [...CHIPS];
       t.active = "";
       t.restore = [];
+      t.weekendSuggestion = null;
     }
     t.season = dataset.season;
     t.allowPenalties = true;
@@ -458,6 +482,10 @@ async function plan() {
       error = data.error || "";
       try {
         validateDataset(dataset);
+        if (result) {
+          team().weekendSuggestion = rememberWeekend(dataset, team(), result);
+          save();
+        }
       } catch (e) {
         result = null;
         error = e.message;

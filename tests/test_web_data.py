@@ -16,7 +16,16 @@ from f1fantasy.projections import Estimate
 def public(monkeypatch):
     monkeypatch.setattr(web_data, "race_context", lambda weekend: {})
     now = datetime.now(timezone.utc)
-    w = Weekend(2026, 19, "Mexico", 19, now + timedelta(days=2), False, False)
+    w = Weekend(
+        2026,
+        19,
+        "Mexico",
+        19,
+        now + timedelta(days=2),
+        False,
+        False,
+        last_session=now + timedelta(days=4),
+    )
     assets = tuple(
         Asset(
             str(i), f"Asset {i}", "DRIVER" if i < 6 else "CONSTRUCTOR", str(i // 2), 50
@@ -36,6 +45,7 @@ def public(monkeypatch):
                     round=20,
                     gameday_id=20,
                     first_session=w.first_session + timedelta(days=7),
+                    last_session=w.last_session + timedelta(days=7),
                 ),
             ],
         ),
@@ -70,6 +80,9 @@ def test_publication_includes_all_remaining_inputs_and_no_account_data(public):
     assert result["rounds"][0]["no_negative"]["0"] == (1, 0, 2)
     assert result["skipped_history_gamedays"] == (13,)
     assert result["forecast_cutoff"] < result["rounds"][0]["first_session_utc"]
+    assert all(
+        row["first_session_utc"] < row["last_session_utc"] for row in result["rounds"]
+    )
     assert not {"guid", "binding", "answers", "team", "cookie"} & result.keys()
     json.dumps(result, allow_nan=False)
 

@@ -43,7 +43,7 @@ test("each remaining race has its own real projected circuit, not a reused image
       first_session_utc: "2099-01-01T12:00:00Z",
     })),
   };
-  assert.match(heroMarkup(data, {}, { selectedRound: 4 }), /ae-2009/);
+  assert.match(heroMarkup(data, {}, { selectedRound: 4 }), /mx-1962/);
   assert.match(heroMarkup(data, {}, null), /mx-1962/);
   assert.doesNotMatch(
     heroMarkup(data, {}, null),

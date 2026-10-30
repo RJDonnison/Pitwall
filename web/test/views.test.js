@@ -180,7 +180,8 @@ test("track and weather context distinguish sourced air forecasts from model inp
   assert.match(html, /71 <small>laps/);
   assert.match(html, /12–25° <small>air/);
   assert.match(html, /35%/);
-  assert.match(html, /not used in point estimates/);
+  assert.doesNotMatch(html, /Weather context only|not used in point estimates/);
+  assert.doesNotMatch(html, /<a\b|2026-10-31|2026-11-01|UTC days|Open-Meteo/);
   data.rounds[0].weather = { status: "outside_horizon" };
   const later = heroMarkup(data, team, null);
   assert.match(later, /Outside the 16-day/);
@@ -191,11 +192,26 @@ test("editorial footer retains public data status, privacy and source credits", 
   const html = footerMarkup();
   assert.match(html, /Think in seasons/);
   assert.match(html, /One joint plan/);
-  assert.match(html, /Forecasts, not promises/);
+  assert.match(html, /<h3>Forecasts<\/h3>/);
   assert.match(html, /Your teams stay here/);
   assert.match(html, /id="publication-status"/);
   assert.match(html, /TracingInsights/);
   assert.doesNotMatch(html, /id="refresh"/);
+});
+
+test("rounds stay expanded, use chip icons and omit redundant marketing text", () => {
+  const { data, team, result } = fixture();
+  result.rounds[0].chip = "wildcard";
+  const html = strategyMarkup(data, team, result);
+  assert.doesNotMatch(
+    html,
+    /round-disclosure|<details|Not a promise|Conditional optimality|vs 2×-only reference|Positive session contributions shown|All seven selections|Unlimited transfers within/,
+  );
+  assert.match(html, /class="plan-chip chip-wildcard"><svg/);
+  assert.match(html, /class="transfer-status">OUT/);
+  assert.match(html, /class="transfer-status">IN/);
+  assert.match(html, /class="transfer-estimate negative"[^>]*>−10\.0/);
+  assert.match(html, /class="transfer-estimate positive"[^>]*>\+10\.0/);
 });
 
 test("registry shows unboosted next-round points and team colours for both kinds", () => {

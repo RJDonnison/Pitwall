@@ -65,6 +65,9 @@ def build(season: int, *, telemetry: bool = True) -> dict:
     rounds = []
     for t, weekend in enumerate(weekends):
         row = output.event(weekend)
+        row["last_session_utc"] = (
+            weekend.last_session.isoformat() if weekend.last_session else None
+        )
         row.update(race_context(weekend))
         row["forecasts"] = {a.id: components(forecasts[t, a.id]) for a in live.assets}
         if values is not None:

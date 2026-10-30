@@ -20,6 +20,11 @@ def main():
     url = sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:4174/Pitwall/"
     with urlopen(url + "forecast.json", timeout=20) as response:
         data = json.load(response)
+    assert datetime.now(timezone.utc) - datetime.fromisoformat(
+        data["generated_at"]
+    ) < timedelta(hours=6), (
+        "Refresh the preview's public forecast.json before running the browser regression"
+    )
     selected = []
     for kind, count in (("DRIVER", 5), ("CONSTRUCTOR", 2)):
         rows = sorted(
@@ -41,6 +46,23 @@ def main():
         restore=[],
     )
     empty = dict(profile, selected=[])
+    adopted_ids = selected.copy()
+    adopted_ids[0] = next(
+        a["id"]
+        for a in data["assets"]
+        if a["kind"] == "DRIVER" and a["id"] not in selected
+    )
+    profile["weekendSuggestion"] = dict(
+        season=data["season"],
+        gameday=-1,
+        round=data["rounds"][0]["round"] - 1,
+        name="Completed test weekend",
+        end=(datetime.now(timezone.utc) - timedelta(days=2)).isoformat(),
+        selected=adopted_ids,
+        cash=7,
+        carry=1,
+        chip="wildcard",
+    )
     screenshots = Path("/tmp/opencode")
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -76,10 +98,36 @@ def main():
                 timeout=130000,
             )
             assert page.url.endswith("#garage"), "Automatic solve moved the user"
+            assert page.locator("#adopt-weekend").is_enabled()
+            page.locator("#adopt-weekend").click()
+            page.wait_for_function(
+                "document.querySelector('#planning-status')?.textContent === 'Strategy up to date'",
+                timeout=130000,
+            )
+            stored = page.evaluate(
+                "JSON.parse(localStorage.getItem('pitwall-teams-v1'))"
+            )
+            assert stored[0]["selected"] == adopted_ids
+            assert stored[0]["carry"] == 1
+            assert (
+                stored[0]["budget"]
+                == sum(
+                    a["price_tenths_m"]
+                    for a in data["assets"]
+                    if a["id"] in adopted_ids
+                )
+                + 7
+            )
+            assert stored[1] == empty and stored[2] == empty
+            assert page.locator("#adopt-weekend").is_disabled(), (
+                "Next weekend must not be adopted before completion"
+            )
             assert (
                 page.locator("#optimize,#replan,#refresh,#preview-consent").count() == 0
             )
             assert page.locator("#page-garage a[href='#strategy']").count() == 0
+            assert page.locator("nav a[href='#strategy']").count() == 0
+            assert page.locator(".brand[href='#strategy']").count() == 1
             assert page.locator(".chip-toggle small").count() == 0
             assert page.locator("#roster-board [data-remove]").count() == 7
             assert page.locator("[data-nav=garage]").text_content().strip() == "Garage"
@@ -89,6 +137,18 @@ def main():
             )
             assert page.locator(".registry-add svg").count() == len(data["assets"])
             assert page.locator("#active-setup + .import-export").count() == 1
+            removed = page.locator("#roster-board [data-remove]").first.get_attribute(
+                "data-remove"
+            )
+            page.locator("#roster-board [data-remove]").first.click()
+            assert page.url.endswith("#asset-registry")
+            assert page.evaluate("document.activeElement.id") == "search"
+            page.locator(f'[data-select="{removed}"]').click()
+            page.wait_for_function(
+                "document.querySelector('#planning-status')?.textContent === 'Strategy up to date'",
+                timeout=130000,
+            )
+            assert page.locator("#roster-board [data-remove]").count() == 7
             # Filtering still works after placing the controls beside search.
             page.locator("[data-kind=CONSTRUCTOR]").click()
             assert page.locator(".market-card").count() == sum(
@@ -145,6 +205,13 @@ def main():
                         "document.documentElement.scrollWidth <= innerWidth"
                     ), (width, route, overflow)
                     if route == "garage":
+                        remove = page.locator(
+                            '.registry-add[aria-pressed="true"]'
+                        ).first
+                        remove.hover()
+                        assert remove.evaluate(
+                            "e => getComputedStyle(e).color === 'rgb(255, 255, 255)' && getComputedStyle(e).backgroundColor !== 'rgb(255, 255, 255)'"
+                        ), "Remove text must remain legible on its hover background"
                         assert page.locator(".market-card.selected").first.evaluate(
                             "e => parseFloat(getComputedStyle(e).borderLeftWidth) >= 2"
                         ), "Selected assets need a clear team-colour border"
@@ -159,6 +226,8 @@ def main():
                                 "Math.abs(document.querySelector('#active-setup summary').getBoundingClientRect().top - document.querySelector('#export-team').getBoundingClientRect().top) < 6"
                             ), "Import/export are not inline with chip setup"
                     if route == "strategy":
+                        assert page.locator("#round-detail").is_visible()
+                        assert page.locator(".round-disclosure").count() == 0
                         assert page.locator(".race-context .circuit-art").count() == 1
                         assert page.locator(".race-context").count() == 1
                         assert (
@@ -177,10 +246,10 @@ def main():
                             "e => 12 <= parseFloat(getComputedStyle(e).fontSize) <= 14"
                         )
                         if width == 1440:
-                            assert page.locator(".chip-directive").evaluate(
-                                "e => e.getBoundingClientRect().height < 340"
-                            ), (
-                                "Chip allocation should fit its content, not stretch to the transfer card"
+                            assert page.locator(".directive-grid").evaluate(
+                                "e => { const r = [...e.children].map(c => ({top:c.getBoundingClientRect().top,height:c.getBoundingClientRect().height,fits:c.scrollHeight <= c.clientHeight+1})); return r.every(v => Math.abs(v.height - r[0].height) < 1 && Math.abs(v.top-r[0].top) < 1 && v.height <= 341 && v.fits); }"
+                            ), page.locator(".directive-grid").evaluate(
+                                "e => [...e.children].map(c => ({class:c.className,height:c.getBoundingClientRect().height,top:c.getBoundingClientRect().top,client:c.clientHeight,scroll:c.scrollHeight}))"
                             )
                             assert page.locator(".race-overview").evaluate(
                                 "e => getComputedStyle(e).gap === '0px' && getComputedStyle(e).overflow === 'hidden'"
@@ -223,6 +292,11 @@ def main():
                             "e => !['rgb(255, 255, 255)', 'rgba(0, 0, 0, 0)'].includes(getComputedStyle(e).backgroundColor)"
                         )
                     if width <= 650:
+                        assert not page.locator("#header-cap").is_visible()
+                        if route == "strategy":
+                            assert page.evaluate(
+                                "document.querySelector('.race-hero').getBoundingClientRect().bottom <= document.querySelector('.race-context .circuit-art').getBoundingClientRect().top+1 && document.querySelector('.race-context .circuit-art').getBoundingClientRect().bottom <= document.querySelector('.race-context-readings').getBoundingClientRect().top+1"
+                            ), "Mobile hero must stack image, circuit, then track data"
                         assert (
                             page.locator(".masthead nav").evaluate(
                                 "e => getComputedStyle(e).position"
@@ -236,13 +310,26 @@ def main():
             page.evaluate("location.hash='strategy'")
             original_photo = page.locator(".race-photo").get_attribute("src")
             page.locator("[data-round='4']").click()
-            assert page.locator(".race-photo").get_attribute("src") != original_photo
-            # Changing rounds starts a new image request; wait for its actual
-            # load rather than inspecting the freshly replaced <img> in-flight.
+            assert page.locator(".race-photo").get_attribute("src") == original_photo
+            assert page.locator(".race-context a").count() == 0
+            # Selecting future plan details must not change the next-race hero.
             page.wait_for_function(
                 "document.querySelector('.race-photo')?.complete && document.querySelector('.race-photo').naturalWidth > 0",
                 timeout=10000,
             )
+            page.set_viewport_size({"width": 1440, "height": 900})
+            page.evaluate("location.hash='garage'")
+            page.locator("#active-setup").evaluate("e => e.open = true")
+            page.locator("#active-chip").select_option("autopilot")
+            page.wait_for_function(
+                "document.querySelector('#planning-status')?.textContent === 'Strategy up to date'",
+                timeout=130000,
+            )
+            page.evaluate("location.hash='strategy'")
+            assert page.locator(".boost-automatic").count() == 1
+            assert page.locator(".directive-grid").evaluate(
+                "e => [...e.children].every(c => c.getBoundingClientRect().height <= 341 && c.scrollHeight <= c.clientHeight+1)"
+            ), "Autopilot content must fit the same compact row"
             # Expired/failed automatic refresh cannot leave an old usable plan.
             expired = dict(
                 updated,

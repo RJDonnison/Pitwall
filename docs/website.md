@@ -158,21 +158,26 @@ and no chips; it is not a league benchmark or a do-nothing active-chip forecast.
 Autopilot shows scenario-dependent extra points rather than a fixed winner.
 Regular Boost uses the selected driver's portrait as the card background;
 Autopilot shows the five eligible drivers instead. Next-round removals and arrivals
-have separate labelled lists with portraits and prices, in a bounded, keyboard-focusable
+use separate OUT/IN rows with constructor, price and signed unboosted point contributions, in a bounded, keyboard-focusable
 scroll region so long transfer lists do not stretch the adjacent directives.
 The circuit inset uses a dark background. The slimmer masthead and matching pit-lane
 logo/favicon follow the same broadsheet identity; registry action footers are compact,
 and non-interactive recommended-team table rows have no hover affordance.
 The race photograph and paper track/weather panel share one integrated hero border,
-with the circuit inside that context panel on desktop and inset over the photo on
-mobile. Strategic allocation fits its content rather than stretching to the transfer
-card's height.
+with the circuit inside that context panel on desktop. Mobile stacks the photo,
+circuit and track/weather data vertically. The three desktop recommendation cards share a compact 340-pixel height;
+transfers scroll within their card rather than stretching the row. Stacked mobile
+cards keep their natural compact heights.
+The logo opens Strategy; navigation contains Garage and Forecasts. Mobile hides
+the budget header, and race breakdowns stay expanded at every size. Season cards
+reuse the coloured chip icons, with stronger selected-card outlines.
 
 Track specifications for the five remaining 2026 rounds use official Formula 1
-circuit guides (length, race laps and race distance, with source links). Public
+circuit guides (length, race laps and race distance; sources remain in footer credits). Public
 Open-Meteo daily forecasts add air-temperature range, maximum daily precipitation
 probability and maximum wind over the weekend's UTC dates, with source, units and
-retrieval time. These are air forecasts, not track temperatures or a probability
+retrieval time in the public dataset. Hero source links and the ISO date-range line
+are omitted for a cleaner panel. These are air forecasts, not track temperatures or a probability
 that the entire race is wet. Beyond the 16-day window, missing/invalid weather or
 an API outage displays an unavailable state; it cannot prevent publication of valid
 Fantasy forecasts. No browser API key or account credentials are involved. The optional
@@ -188,6 +193,20 @@ Fantasy point estimate, with compact black Add/Remove controls. These estimates
 include qualifying, Sprint when present, and race; they do not include Boost,
 chips or transfer penalties. Search and type filters share a row, and import/export
 sits alongside the already-active-chip settings.
+Replace removes the selected asset and opens the registry with its driver/constructor
+filter and search focused, ready for the replacement.
+The latest next-race suggestion is saved in each local profile across page reloads
+and new publications. Once its scheduled final session has ended **and** the next
+round is published, Garage offers **Update local team** or **Discard suggestion**.
+Update is an explicit confirmation that you followed that lineup: it copies the
+seven selections, removes that round's spent chip, advances carried transfers,
+clears the completed active chip and replans. Limitless copies its restored roster,
+not the temporary uncapped picks, and clears carry. Stored cash is retained while
+current roster prices determine the updated total budget. Check the budget and
+transfer allowance against your official account, especially if your actual trades,
+Final Fix or prices differed. Stale publications, inactive selections, invalid saved
+data and unfinished weekends cannot update the profile. Other profiles and the
+official Fantasy account are untouched; recommendations are never auto-adopted.
 Selected registry cards use a two-pixel constructor-colour outline and subtle tint.
 The compact 30-pixel Add/Remove visual retains an expanded 44-pixel touch hit area.
 Free transfers are selected explicitly (two, three with carry, or unlimited for
@@ -210,7 +229,8 @@ Creative Commons. The exact commit, original CDN URL and transformations are
 recorded in the footer and `web/public/media/ATTRIBUTION.json`. The five remaining
 venue photographs have separate Commons licences and archival dates. Circuit
 outlines use the MIT-licensed `bacinger/f1-circuits` coordinates. Both venue photo
-and circuit change with the selected round; unknown circuits are unavailable.
+and circuit always describe the next race, even while a future round's plan is
+selected below; unknown circuits are unavailable.
 See [media replacement and provenance](media.md) for both importers and crops.
 
 Sparklines use the latest four available official round-price observations in
