@@ -41,13 +41,7 @@
   min-width: 0;
   padding: 24px;
 }
-.insight-heading {
-  margin: 0;
-  align-items: center;
-}
-.insight-heading p,
-.insight-toolbar p,
-.insight-race-strip p {
+.insight-toolbar p {
   margin: 4px 0 0;
   color: var(--muted);
 }
@@ -76,36 +70,6 @@
 .insight-toolbar p strong {
   font-weight: 500;
   color: var(--ink);
-}
-.insight-race-strip {
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 24px;
-  padding: 24px 0;
-}
-.insight-race-strip h2 {
-  font-size: clamp(24px, 3vw, 36px);
-  font-weight: 500;
-  margin: 6px 0;
-}
-.insight-race-strip .circuit-art {
-  width: 200px;
-  flex: 0 0 200px;
-  height: 110px;
-  margin: 0;
-  padding: 12px;
-  background: var(--ink);
-  border-radius: 4px;
-}
-.insight-race-strip .circuit-art svg {
-  width: 100%;
-  height: 70px;
-}
-.insight-race-strip .circuit-art > span {
-  display: none;
 }
 .insight-probability-grid {
   display: grid;
@@ -357,11 +321,6 @@
   .insights-page .panel {
     padding: 16px;
   }
-  .insight-heading {
-    align-items: start;
-    flex-direction: column;
-    gap: 12px;
-  }
   .insight-toolbar {
     gap: 12px;
     align-items: start;
@@ -374,16 +333,6 @@
   }
   .insight-toolbar p {
     flex-basis: 100%;
-  }
-  .insight-race-strip {
-    gap: 12px;
-    padding: 20px 0;
-  }
-  .insight-race-strip .circuit-art {
-    width: 100px;
-    flex-basis: 100px;
-    height: 90px;
-    padding: 8px;
   }
   .insights-page .section-heading {
     flex-wrap: wrap;

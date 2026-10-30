@@ -74,6 +74,22 @@ def test_context_has_verified_track_spec_and_explicit_air_units(
         "air_max_c": 25,
         "daily_rain_probability_max": 35,
         "wind_max_kmh": 18,
+        "daily": [
+            {
+                "date": "2026-10-31",
+                "air_min_c": 11,
+                "air_max_c": 24,
+                "rain_probability": 20,
+                "wind_max_kmh": 14,
+            },
+            {
+                "date": "2026-11-01",
+                "air_min_c": 12,
+                "air_max_c": 25,
+                "rain_probability": 35,
+                "wind_max_kmh": 18,
+            },
+        ],
         "source": "https://open-meteo.com/",
         "license": "CC BY 4.0",
     }

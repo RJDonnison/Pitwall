@@ -104,6 +104,16 @@ def race_context(weekend, *, now=None):
             "air_max_c": max(high),
             "daily_rain_probability_max": max(rain),
             "wind_max_kmh": max(wind),
+            "daily": [
+                {
+                    "date": day,
+                    "air_min_c": low[i],
+                    "air_max_c": high[i],
+                    "rain_probability": rain[i],
+                    "wind_max_kmh": wind[i],
+                }
+                for i, day in enumerate(days)
+            ],
             "source": "https://open-meteo.com/",
             "license": "CC BY 4.0",
         }

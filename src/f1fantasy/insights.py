@@ -255,6 +255,69 @@ def build(assets, weekends, cutoff, *, telemetry=True, simulations=4000, seed=20
         return {"status": "unavailable", "message": str(exc)}
 
 
+def _title_eligibility(championship, records, assets, weekends):
+    """Exclude impossible titles; retain exact unresolved countback ties."""
+    races, sprints = len(weekends), sum(w.sprint for w in weekends)
+    current = [r for r in records if r["season"] == weekends[0].season]
+    positions = max(2, *(len(r["sessions"]["R"]) for r in current))
+    drivers = [a for a in assets if a.kind == "DRIVER"]
+    for kind in ("drivers", "constructors"):
+        rows = championship[kind]
+        finishes = {r["key"]: Counter() for r in rows}
+        countback_complete = True
+        for record in current:
+            for result in record["sessions"]["R"]:
+                if not result["classified"]:
+                    continue
+                position = result.get("position")
+                if (
+                    position is None
+                    or not 1 <= position <= positions
+                    or int(position) != position
+                ):
+                    countback_complete = False
+                    continue
+                key = (
+                    result["tla"]
+                    if kind == "drivers"
+                    else _team_key(result["team_name"])
+                )
+                finishes[key][int(position)] += 1
+        leader = max(r["observed"] for r in rows)
+        for row in rows:
+            a = next((a for a in assets if a.id == row["asset_id"]), None)
+            cars = (
+                (
+                    1
+                    if kind == "drivers"
+                    else min(2, sum(d.team_id == a.team_id for d in drivers))
+                )
+                if a
+                else 0
+            )
+            maximum = races * sum([25, 18][:cars]) + sprints * sum([8, 7][:cars])
+            best = finishes[row["key"]].copy()
+            for position in range(1, cars + 1):
+                best[position] += races
+            ceiling = row["observed"] + maximum
+            loses_countback = (
+                ceiling == leader
+                and countback_complete
+                and any(
+                    rival["observed"] == leader
+                    and tuple(best[p] for p in range(1, positions + 1))
+                    < tuple(finishes[rival["key"]][p] for p in range(1, positions + 1))
+                    for rival in rows
+                    if rival is not row
+                )
+            )
+            row.update(
+                max_remaining=maximum,
+                max_final=ceiling,
+                title_eligible=ceiling >= leader and not loses_countback,
+            )
+
+
 def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
     if (
         simulations < 1
@@ -388,6 +451,7 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
                     }
                 )
             championship[kind].sort(key=lambda r: (-r["projected"], r["name"]))
+        _title_eligibility(championship, records, assets, weekends)
     return {
         "status": "ready",
         "model": MODEL,

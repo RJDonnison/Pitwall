@@ -6,7 +6,15 @@ import {
   car,
   constructorName,
 } from "./views.js";
-import { portrait, circuitMarkup } from "./visuals.js";
+import { portrait } from "./visuals.js";
+import {
+  insightHero,
+  weatherBriefing,
+  fantasyChart,
+  championshipChart,
+  contenderCards,
+  podiumCards,
+} from "./insight-visuals.js";
 
 const percent = (n) => `${(n * 100).toFixed(1)}%`;
 const stamp = (value) =>
@@ -44,13 +52,17 @@ function pitstopMarkup(dataset, pit) {
   const rows = dataset.assets
     .filter((a) => a.kind === "CONSTRUCTOR")
     .sort((a, b) => pit.probabilities[b.id] - pit.probabilities[a.id]);
-  return `<p class="insight-note">Fastest stationary stop of the Grand Prix. ${pit.samples} finalized official winners; one prior win per team.</p><ol class="pitstop-list">${rows.map((a) => `<li><span>${esc(a.name)}</span><strong>${percent(pit.probabilities[a.id])}</strong><span class="probability-track" aria-hidden="true"><i style="width:${pit.probabilities[a.id] * 100}%"></i></span></li>`).join("")}</ol><details class="insight-evidence"><summary>Winner evidence & source</summary><p>Checked ${esc(stamp(pit.checked_at))}. <a href="${esc(pit.source)}" target="_blank" rel="noopener noreferrer">Official F1 Predict finalized labels</a>.</p><ul>${pit.evidence.map((r) => `<li>Round ${r.gameday_id}: ${esc(r.team_name)} · published ${esc(stamp(r.published_at))}</li>`).join("")}</ul></details>`;
+  return `<p class="insight-note">Fastest stationary stop of the Grand Prix. ${pit.samples} finalized official winners; one prior win per team.</p><ol class="pitstop-list">${rows.map((a) => `<li style="--team-color:${teamColor(dataset, a)}">${identity(dataset, { asset_id: a.id, name: a.name })}<strong>${percent(pit.probabilities[a.id])}</strong><span class="probability-track" aria-hidden="true"><i style="width:${pit.probabilities[a.id] * 100}%"></i></span></li>`).join("")}</ol><details class="insight-evidence"><summary>Winner evidence & source</summary><p>Checked ${esc(stamp(pit.checked_at))}. <a href="${esc(pit.source)}" target="_blank" rel="noopener noreferrer">Official F1 Predict finalized labels</a>.</p><ul>${pit.evidence.map((r) => `<li>Round ${r.gameday_id}: ${esc(r.team_name)} · published ${esc(stamp(r.published_at))}</li>`).join("")}</ul></details>`;
 }
 
 function championshipMarkup(dataset, insight, population) {
   const champ = insight.championship;
   if (champ.status !== "ready") return empty(champ.message);
-  const rows = champ[population];
+  const rows = champ[population].filter((r) => r.title_eligible === true);
+  if (!rows.length)
+    return empty(
+      "No verified title-contender eligibility is available. Refresh the forecast publication.",
+    );
   const max = Math.max(1, ...rows.map((r) => r.interval80[1]));
   return table(
     "Projected championship points",
@@ -59,12 +71,13 @@ function championshipMarkup(dataset, insight, population) {
       "Observed",
       "Expected remaining",
       "Projected final",
+      "Maximum possible final",
       "Central 80% simulation range",
     ],
     rows
       .map(
         (r) =>
-          `<tr><th scope="row">${identity(dataset, r)}</th><td>${points(r.observed)}</td><td>+${points(r.remaining)}</td><td><strong>${points(r.projected)}</strong></td><td class="range-cell"><span>${points(r.interval80[0])}–${points(r.interval80[1])}</span><span class="projection-range" aria-hidden="true"><i style="left:${(100 * r.interval80[0]) / max}%;width:${(100 * (r.interval80[1] - r.interval80[0])) / max}%"></i><b style="left:${(100 * r.projected) / max}%"></b></span></td></tr>`,
+          `<tr><th scope="row">${identity(dataset, r)}</th><td>${points(r.observed)}</td><td>+${points(r.remaining)}</td><td><strong>${points(r.projected)}</strong></td><td>${points(r.max_final)}</td><td class="range-cell"><span>${points(r.interval80[0])}–${points(r.interval80[1])}</span><span class="projection-range" aria-hidden="true"><i style="left:${(100 * r.interval80[0]) / max}%;width:${(100 * (r.interval80[1] - r.interval80[0])) / max}%"></i><b style="left:${(100 * r.projected) / max}%"></b></span></td></tr>`,
       )
       .join(""),
   );
@@ -150,9 +163,12 @@ export function insightsMarkup(dataset, state = {}) {
   };
   const metric = Object.hasOwn(metrics, state.metric) ? state.metric : "win";
   const sort = state.sort || "points";
-  return `<div class="insights-page"><div class="page-heading insight-heading"><div><h1>Race Insights</h1><p>Results behind us. Possibilities ahead.</p></div><span class="tag">Uncalibrated model</span></div>
+  return `<div class="insights-page">${insightHero(dataset, round, insight)}
     <div class="insight-toolbar"><label>Forecast round<select id="insight-round">${dataset.rounds.map((r) => option(r.round, `R${r.round} · ${r.name}${r.sprint ? " · Sprint" : ""}`, round.round)).join("")}</select></label><div class="segments" role="group" aria-label="Insights population">${["drivers", "constructors"].map((p) => `<button data-insight-population="${p}" aria-pressed="${population === p}">${p === "drivers" ? "Drivers" : "Teams"}</button>`).join("")}</div><p>Historical cutoff<br><strong>${esc(stamp(insight.cutoff))}</strong></p></div>
-    <section class="insight-race-strip"><div><span class="eyebrow">Round ${round.round} · ${round.sprint ? "Sprint" : "Regular"} weekend</span><h2>${esc(round.name)}</h2><p>${insight.simulations.toLocaleString()} joint simulations · ${insight.form_samples.R} recent GPs${round.sprint ? ` · ${insight.form_samples.S} Sprints` : ""}</p></div>${circuitMarkup(round.name)}</section>
+    ${weatherBriefing(round)}
+    <div class="insight-workbench">${fantasyChart(dataset, round, population)}${championshipChart(dataset, insight, population)}</div>
+    ${contenderCards(dataset, round, probabilities, population)}
+    ${podiumCards(dataset, probabilities, population)}
     <div class="insight-probability-grid"><section class="panel"><div class="section-heading"><div><h2>Race probabilities</h2><p>${population === "constructors" ? "At least one car achieves the selected outcome." : "Each driver's chance of the selected outcome."}</p></div><label><span class="sr-only">Probability outcome</span><select id="insight-metric">${Object.entries(
       metrics,
     )
@@ -161,7 +177,7 @@ export function insightsMarkup(dataset, state = {}) {
         "",
       )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}<p class="insight-note">${population === "constructors" ? "Team outcomes overlap. " : ""}Not classified is a result classification, not necessarily a mechanical retirement. Probabilities are model estimates.</p></section>
     <aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2><p>Stationary-stop winner probability</p></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
-    <section class="panel"><div class="section-heading"><div><h2>Championship horizon</h2><p>${dataset.season} real F1 points · all ${dataset.rounds.length} remaining published rounds</p></div><span class="tag">Observed + simulated</span></div>${championshipMarkup(dataset, insight, population)}<p class="insight-note">Full-distance GP points (25–18–15–12–10–8–6–4–2–1) and Sprint points (8–1); no fastest-lap bonus. Ranges show the middle 80% of joint simulated seasons, not calibrated confidence. Historical participants retain their earned points. Rows are ordered by expected points, not official countback standings.</p></section>
+    <section class="panel"><div class="section-heading"><div><h2>Championship horizon</h2><p>${dataset.season} real F1 points · title contenders · all ${dataset.rounds.length} remaining published rounds</p></div><span class="tag">Observed + simulated</span></div>${championshipMarkup(dataset, insight, population)}<p class="insight-note">Mathematically eliminated entrants are hidden here, but retained in historical records. Maximum final points assume every remaining GP and Sprint is won (constructors: best possible finishes of their current cars); tied ceilings consider GP finish countback, retaining unresolved ties. Full-distance GP points (25–18–15–12–10–8–6–4–2–1) and Sprint points (8–1); no fastest-lap bonus. Ranges show the middle 80% of joint simulated seasons, not calibrated confidence. Rows are ordered by expected points, not official countback standings.</p></section>
     <section class="panel"><div class="section-heading"><div><h2>Historical record</h2><p>Observed results · GP counts exclude Sprints</p></div><label>Season<select id="insight-season">${insight.history.map((h) => option(h.season, h.season, history.season)).join("")}</select></label></div><div class="history-tools"><label><span class="sr-only">Search historical participants</span><input id="insight-search" type="search" placeholder="Search historical participants…" value="${esc(state.query || "")}"/></label><label>Order by<select id="insight-sort">${Object.entries(
       {
         points: "Real F1 points",

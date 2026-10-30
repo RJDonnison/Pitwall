@@ -1,6 +1,7 @@
 import photos from "./media.json" with { type: "json" };
 import circuits from "./circuits.json" with { type: "json" };
 import racePhotos from "./race-media.json" with { type: "json" };
+import trackGuides from "./track-guides.json" with { type: "json" };
 import { esc } from "./text.js";
 
 export const logo = () =>
@@ -22,6 +23,15 @@ export function creditsMarkup() {
     .map(
       (p) =>
         `<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} · ${esc(p.subject)}</a> — ${esc(p.author)} · <a href="${esc(p.license_url)}" target="_blank" rel="noopener noreferrer">${esc(p.license)}</a>${p.repository ? ` · <a href="${esc(p.repository)}" target="_blank" rel="noopener noreferrer">Pinned source</a>` : ""}. ${esc(p.changes)}</li>`,
+    )
+    .join(
+      "",
+    )}</ul><p>Race Insights venue hero photographs and detailed ${2026} circuit maps: Formula 1 official circuit guides, checked 30 October 2026. Copyright remains with the respective rights holders; no Creative Commons licence is claimed. Maps retain the official turn, sector and published activation-zone annotations.</p><ul>${Object.entries(
+    trackGuides,
+  )
+    .map(
+      ([id, g]) =>
+        `<li><a href="${g.source}" target="_blank" rel="noopener noreferrer">${esc(circuits.find((c) => c.id === id)?.name || id)} · official circuit guide</a> · <a href="${g.photo_asset}" target="_blank" rel="noopener noreferrer">Original venue image</a> · <a href="${g.map_asset}" target="_blank" rel="noopener noreferrer">Original map</a>. Downloaded as WebP for local display; hero cropped with an image scrim.</li>`,
     )
     .join(
       "",

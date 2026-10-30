@@ -1,6 +1,7 @@
 """Cutoff-safe race statistics and joint FIA championship projections."""
 
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
 import numpy as np
@@ -87,6 +88,8 @@ def test_joint_projection_preserves_inactive_points_and_sprint_scoring(scenario)
     old = next(r for r in champ["drivers"] if r["key"] == "OLD")
     assert old["observed"] == old["projected"] == 7
     assert old["remaining"] == 0 and old["interval80"] == [7, 7]
+    assert old["max_final"] == 7 and not old["title_eligible"]
+    assert next(r for r in champ["drivers"] if r["key"] == "AAA")["max_remaining"] == 58
     a = next(r for r in champ["constructors"] if r["asset_id"] == "a")
     # Two GP draws plus one Sprint draw, summed per sample before quantiles.
     expected = 43 + np.array(
@@ -171,3 +174,40 @@ def test_telemetry_has_the_same_cutoff_for_all_rounds(scenario, monkeypatch):
 
     monkeypatch.setattr(insights, "adjustments", adjust)
     insights._build(doc, assets, weekends, cutoff, True, 4, 42)
+
+
+def test_title_ceiling_includes_sprints_and_constructor_car_count(scenario):
+    assets, weekends, _, doc = scenario
+    champ = build(scenario)["championship"]
+    rows = {r["key"]: r for r in champ["drivers"]}
+    rows["AAA"]["observed"] = 100
+    rows["BBB"]["observed"] = 41
+    rows["CCC"]["observed"] = 42
+    insights._title_eligibility(champ, doc["racing"], assets, weekends)
+    assert rows["BBB"]["max_final"] == 99
+    assert not rows["BBB"]["title_eligible"]
+    # Reaching 100 with two GP wins beats the leader's one recorded win.
+    assert rows["CCC"]["max_final"] == 100 and rows["CCC"]["title_eligible"]
+    teams = {r["asset_id"]: r for r in champ["constructors"]}
+    assert teams["a"]["max_remaining"] == 2 * 43 + 15
+    assert teams["b"]["max_remaining"] == 2 * 25 + 8
+    insights._title_eligibility(
+        champ, doc["racing"], assets, [replace(w, sprint=False) for w in weekends]
+    )
+    assert rows["CCC"]["max_final"] == 92 and not rows["CCC"]["title_eligible"]
+
+
+def test_equal_points_ceiling_uses_gp_countback_and_preserves_unresolved_ties(scenario):
+    assets, weekends, _, doc = scenario
+    champ = build(scenario)["championship"]
+    rows = {r["key"]: r for r in champ["drivers"]}
+    rows["AAA"]["observed"] = 100
+    rows["CCC"]["observed"] = 42
+    leader = doc["racing"][0]["sessions"]["R"][0]
+    # Even two future GP wins cannot beat three existing wins at equal points.
+    records = [{**doc["racing"][0], "sessions": {"R": [leader]}}] * 3
+    insights._title_eligibility(champ, records, assets, weekends)
+    assert not rows["CCC"]["title_eligible"]
+    # Exact countback remains unresolved; Sprint wins do not break GP countback.
+    insights._title_eligibility(champ, records[:2], assets, weekends)
+    assert rows["CCC"]["title_eligible"]

@@ -21,6 +21,8 @@ function publication(sprint = false) {
     remaining: 10,
     projected: 35,
     interval80: [25, 45],
+    max_final: 50,
+    title_eligible: true,
   };
   return {
     season: 2026,
@@ -95,4 +97,96 @@ test("Sprint outcomes are format-specific and team probabilities use the publish
   const html = insightsMarkup(publication(), { population: "constructors" });
   assert.match(html, /75\.0%/);
   assert.match(html, /At least one car/);
+});
+
+test("The selected round owns its sourced hero, map and daily weather briefing", () => {
+  const data = publication();
+  const mexico = data.rounds[0];
+  mexico.name = "Mexico City Grand Prix";
+  mexico.track_spec = {
+    race_laps: 71,
+    length_km: 4.304,
+    race_distance_km: 305.354,
+  };
+  mexico.weather = {
+    status: "available",
+    air_min_c: 12,
+    air_max_c: 25,
+    daily_rain_probability_max: 35,
+    wind_max_kmh: 18,
+    start_date: "2026-10-30",
+    end_date: "2026-10-30",
+    fetched_at: "2026-10-30T00:00:00Z",
+    daily: [
+      {
+        date: "2026-10-30",
+        air_min_c: 12,
+        air_max_c: 25,
+        rain_probability: 35,
+        wind_max_kmh: 18,
+      },
+    ],
+  };
+  data.rounds.push({
+    ...mexico,
+    round: 3,
+    name: "Las Vegas Grand Prix",
+    weather: { status: "outside_horizon" },
+  });
+  const first = insightsMarkup(data);
+  assert.match(first, /mx-1962-hero.webp/);
+  assert.match(first, /mx-1962-map-2026.webp/);
+  assert.match(first, /1:17.774/);
+  assert.match(first, /305.354 km/);
+  assert.match(first, /overtake detection and activation points/);
+  assert.match(first, /35% rain · 18 km\/h wind/);
+  assert.match(first, /Open-Meteo · CC BY 4.0/);
+  const other = insightsMarkup(data, { round: 3 });
+  assert.match(other, /us-2023-hero.webp/);
+  assert.match(other, /Activation zones are not annotated/);
+  assert.match(other, /Outside the 16-day forecast window/);
+  assert.doesNotMatch(
+    other,
+    /35% rain|mx-1962-map-2026.webp|overtake detection and activation points|NaN|undefined/,
+  );
+  data.season = 2027;
+  assert.doesNotMatch(insightsMarkup(data), /map-2026.webp|1:17.774/);
+});
+
+test("Fantasy graphics preserve negative session components and keep F1 projections separate", () => {
+  const data = publication();
+  data.rounds[0].forecasts["1"] = [-8, 0, 12];
+  data.insights.rounds[0].drivers["1"].podium = 0.6;
+  const html = insightsMarkup(data);
+  assert.match(html, /Q -8.0/);
+  assert.match(html, /R 12.0/);
+  assert.match(html, /4.0 <small>pts/);
+  assert.match(html, /signed-negative/);
+  assert.match(html, /60.0%/);
+  assert.match(html, /25.0 observed \+ 10.0 expected/);
+  assert.match(html, /Negative components extend left of zero/);
+  assert.doesNotMatch(html, /NaN|undefined|Alpha <Test>/);
+});
+
+test("Championship horizon excludes mathematical elimination while historical records retain entrants", () => {
+  const data = publication();
+  const eliminated = {
+    ...data.insights.championship.drivers[0],
+    key: "OUT",
+    name: "Eliminated racer",
+    asset_id: null,
+    observed: 0,
+    projected: 999,
+    max_final: 24,
+    title_eligible: false,
+  };
+  data.insights.championship.drivers.unshift(eliminated);
+  data.insights.history[0].drivers.push(eliminated);
+  const html = insightsMarkup(data);
+  const beforeHistory = html.split("Historical record")[0];
+  assert.doesNotMatch(beforeHistory, /Eliminated racer|999\.0/);
+  assert.match(html, /Eliminated racer/);
+  assert.match(html, /1 mathematically eliminated entrants hidden/);
+  assert.match(html, /Maximum possible final/);
+  assert.match(html, /maximum possible 50\.0/);
 });

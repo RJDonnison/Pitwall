@@ -265,10 +265,31 @@ existing private host session directories were not deleted.
 
 The desktop/mobile page adapts Stitch project `6085770950590244465`, dashboard
 `52730fb5dc454fce9b40080dd77c0495` and mobile `9f99673b1923479895259aaa89f2971a`:
-editorial race heading, portrait-led probability rankings, constructor comparisons
-and championship range bars. The requested V6 edit timed out; the existing
-downloadable designs supplied the layout references. Illustrative confidence,
-weather effects, timings and title odds are not published as data.
+photo-led dark race hero, translucent four-stat briefing, large sector map,
+context tiles, 7:5 Fantasy/championship workbench, portrait comparison cards and
+podium-probability graphics. Team colours identify entrants; qualifying, Sprint
+and race have distinct chart colours. Signed Fantasy bars retain negative session
+components, and observed/expected championship points remain separate. Numeric
+labels and full tables accompany the graphics. The downloaded Stitch design is
+the visual reference; its illustrative confidence, weather effects, timings and
+title odds are not published as data.
+
+`web/src/track-guides.json` records the official Formula 1 guide and original
+photo/map URLs for all five remaining 2026 circuits. Local WebP files preserve
+the map annotations, including numbered turns and sector splits. The Mexico and
+Interlagos guides published at the 30 October check also mark straight-mode and
+overtake activation/detection areas: these are the 2026 replacement for DRS.
+Las Vegas, Lusail and Yas Marina maps do not yet annotate activation zones and
+say so rather than deriving positions from straight sections. Full-size maps
+and original source links are accessible. Lap records, first-GP years and circuit
+descriptions follow the same season-specific official guides; later seasons
+do not silently inherit these records. Footer credits retain original asset URLs.
+
+The selected round also owns its weather briefing. Validated Open-Meteo daily
+air-temperature ranges, precipitation probabilities and maximum 10 m wind speeds
+are published alongside the weekend aggregates. Values retain units, UTC dates,
+fetch time and attribution. Out-of-horizon/missing weather stays unavailable;
+air temperature is not labelled track temperature and weather remains display-only.
 
 `f1fantasy.insights` adds an optional `insights` object to the existing schema-1
 forecast publication. It uses 4,000 seeded joint racing draws per remaining round,
@@ -305,6 +326,19 @@ simulated results back into form. Constructor intervals sum both cars in each
 sample before computing quantiles. Central 80% ranges are **uncalibrated scenario
 ranges**, not confidence scores. Expected-point order is not official countback
 ranking or a title-odds model.
+
+Championship Horizon shows only mathematically eligible title contenders. Each
+entrant's maximum is observed points plus winning every remaining GP and Sprint
+(constructors take the best possible finishes of their current cars, up to a 1–2).
+An entrant whose ceiling is below the current leader's observed points is removed.
+At equal points, the entrant's best possible GP finish countback must not lose to
+an existing leader's countback; Sprint wins do not decide that countback. Exact or
+insufficiently observed countback ties remain eligible. The chart discloses hidden
+entrants, and the table shows maximum possible final points separately from expected
+points. This eligibility uses the same published schedule, recorded session points,
+full-distance scoring and fixed-roster assumptions as the projections, rather than
+rejecting someone because a finite simulation produced no wins. Eliminated entrants
+remain in the publication and historical records; their earned points are preserved.
 
 The expandable Fantasy table separately shows unboosted Q/S/R predictions and
 weekend totals, excluding chips and transfer penalties. Insights needs no complete

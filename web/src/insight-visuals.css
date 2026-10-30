@@ -1,0 +1,851 @@
+/* The supplied Stitch telemetry deck: photo hero, 7:5 workbench, team-colour data. */
+.insights-page {
+  --session-q: #7c3aed;
+  --session-s: #d97706;
+  --session-r: #0284c7;
+  gap: 28px;
+}
+.insight-ticker {
+  display: flex;
+  align-items: center;
+  gap: 12px 28px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: #eeeeed;
+  border: 1px solid var(--rule);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: -28px;
+}
+.insight-ticker span:first-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.insight-ticker i {
+  width: 7px;
+  height: 7px;
+  background: var(--red);
+  border-radius: 50%;
+}
+.insight-ticker span:last-child {
+  margin-left: auto;
+  color: var(--red);
+}
+.insight-hero {
+  position: relative;
+  isolation: isolate;
+  background: #2f3130;
+  color: #f1f1f0;
+  overflow: hidden;
+  border-radius: 0 0 8px 8px;
+}
+.insight-hero > img {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.5;
+}
+.insight-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    90deg,
+    #202423f2 0%,
+    #202423e0 40%,
+    #20242366 100%
+  );
+}
+.insight-hero-content {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 36px;
+  align-items: center;
+  padding: 40px 32px;
+}
+.insight-hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.insight-hero-badges span {
+  padding: 4px 8px;
+  background: #ffffff21;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.insight-hero-badges span:first-child {
+  background: var(--red);
+}
+.insight-hero h1 {
+  font-size: clamp(32px, 4.2vw, 56px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+  margin: 0 0 12px;
+  color: #fff;
+  text-wrap: balance;
+}
+.insight-hero-location {
+  font-size: 17px;
+  color: #e2e2e2;
+  margin: 0 0 20px;
+}
+.insight-hero-description {
+  max-width: 64ch;
+  color: #e2e2e2;
+  font-size: 13px;
+  line-height: 1.75;
+  margin: 0 0 24px;
+}
+.insight-hero-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.insight-hero-stats > div {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 5px;
+  background: #ffffff16;
+  border: 1px solid #ffffff0f;
+  border-radius: 5px;
+}
+.insight-hero-stats span {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #dadad9;
+}
+.insight-hero-stats strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.insight-hero-stats small {
+  font-size: 9px;
+  color: #dadad9;
+  line-height: 1.5;
+}
+.insight-track-map {
+  margin: 0;
+  min-width: 0;
+  padding: 18px;
+  background: #ffffff10;
+  border: 1px solid #ffffff29;
+  border-radius: 8px;
+}
+.insight-track-map figcaption {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid #ffffff24;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  font-size: 10px;
+}
+.insight-track-map figcaption strong {
+  font-weight: 600;
+}
+.insight-track-map figcaption span {
+  color: #dadad9;
+}
+.insight-map-link {
+  display: block;
+  border-radius: 5px;
+  background: #171c1e;
+  padding: 8px;
+}
+.insight-map-link img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+.insight-map-key {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.insight-map-key span {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 10px;
+  padding: 7px;
+  background: #ffffff12;
+  border-radius: 3px;
+}
+.insight-map-key i {
+  display: block;
+  width: 14px;
+  height: 3px;
+}
+.insight-track-map p {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #e2e2e2;
+  margin: 12px 0 4px;
+}
+.insight-source {
+  color: #ffb4ac;
+  font-size: 10px;
+  text-underline-offset: 3px;
+}
+.insight-track-map .circuit-art {
+  position: static;
+  width: 100%;
+  max-width: none;
+  height: 210px;
+  padding: 16px;
+}
+.insight-track-map .circuit-art svg {
+  width: 100%;
+  height: 170px;
+}
+.insight-toolbar {
+  padding: 16px 20px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  gap: 16px;
+}
+.insight-toolbar label {
+  min-width: 200px;
+}
+.insight-toolbar .segments {
+  margin: 0;
+}
+.insight-toolbar p {
+  margin: 0;
+}
+.insight-weather {
+  background: #eeeeed;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 16px;
+}
+.insight-weather-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.weather-tile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 16px 12px;
+  min-width: 0;
+}
+.weather-tile h2 {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 3px;
+}
+.weather-tile strong {
+  font-size: clamp(17px, 1.6vw, 22px);
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.weather-tile p {
+  font-size: 9px;
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+.weather-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.weather-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.weather-tile.blue .weather-icon {
+  color: #0369a1;
+  background: #e0f2fe;
+}
+.weather-tile.orange .weather-icon {
+  color: #b45309;
+  background: #fff7ed;
+}
+.weather-tile.teal .weather-icon {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+.weather-tile.red .weather-icon {
+  color: var(--red);
+  background: #ffdad6;
+}
+.weather-day-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+.weather-day-grid article {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  flex: 1 1 150px;
+  gap: 8px;
+  padding: 12px;
+  background: #ffffff80;
+  border: 1px solid var(--rule);
+  border-radius: 5px;
+  font-size: 11px;
+}
+.weather-day-grid small {
+  font-size: 10px;
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+.weather-rain-bar {
+  grid-column: 1 / -1;
+  height: 4px;
+  background: #d6e4ed;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.weather-rain-bar i {
+  display: block;
+  height: 100%;
+  background: #0284c7;
+}
+.insight-weather-source {
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.insight-weather-source a {
+  color: #0369a1;
+}
+.insight-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 24px;
+  align-items: stretch;
+}
+.insight-kicker {
+  display: block;
+  color: var(--red);
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.session-chart-key,
+.champ-chart-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.session-chart-key span,
+.champ-chart-key span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.session-chart-key i,
+.champ-chart-key i {
+  width: 9px;
+  height: 9px;
+  display: inline-block;
+  border-radius: 2px;
+}
+.insights-page .session-q {
+  background: var(--session-q);
+}
+.insights-page .session-s {
+  background: var(--session-s);
+}
+.insights-page .session-r {
+  background: var(--session-r);
+}
+.fantasy-chart {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  max-height: 535px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.fantasy-chart li {
+  background: var(--inset);
+  padding: 12px;
+  border-radius: 5px;
+  border-left: 3px solid var(--team-color);
+}
+.fantasy-chart-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.fantasy-chart-label > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.fantasy-chart-label > span i {
+  width: 7px;
+  height: 7px;
+  background: var(--team-color);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.fantasy-chart-label strong {
+  white-space: nowrap;
+  font-size: 14px;
+}
+.fantasy-chart-label small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.fantasy-session-values {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 7px 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.fantasy-session-values span {
+  padding: 2px 5px;
+  border: 1px solid #dfdfdc;
+  border-radius: 3px;
+  background: #fff;
+}
+.signed-chart {
+  display: flex;
+  height: 10px;
+  background: #e1e1df;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.signed-chart > span {
+  display: flex;
+  flex: 1;
+}
+.signed-chart .signed-negative {
+  justify-content: flex-start;
+  flex-direction: row-reverse;
+  border-right: 1px solid #777;
+}
+.signed-chart i {
+  display: block;
+  height: 100%;
+  flex-shrink: 0;
+}
+.insight-champ-chart {
+  display: flex;
+  flex-direction: column;
+}
+.champ-chart-key i {
+  background: #57534e;
+}
+.champ-chart-key span:last-child i {
+  background: #c9c7c4;
+}
+.insight-champ-chart ol {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+  display: grid;
+  gap: 18px;
+  flex: 1;
+  align-content: start;
+}
+.insight-champ-chart li > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+.insight-champ-chart li strong {
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.insight-champ-chart li small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.insight-champ-chart li p {
+  font-size: 10px;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+.champ-stacked-bar {
+  display: flex;
+  height: 9px;
+  background: var(--inset);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.champ-stacked-bar i {
+  background: var(--team-color);
+}
+.champ-stacked-bar b {
+  background: var(--team-color);
+  opacity: 0.35;
+  border-left: 2px solid white;
+}
+.insight-contenders {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.insights-page .contender-card {
+  border-top: 3px solid var(--team-color);
+  overflow: hidden;
+}
+.contender-rank {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  color: var(--muted);
+}
+.contender-rank > span {
+  background: var(--red);
+  color: #fff;
+  padding: 4px 7px;
+  border-radius: 3px;
+}
+.contender-rank > strong {
+  font-size: 18px;
+  color: var(--ink);
+}
+.contender-body {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 12px 0;
+}
+.contender-photo {
+  height: 125px;
+  width: 135px;
+  flex: 0 0 135px;
+  background: var(--inset);
+  border-radius: 6px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.contender-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.contender-photo svg {
+  width: 48px;
+  height: 48px;
+}
+.contender-body h2 {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 500;
+  margin: 0 0 6px;
+}
+.contender-body p {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+.contender-body .tag {
+  font-size: 9px;
+}
+.contender-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
+  gap: 12px;
+}
+.contender-metrics span {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+}
+.contender-metrics strong {
+  font-size: 20px;
+  font-weight: 600;
+}
+.podium-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+.podium-card-grid article {
+  background: var(--inset);
+  border-top: 3px solid var(--team-color);
+  border-radius: 6px;
+  padding: 12px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.podium-portrait {
+  width: 84px;
+  height: 84px;
+  margin: 0 auto;
+}
+.podium-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.podium-portrait svg {
+  width: 50px;
+  height: 50px;
+  margin-top: 16px;
+}
+.podium-card-grid h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+.podium-card-grid article > span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.podium-card-grid article > small {
+  font-size: 10px;
+  display: block;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+}
+.podium-ring {
+  width: 110px;
+  height: 110px;
+  max-width: 100%;
+  margin: auto;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.podium-ring svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.podium-ring circle {
+  fill: none;
+  stroke: #dddedc;
+  stroke-width: 2.3;
+}
+.podium-ring circle:last-child {
+  stroke: var(--team-color);
+}
+.podium-ring strong {
+  font-size: 21px;
+  font-weight: 600;
+}
+.insights-page .probability-track {
+  height: 7px;
+  border-radius: 2px;
+}
+.insights-page .pitstop-list .insight-portrait {
+  width: 64px;
+  height: 36px;
+}
+.insights-page .pitstop-list .insight-identity small {
+  display: none;
+}
+.insights-page .probability-list li {
+  border-left: 3px solid var(--team-color);
+  padding-left: 12px;
+  background: var(--inset);
+  margin: 8px 0;
+  border-radius: 5px;
+  border-top: 0;
+}
+.insights-page .probability-list .insight-portrait {
+  width: 50px;
+  height: 56px;
+}
+@media (max-width: 1100px) {
+  .insight-hero-content {
+    gap: 24px;
+    padding: 28px 24px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  }
+  .insight-hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .insight-weather-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .contender-body {
+    gap: 16px;
+  }
+  .contender-photo {
+    width: 95px;
+    flex-basis: 95px;
+    height: 105px;
+  }
+  .contender-body h2 {
+    font-size: 21px;
+  }
+}
+@media (max-width: 800px) {
+  .insight-hero-content {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .insight-hero-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .insight-track-map {
+    max-width: 640px;
+    width: 100%;
+    justify-self: center;
+  }
+  .insight-map-link img {
+    max-height: 290px;
+  }
+  .insight-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .insight-contenders {
+    gap: 16px;
+  }
+  .podium-card-grid {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scroll-snap-type: x proximity;
+  }
+  .podium-card-grid article {
+    flex: 0 0 150px;
+    scroll-snap-align: start;
+  }
+  .contender-body {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 600px) {
+  .insights-page {
+    gap: 20px;
+  }
+  .insight-ticker {
+    margin-bottom: -20px;
+    padding: 10px 16px;
+    font-size: 9px;
+    gap: 8px 12px;
+  }
+  .insight-ticker span:last-child {
+    margin-left: 0;
+  }
+  .insight-hero-content {
+    padding: 24px 16px;
+    gap: 24px;
+  }
+  .insight-hero h1 {
+    font-size: 36px;
+  }
+  .insight-hero-location {
+    font-size: 13px;
+  }
+  .insight-hero-description {
+    font-size: 12px;
+  }
+  .insight-hero-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .insight-hero-stats > div {
+    padding: 10px;
+  }
+  .insight-track-map {
+    padding: 12px;
+  }
+  .insight-map-key {
+    gap: 4px;
+  }
+  .insight-map-key span {
+    font-size: 9px;
+    padding: 6px;
+  }
+  .insight-toolbar {
+    padding: 16px;
+  }
+  .insight-weather {
+    padding: 12px;
+  }
+  .insight-weather-cards {
+    gap: 8px;
+  }
+  .weather-tile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px;
+  }
+  .weather-tile strong {
+    font-size: 19px;
+  }
+  .insight-contenders {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .contender-body {
+    flex-direction: row;
+    align-items: center;
+  }
+  .contender-photo {
+    flex-basis: 90px;
+    width: 90px;
+    height: 105px;
+  }
+  .contender-body h2 {
+    font-size: 22px;
+  }
+  .contender-rank {
+    gap: 6px;
+  }
+  .contender-rank > strong {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+  .insights-page .section-heading {
+    flex-wrap: wrap;
+  }
+}
