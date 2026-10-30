@@ -178,6 +178,43 @@ def test_placement_distributions_separate_unclassified_outcomes(scenario):
     assert "S" in result["rounds"][1]["placements"]["1"]
 
 
+def test_post_round_championship_accumulates_joint_points_and_sprints(scenario):
+    result = build(scenario)
+    first, second = [r["championship_after"] for r in result["rounds"]]
+    assert first["status"] == second["status"] == "ready"
+    alpha = first["drivers"]["1"]
+    assert alpha["points_before"] == 25
+    assert alpha["round_points"] == 20.75
+    assert alpha["points"] == 45.75
+    assert second["drivers"]["1"]["points_before"] == alpha["points"]
+    assert second["drivers"]["1"]["round_points"] == 28
+    assert second["drivers"]["1"]["points"] == 73.75
+    assert first["constructors"]["a"]["points"] == 82.75
+    for r in (first, second):
+        assert sum(v["points"] for v in r["drivers"].values()) == pytest.approx(
+            sum(v["points"] for v in r["constructors"].values())
+        )
+    for kind in ("drivers", "constructors"):
+        for asset_id, row in second[kind].items():
+            final = next(
+                r for r in result["championship"][kind] if r["asset_id"] == asset_id
+            )
+            assert row["points"] == final["projected"]
+            assert row["points_interval80"] == pytest.approx(final["interval80"])
+
+
+def test_post_round_standings_include_inactive_historical_participants(scenario):
+    scenario[3]["racing"][0]["sessions"]["R"][3]["points"] = 1000
+    after = build(scenario)["rounds"][0]["championship_after"]
+    assert after["drivers"]["1"]["standing_mean"] == 2
+    assert after["constructors"]["a"]["standing_mean"] == 2
+    scenario[3]["racing"][0]["sessions"]["R"][0]["points"] = None
+    result = build(scenario)
+    assert all(
+        r["championship_after"]["status"] == "unavailable" for r in result["rounds"]
+    )
+
+
 def test_telemetry_has_the_same_cutoff_for_all_rounds(scenario, monkeypatch):
     assets, weekends, cutoff, doc = scenario
 

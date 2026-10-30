@@ -52,6 +52,25 @@ function publication(sprint = false) {
           round: 2,
           drivers: { 1: { win: 0.25, sprint_win: 0.5 } },
           constructors: { a: { win: 0.75 } },
+          championship_after: {
+            status: "ready",
+            drivers: {
+              1: {
+                points: 40,
+                points_before: 25,
+                round_points: 15,
+                standing_mean: 1.4,
+              },
+            },
+            constructors: {
+              a: {
+                points: 80,
+                points_before: 50,
+                round_points: 30,
+                standing_mean: 2.2,
+              },
+            },
+          },
         },
       ],
       pitstops: { status: "unavailable", message: "No verified winners." },
@@ -78,7 +97,7 @@ test("Insights keeps probabilities, championship ranges and Fantasy scores witho
   const html = insightsMarkup(publication());
   assert.match(html, /25\.0%/);
   assert.match(html, /80% range 25.0–45.0/);
-  assert.match(html, /Unboosted Fantasy session forecast/);
+  assert.match(html, /Post-race championship/);
   assert.match(html, /No verified winners\./);
   assert.match(html, /Alpha &lt;Test&gt;/);
   assert.doesNotMatch(html, /Alpha <Test>|NaN|undefined|Sprint win<\/option>/);
@@ -175,8 +194,9 @@ test("driver and team deep dives show selected participants and classified posit
   };
   const driver = insightsMarkup(data, { entity: "1" });
   assert.match(driver, /Driver deep dive/);
-  assert.match(driver, /Expected classified position <strong>1.5/);
-  assert.match(driver, /not classified 20.0%/);
+  assert.match(driver, /position-estimate"[^>]*>P1.5/);
+  assert.match(driver, /NC: 20.0%/);
+  assert.match(driver, /class="placement-curve"/);
   assert.match(driver, /position probabilities/);
   assert.doesNotMatch(driver, /insight-contenders|insight-podiums/);
   assert.equal(
@@ -188,7 +208,7 @@ test("driver and team deep dives show selected participants and classified posit
     entity: "a",
   });
   assert.match(team, /Team deep dive/);
-  assert.match(team, /each driver's placement is shown separately/);
+  assert.match(team, /Team championship outlook/);
   assert.match(team, /Alpha &lt;Test&gt;/);
   assert.match(team, /detail-identity/);
   assert.doesNotMatch(team, /NaN|undefined/);
@@ -205,7 +225,7 @@ test("Fantasy graphics preserve negative session components and keep F1 projecti
   assert.match(html, /signed-negative/);
   assert.match(html, /60.0%/);
   assert.match(html, /25.0 observed \+ 10.0 expected/);
-  assert.match(html, /Negative components extend left of zero/);
+  assert.doesNotMatch(html, /Negative components extend left of zero/);
   assert.doesNotMatch(html, /NaN|undefined|Alpha <Test>/);
 });
 
@@ -225,8 +245,42 @@ test("Championship horizon excludes eliminated entrants and historical records a
   data.insights.history[0].drivers.push(eliminated);
   const html = insightsMarkup(data);
   assert.doesNotMatch(html, /Eliminated racer|999\.0|Historical record/);
-  assert.match(html, /1 mathematically eliminated entrants hidden/);
+  assert.doesNotMatch(html, /mathematically eliminated entrants hidden/);
   assert.match(html, /maximum possible 50\.0/);
+});
+
+test("racing-only deep dives and team outlook use post-round championship totals without repeated names or copy", () => {
+  const data = publication();
+  const html = insightsMarkup(data);
+  const detail = html.slice(
+    html.indexOf('<section class="panel participant-detail"'),
+    html.indexOf('<section class="panel team-outlook"'),
+  );
+  const sidebar = detail.slice(
+    detail.indexOf('<aside class="participant-prediction"'),
+  );
+  assert.match(detail, /40.0 <small>pts/);
+  assert.match(sidebar, /40.0 pts/);
+  assert.match(sidebar, /Championship position<\/dt><dd>P1.4/);
+  assert.match(html, /80.0 pts/);
+  assert.match(html, /Championship position<\/dt><dd>P2.2/);
+  assert.doesNotMatch(
+    detail,
+    /Fantasy|View predictions|Selected|selected driver|detail-fantasy-sessions/,
+  );
+  assert.equal(
+    (sidebar.match(/<h3>Alpha &lt;Test&gt;<\/h3>/g) || []).length,
+    1,
+  );
+  assert.doesNotMatch(
+    html,
+    /Title contention|mathematically eligible contenders|Stationary-stop winner probability|Choose a participant to inspect|Position probabilities plus NC|fixed pre-weekend inputs|Not classified is a result classification/,
+  );
+  delete data.insights.rounds[0].championship_after;
+  assert.match(
+    insightsMarkup(data),
+    /Post-race championship<\/dt><dd>Unavailable/,
+  );
 });
 
 test("participant grid supports name, team and driver-code searches while keeping selected predictions", () => {

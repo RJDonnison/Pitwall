@@ -326,13 +326,16 @@ calculated from joint samples rather than adding individual probabilities. Not
 classified does not necessarily mean mechanical retirement. Stationary-service
 timing and shared stop-opportunity models must pass chronological baselines;
 otherwise decayed finalized official winner labels with a one-win-per-team prior
-remain explicit. Names/aliases join sources rather than cross-game IDs; sources,
-counts remain visible, with dated evidence retained in the publication. Transit
+remain explicit. Names/aliases join sources rather than cross-game IDs; source
+links remain visible, with sample counts and dated evidence retained in the publication. Transit
 times are never service times.
 
 Race probabilities precede the deep dive. Its searchable participant grid replaces
 the participant dropdown: search by name, team or driver code, then choose a
-portrait/car card showing unboosted Fantasy points and expected race position.
+portrait/car card showing larger qualifying/race position estimates and projected
+post-race championship points. The deep dive is racing-only; Fantasy predictions
+remain in their separate output chart. Selection uses the highlighted card rather
+than repeated "Selected"/"View predictions" labels.
 Selected predictions occupy a right-hand sidebar on desktop and stack beneath
 the grid on mobile; selecting a mobile card brings its predictions into view.
 Search text and selection survive round changes. The page has no collapsible
@@ -340,11 +343,27 @@ sections or Historical record section; the round and probability-outcome selecto
 remain. Portraits/car images accompany names in both the deep dive and Strategy's
 race breakdown. Qualifying, race and Sprint distributions come from the same joint
 draws as the overview: classified-position bins plus NC sum to one. Expected
-position and central 80% ranges condition on classification and are uncalibrated.
+position and exported central 80% ranges condition on classification and are uncalibrated.
+The visible distributions are smooth curves through the actual probability bins,
+including NC; accessible SVG titles retain every numeric probability. The selected
+driver's identity appears once in the sidebar, above the larger qualifying/race
+positions and curves.
 Teams show each current driver's distribution, not a fictitious constructor race
 finishing position. Team outcome probabilities remain at-least-one-car events.
 The title-contender horizon remains a single chart, and comparison panels use
 aligned bounded lists rather than mismatched long columns.
+
+Each round exports `championship_after` for active drivers and constructors.
+Projected points include observed current-season points plus simulated GP and
+Sprint points through the selected round, including any earlier forecast rounds.
+Weekend points are the selected round's contribution, not the whole remaining
+season. Per-sample constructor points sum both cars before intervals and standings
+are calculated. All historical participants remain in the standings field; equal
+points share a position rather than inventing an official countback result.
+The displayed championship position is the mean simulated position. Incomplete
+current-season coverage makes these values unavailable rather than zero. A separate
+Team championship outlook shows every constructor's projected points/position and
+its drivers' qualifying and race estimates.
 
 Historical exports enumerate included rounds against completed scheduled rounds.
 GP weekends, individual car entries, classifications, wins, podiums, poles and
@@ -372,14 +391,14 @@ entrant's maximum is observed points plus winning every remaining GP and Sprint
 An entrant whose ceiling is below the current leader's observed points is removed.
 At equal points, the entrant's best possible GP finish countback must not lose to
 an existing leader's countback; Sprint wins do not decide that countback. Exact or
-insufficiently observed countback ties remain eligible. The chart discloses hidden
-entrants, and the table shows maximum possible final points separately from expected
-points. This eligibility uses the same published schedule, recorded session points,
+insufficiently observed countback ties remain eligible. Maximum possible final
+points remain separate from expected points in the export and horizon chart.
+This eligibility uses the same published schedule, recorded session points,
 full-distance scoring and fixed-roster assumptions as the projections, rather than
 rejecting someone because a finite simulation produced no wins. Eliminated entrants
 remain in the publication and historical records; their earned points are preserved.
 
-The expandable Fantasy table separately shows unboosted Q/S/R predictions and
+The Fantasy output chart separately shows unboosted Q/S/R predictions and
 weekend totals, excluding chips and transfer penalties. Insights needs no complete
 Garage team. Missing Insights does not block valid Fantasy forecasts. Six-hour
 freshness and price verification still apply. Model, seed, samples, cutoff and

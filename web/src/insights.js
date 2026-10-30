@@ -1,6 +1,6 @@
 import { esc, teamColor, helmet, car, constructorName } from "./views.js";
 import { portrait } from "./visuals.js";
-import { participantDetail } from "./insight-detail.js";
+import { participantDetail, teamOutlook } from "./insight-detail.js";
 import {
   insightHero,
   weatherBriefing,
@@ -41,7 +41,7 @@ function pitstopMarkup(dataset, pit) {
   const rows = dataset.assets
     .filter((a) => a.kind === "CONSTRUCTOR")
     .sort((a, b) => pit.probabilities[b.id] - pit.probabilities[a.id]);
-  return `<p class="insight-note">Fastest stationary stop of the Grand Prix. ${pit.stop_samples ? `${pit.stop_samples} measured stops across ${pit.samples} races; crew timing distributions and shared stop opportunities.` : `${pit.samples} finalized official winners; recency-weighted with one prior win per team.`}</p><ol class="pitstop-list">${rows.map((a) => `<li style="--team-color:${teamColor(dataset, a)}">${identity(dataset, a)}<strong>${percent(pit.probabilities[a.id])}</strong><span class="probability-track" aria-hidden="true"><i style="width:${pit.probabilities[a.id] * 100}%"></i></span></li>`).join("")}</ol><p class="insight-note"><a href="${esc(pit.source)}" target="_blank" rel="noopener noreferrer">${pit.stop_samples ? "OpenF1 stationary observations" : "Official finalized winner labels"}</a> · checked ${esc(stamp(pit.checked_at))}. Uncalibrated estimates; pit-lane transit is not stationary service time.</p>`;
+  return `<ol class="pitstop-list">${rows.map((a) => `<li style="--team-color:${teamColor(dataset, a)}">${identity(dataset, a)}<strong>${percent(pit.probabilities[a.id])}</strong><span class="probability-track" aria-hidden="true"><i style="width:${pit.probabilities[a.id] * 100}%"></i></span></li>`).join("")}</ol><p class="insight-note"><a href="${esc(pit.source)}" target="_blank" rel="noopener noreferrer">${pit.stop_samples ? "OpenF1 stationary observations" : "Official finalized winner labels"}</a> · checked ${esc(stamp(pit.checked_at))}</p>`;
 }
 
 export function insightsMarkup(dataset, state = {}) {
@@ -79,8 +79,8 @@ export function insightsMarkup(dataset, state = {}) {
       .map(([key, label]) => option(key, label, metric))
       .join(
         "",
-      )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}<p class="insight-note">${population === "constructors" ? "Team outcomes overlap. " : ""}Not classified is a result classification, not necessarily a mechanical retirement. Probabilities are uncalibrated model estimates.</p></section><aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2><p>Stationary-stop winner probability</p></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
+      )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}</section><aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
     ${participantDetail(dataset, round, probabilities, population, state.entity, state.participantQuery || "")}
-    <p class="insight-note">${insight.simulations.toLocaleString()} simulations · fixed pre-weekend inputs · uncalibrated probabilities and scenario ranges. Real racing outcomes and championship points are separate from Fantasy scoring. No current-weekend results or forecast weather enter the racing model.</p>
+    ${teamOutlook(dataset, round, probabilities)}
   </div>`;
 }

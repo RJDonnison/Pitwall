@@ -77,19 +77,9 @@
   font-size: 10px;
   font-weight: 400;
 }
-.participant-tile-metric > span,
-.participant-tile-selected {
+.participant-tile-metric > span {
   font-size: 10px;
   color: var(--muted);
-}
-.participant-tile-selected {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--rule);
-  padding-top: 8px;
-}
-.participant-tile[aria-pressed="true"] .participant-tile-selected {
-  color: var(--red);
-  font-weight: 600;
 }
 .detail-round-tag {
   font-size: 11px;
@@ -129,25 +119,126 @@
 .participant-prediction .placement-session {
   min-width: 0;
 }
-.participant-prediction .placement-distribution {
-  max-height: 145px;
+.participant-tile-positions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
-.detail-fantasy-sessions {
-  display: flex;
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--rule);
-}
-.detail-fantasy-sessions > span {
+.participant-tile-positions > span {
   flex: 1;
   font-size: 10px;
   color: var(--muted);
 }
-.detail-fantasy-sessions strong {
+.participant-tile-positions strong {
   display: block;
   color: var(--ink);
-  font-size: 14px;
+  font-size: clamp(16px, 1.8vw, 24px);
+  line-height: 1.2;
   margin-top: 4px;
+}
+.placement-session-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.placement-session-heading h4 {
+  font-size: 14px;
+  margin: 0;
+}
+.position-estimate {
+  font-size: 38px;
+  line-height: 1.1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.placement-curve {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--red);
+  margin: 14px 0;
+}
+.placement-curve text {
+  fill: var(--muted);
+  font-size: 18px;
+}
+.curve-grid {
+  stroke: var(--rule);
+  stroke-width: 1;
+  fill: none;
+}
+.curve-area {
+  fill: currentColor;
+  opacity: 0.08;
+}
+.curve-line {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+.placement-curve circle {
+  fill: currentColor;
+}
+.team-outlook-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 16px;
+}
+.team-outlook-grid > article {
+  padding: 18px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--team-color);
+  border-radius: 6px;
+}
+.team-outlook-grid dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.team-outlook-grid dt {
+  font-size: 10px;
+  color: var(--muted);
+}
+.team-outlook-grid dd {
+  margin: 4px 0 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+.team-member-placements {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
+}
+.team-member-placements > div {
+  display: grid;
+  grid-template-columns: 36px 1fr 1fr;
+  gap: 6px 12px;
+  align-items: center;
+}
+.team-member-placements .asset-photo,
+.team-member-placements svg {
+  grid-row: span 2;
+  width: 36px;
+  height: 44px;
+  object-fit: contain;
+}
+.team-member-placements strong {
+  grid-column: span 2;
+  font-size: 12px;
+}
+.team-member-placements span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.team-member-placements b {
+  display: block;
+  font-size: 20px;
+  color: var(--ink);
 }
 @media (max-width: 1000px) {
   .participant-browser {

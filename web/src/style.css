@@ -3545,6 +3545,7 @@ footer b {
   margin: 4px 0 12px;
 }
 .sector-map .sector-legend span {
+  color: #f5f5f4;
   display: inline-flex;
   align-items: center;
   gap: 7px;

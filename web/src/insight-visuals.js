@@ -103,7 +103,7 @@ export function fantasyChart(dataset, round, population) {
     1,
     ...rows.map(({ scores }) => scores.reduce((s, v) => s + Math.abs(v), 0)),
   );
-  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, -v)) / max}%"></i>`).join("")}</span><span class="signed-positive">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / max}%"></i>`).join("")}</span></div></li>`).join("")}</ol><p class="insight-note">Negative components extend left of zero. Q / S / R values are the accessible chart data. Excludes Boost, chips and transfers.</p></section>`;
+  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, -v)) / max}%"></i>`).join("")}</span><span class="signed-positive">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / max}%"></i>`).join("")}</span></div></li>`).join("")}</ol></section>`;
 }
 
 export function championshipChart(dataset, insight, population) {
@@ -112,19 +112,14 @@ export function championshipChart(dataset, insight, population) {
   const eligible = insight.championship[population].filter(
     (r) => r.title_eligible === true,
   );
-  const eliminated = insight.championship[population].filter(
-    (r) => r.title_eligible === false,
-  ).length;
   const rows = eligible.slice(0, 5);
   const max = Math.max(1, ...rows.map((r) => r.interval80[1]));
-  return `<section class="panel insight-champ-chart"><div class="section-heading"><div><span class="insight-kicker">Title contention · end-of-season projection</span><h2>Championship horizon</h2><p>Real F1 points · leading ${rows.length} of ${eligible.length} mathematically eligible contenders</p></div></div><div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows
+  return `<section class="panel insight-champ-chart"><div class="section-heading"><div><span class="insight-kicker">End-of-season projection</span><h2>Championship horizon</h2></div></div><div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows
     .map((r) => {
       const a = dataset.assets.find((a) => a.id === r.asset_id);
       return `<li style="--team-color:${a ? teamColor(dataset, a) : "#68635f"}"><div><span>${esc(r.name)}</span><strong>${points(r.projected)} <small>pts</small></strong></div><div class="champ-stacked-bar" aria-hidden="true"><i style="width:${(100 * r.observed) / max}%"></i><b style="width:${(100 * r.remaining) / max}%"></b></div><p>${points(r.observed)} observed + ${points(r.remaining)} expected · 80% range ${points(r.interval80[0])}–${points(r.interval80[1])} · maximum possible ${points(r.max_final)}</p></li>`;
     })
-    .join(
-      "",
-    )}</ol><p class="insight-note">${eliminated} mathematically eliminated entrants hidden. Eligibility assumes maximum GP and Sprint points with rivals scoring zero; equal-point ceilings use GP finish countback, retaining unresolved ties. Eliminated entrants remain in the public data export. ${dataset.rounds.length} remaining rounds; uncalibrated simulation ranges.</p></section>`;
+    .join("")}</ol></section>`;
 }
 
 export function contenderCards(dataset, round, probabilities, population) {

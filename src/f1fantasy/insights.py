@@ -281,6 +281,63 @@ def _placements(draw, index):
     return result
 
 
+def _championship_after(
+    current, drivers, constructors, totals, team_totals, before, team_before
+):
+    if (
+        not current
+        or not current["complete"]
+        or any(
+            not row["points_complete"]
+            for kind in ("drivers", "constructors")
+            for row in current[kind]
+        )
+    ):
+        return {"status": "unavailable"}
+    result = {"status": "ready", "drivers": {}, "constructors": {}}
+    for kind, assets in (("drivers", drivers), ("constructors", constructors)):
+        observed = {row["key"]: row["points"] for row in current[kind]}
+        active = {a.tla if kind == "drivers" else _team_key(a.name): a for a in assets}
+        keys = sorted(observed.keys() | active.keys())
+        samples, previous = {}, {}
+        for key in keys:
+            asset = active.get(key)
+            gain = (
+                (
+                    totals[:, drivers.index(asset)]
+                    if kind == "drivers"
+                    else team_totals[asset.id]
+                )
+                if asset
+                else np.zeros(len(totals))
+            )
+            prior = (
+                (
+                    before[:, drivers.index(asset)]
+                    if kind == "drivers"
+                    else team_before[asset.id]
+                )
+                if asset
+                else np.zeros(len(totals))
+            )
+            samples[key] = observed.get(key, 0) + gain
+            previous[key] = observed.get(key, 0) + prior
+        field = np.column_stack([samples[key] for key in keys])
+        for key, asset in active.items():
+            final = samples[key]
+            # Equal points share a position; do not invent official countback wins.
+            ranks = 1 + (field > final[:, None]).sum(axis=1)
+            result[kind][asset.id] = {
+                "points": float(final.mean()),
+                "points_before": float(previous[key].mean()),
+                "round_points": float((final - previous[key]).mean()),
+                "points_interval80": np.quantile(final, [0.1, 0.9]).tolist(),
+                "standing_mean": float(ranks.mean()),
+                "standing_interval80": np.quantile(ranks, [0.1, 0.9]).tolist(),
+            }
+    return result
+
+
 def build(assets, weekends, cutoff, *, telemetry=True, simulations=4000, seed=2026):
     source = public_history.current()
     if not source:
@@ -410,6 +467,8 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
     team_totals = {a.id: np.zeros(simulations) for a in constructors}
     rounds = []
     for t, weekend in enumerate(weekends):
+        before = totals.copy()
+        team_before = {key: value.copy() for key, value in team_totals.items()}
         draw = predict_model._draw(
             records,
             roster,
@@ -462,7 +521,20 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
             for i, a in enumerate(drivers)
         }
         rounds.append(
-            {"round": weekend.round, **probabilities, "placements": placements}
+            {
+                "round": weekend.round,
+                **probabilities,
+                "placements": placements,
+                "championship_after": _championship_after(
+                    current,
+                    drivers,
+                    constructors,
+                    totals,
+                    team_totals,
+                    before,
+                    team_before,
+                ),
+            }
         )
     championship = {
         "status": "unavailable",
