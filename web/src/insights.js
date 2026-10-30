@@ -83,6 +83,5 @@ export function insightsMarkup(dataset, state = {}) {
       )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}</section><aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
     ${participantDetail(dataset, round, probabilities, population, state.entity)}
     ${teamOutlook(dataset, round, probabilities)}
-    ${accuracyMarkup(dataset, round, population, state.entity)}
   </div>`;
 }
