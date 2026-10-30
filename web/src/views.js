@@ -94,7 +94,7 @@ export function profilesMarkup(dataset, profiles, active) {
     .map((t, i) => {
       const chosen = dataset.assets.filter((a) => t.selected.includes(a.id));
       const cost = total(chosen.map((a) => a.price_tenths_m));
-      return `<button class="profile-card ${i === active ? "is-active" : ""}" data-team="${i}" aria-pressed="${i === active}"><div><h3>${esc(t.name)}</h3><span class="tag ${i === active ? "red" : ""}">${i === active ? "Active" : "Switch team"}</span></div><p>${chosen.filter((a) => a.kind === "DRIVER").length}/5 drivers · ${chosen.filter((a) => a.kind === "CONSTRUCTOR").length}/2 constructors · local profile</p><div class="profile-metrics">${ring((cost / t.budget) * 100)}<span><small>Lineup valuation</small><strong>${money(cost)}</strong></span><span><small>Budget cap</small><strong>${money(t.budget)}</strong></span></div></button>`;
+      return `<button class="profile-card ${i === active ? "is-active" : ""}" data-team="${i}" aria-pressed="${i === active}"><div><h3>${esc(t.name)}</h3><span class="tag ${i === active ? "red" : ""}">${i === active ? "Active" : "Switch team"}</span></div><p>${chosen.filter((a) => a.kind === "DRIVER").length}/5 drivers · ${chosen.filter((a) => a.kind === "CONSTRUCTOR").length}/2 constructors</p><div class="profile-metrics">${ring((cost / t.budget) * 100)}<span><small>Lineup valuation</small><strong>${money(cost)}</strong></span><span><small>Budget cap</small><strong>${money(t.budget)}</strong></span></div></button>`;
     })
     .join("");
 }

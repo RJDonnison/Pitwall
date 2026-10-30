@@ -11,11 +11,11 @@ import re
 
 import numpy as np
 
-from . import predict_data, predict_model, public_history
+from . import predict_data, predict_model, public_history, racing_model, pitstop_model
 from .data import DataError
 from .telemetry_model import adjustments
 
-MODEL = "joint-racing-rank-bootstrap-prior-v1/insights-v1"
+MODEL = "timing-team-regime-walkforward-v2/insights-v2"
 
 
 def refresh_pitstops(document, season, cutoff):
@@ -34,7 +34,7 @@ def refresh_pitstops(document, season, cutoff):
             and int(r["MatchStatus"]) == 4
             and predict_data.utc(r["SessionEndDateISO8601"]) < cutoff
         }
-    )[-8:]
+    )
     rows = []
     for day in days:
         body = predict_data.get(f"questions/questions_{day}_en.json")
@@ -73,7 +73,14 @@ def refresh_pitstops(document, season, cutoff):
                 ).isoformat(),
             }
         )
-    document["pitstop_winners"] = rows
+    previous = {
+        (r["season"], r["gameday_id"]): r for r in document.get("pitstop_winners", [])
+    }
+    for row in rows:
+        key = row["season"], row["gameday_id"]
+        if key not in previous or previous[key]["team_name"] != row["team_name"]:
+            previous[key] = row
+    document["pitstop_winners"] = [previous[k] for k in sorted(previous)]
     document["pitstop_checked_at"] = cutoff.isoformat()
 
 
@@ -92,6 +99,10 @@ def _team_key(name):
         "tgrhaasf1team": "haasf1team",
         "visacashappracingbulls": "racingbulls",
         "astonmartinaramco": "astonmartin",
+        "kicksauber": "audi",
+        "stakef1teamkicksauber": "audi",
+        "alfaromeo": "audi",
+        "rb": "racingbulls",
     }
     key = _normal(name)
     return aliases.get(key, key)
@@ -202,14 +213,17 @@ def _statistics(records, season, assets, document, cutoff):
 
 
 def _pitstops(document, assets, cutoff, season):
+    timed = pitstop_model.forecast(document, assets, cutoff, season, _team_key)
+    if timed is not None and timed["status"] == "ready":
+        return timed
     teams = [a for a in assets if a.kind == "CONSTRUCTOR"]
     rows = [
         r
         for r in document.get("pitstop_winners", [])
-        if r["season"] == season
+        if season - 2 <= r["season"] <= season
         and public_history.date(r["published_at"]) < cutoff
         and public_history.date(r["completed_at"]) < cutoff
-    ][-8:]
+    ]
     counts = Counter(_team_key(r["team_name"]) for r in rows)
     known = {_team_key(a.name) for a in teams}
     if not rows or counts.keys() - known:
@@ -217,17 +231,21 @@ def _pitstops(document, assets, cutoff, season):
             "status": "unavailable",
             "message": "No verified pre-cutoff stationary-stop winners matching this roster. Refresh public history.",
         }
+    weights = {a.id: 1.0 for a in teams}
+    for index, row in enumerate(sorted(rows, key=lambda r: r["completed_at"])):
+        for a in teams:
+            if _team_key(a.name) == _team_key(row["team_name"]):
+                weights[a.id] += 2 ** (-(len(rows) - index - 1) / 8)
     return {
         "status": "ready",
+        "model": "time-decayed-finalized-winner-prior-v2",
+        "timing_evaluation": timed.get("evaluation") if timed else None,
         "samples": len(rows),
         "prior_per_team": 1,
         "checked_at": document.get("pitstop_checked_at"),
         "evidence": rows,
         "source": "https://f1predict.formula1.com/",
-        "probabilities": {
-            a.id: (1 + counts[_team_key(a.name)]) / (len(teams) + len(rows))
-            for a in teams
-        },
+        "probabilities": {a.id: weights[a.id] / sum(weights.values()) for a in teams},
     }
 
 
@@ -353,7 +371,13 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
     ):
         raise DataError("Race Insights requires unique driver identities")
     roster = [
-        {"id": a.id, "name": a.name, "tla": a.tla, "team_id": a.team_id}
+        {
+            "id": a.id,
+            "name": a.name,
+            "tla": a.tla,
+            "team_id": a.team_id,
+            "season": season,
+        }
         for a in drivers
     ]
     # A single cutoff applies to every future round, including telemetry features.
@@ -455,6 +479,7 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
     return {
         "status": "ready",
         "model": MODEL,
+        "model_selection": racing_model.selection(records),
         "cutoff": cutoff.isoformat(),
         "simulations": simulations,
         "seed": seed,

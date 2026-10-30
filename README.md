@@ -43,7 +43,7 @@ See [website design and data boundaries](docs/website.md#design-and-accessibilit
 
 ## Data
 
-Completed-session inputs ship in [`data/history.json`](data/README.md) (about 2.4 MB), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates it daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics.
+Completed-session inputs ship in [`data/history.json`](data/README.md), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates it daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics. Racing forecasts are compared with chronological baselines before adoption; see [model evidence and measured limitations](docs/racing-model.md).
 
 Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`. FastF1's optional live-feed authentication warning is not a request for your credentials.
 

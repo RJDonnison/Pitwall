@@ -84,7 +84,15 @@ def _history(season, cutoff):
         ]
         if not records or any(row is None for row in records):
             raise DataError("Public racing history is incomplete; refresh the dataset")
-        return records
+        return sorted(
+            (
+                r
+                for r in source["document"]["racing"]
+                if season - 2 <= r["season"] <= season
+                and archive.date(r["end"]) < cutoff
+            ),
+            key=lambda r: archive.date(r["end"]),
+        )
     configure_cache()
     candidates = []
     for year in (season - 1, season):
@@ -208,6 +216,17 @@ def _target(snapshot, cutoff):
 
 
 def _draw(records, drivers, simulations, rng, telemetry):
+    from . import racing_model
+
+    fitted = racing_model.selection(records)
+    if fitted["selected"] == "margin_v2":
+        return racing_model.draw(
+            records, drivers, simulations, rng, telemetry, fitted["parameters"]
+        )
+    return _rank_draw(records, drivers, simulations, rng, telemetry)
+
+
+def _rank_draw(records, drivers, simulations, rng, telemetry):
     n = len(drivers)
     tlas = [d["tla"] for d in drivers]
     form = records[-8:]
@@ -412,7 +431,7 @@ def _question(question, snapshot, drivers, draws, records):
     ranks, classified = draws[kind]["ranks"], draws[kind]["classified"]
     indices = [_driver(option, drivers) for option in options]
     masks = None
-    model = "joint-racing-rank-bootstrap-prior-v1"
+    model = "timing-team-regime-selector-v2"
     semantic = None
     extra = {}
     if template == 1 and "podium" in text and all(i is not None for i in indices):
@@ -1130,7 +1149,11 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         raise ValueError("simulations must be a positive integer")
     target_cutoff = _utc(snapshot["first_session_utc"])
     cutoff = min(target_cutoff, _now())
-    drivers = [d for d in snapshot["roster"] if int(d["kind"]) == 1]
+    drivers = [
+        dict(d, season=int(snapshot["season"]))
+        for d in snapshot["roster"]
+        if int(d["kind"]) == 1
+    ]
     if (
         len(drivers) < 3
         or len({d["tla"] for d in drivers}) != len(drivers)
@@ -1161,6 +1184,8 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         )
         telemetry = adjustments(assets, [weekend])
     draws = _draw(records, drivers, simulations, np.random.default_rng(seed), telemetry)
+    from . import racing_model
+
     context = {**snapshot, "_sprint": weekend.sprint}
     evidence = {
         "cutoff_utc": cutoff.isoformat(),
@@ -1174,10 +1199,12 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         "form_lookback": min(8, len(records)),
         "telemetry_adjustments": bool(telemetry),
         "calibrated": False,
+        "model_selection": racing_model.selection(records),
         "assumptions": [
-            "Prior-smoothed recent racing ranks and classification rates with whole-weekend bootstrap",
-            "Shared driver-performance noise couples Q, distinct SQ, Sprint and race, with separate session noise",
-            "Race and Sprint fastest-lap histories are separate and blend with their own simulated session ranks",
+            "Nested chronological evaluation selects the margin/team/regime model only when it beats the uniform, last-eight and legacy baselines",
+            "Timing model uses lap-percent pace margins, shared car effects, simulated qualifying grids and pooled team reliability; legacy ranks remain an explicit fallback",
+            "Wet/mixed weather and multi-car incidents are sampled from pre-cutoff historical weekends, not inferred from future results or daily rain probability",
+            "Race and Sprint fastest-lap histories stay separate; timed lap margins and fresh late-tyre opportunities replace rank weights in the timing model",
             "Championship uses official prior-session points and FIA race-position countback",
         ],
     }

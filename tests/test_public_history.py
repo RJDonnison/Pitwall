@@ -143,9 +143,21 @@ def test_updater_preserves_bundled_features_without_a_runner_cache(
     monkeypatch.setattr(archive, "schedule", lambda _: None)
     monkeypatch.setattr(updater.data, "season_weekends", lambda _: [])
     monkeypatch.setattr(updater.predict_model, "_history", lambda *a: [])
+    enriched = []
+    monkeypatch.setattr(
+        updater.racing_data,
+        "refresh",
+        lambda document, start, season, cutoff: enriched.append((start, season)),
+    )
+    monkeypatch.setattr(
+        updater.racing_data,
+        "refresh_stops",
+        lambda document, cutoff: enriched.append("stationary"),
+    )
     monkeypatch.setattr(updater.web_data, "build", lambda _: {"price_gameday_id": 19})
 
     assert updater.main(["--season", str(now.year), "--output", str(path)]) == 0
+    assert enriched == [(now.year - 2, now.year), "stationary"]
     updated = json.loads(path.read_text())
     assert updated["features"] == [replacement if cached else original]
     assert updated["coverage"]["telemetry_summaries"] == 1

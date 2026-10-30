@@ -6,7 +6,8 @@ official past-weekend Fantasy scores and recorded round prices, and date-stamped
 telemetry features.
 It contains no account credentials, cookies, private teams or raw telemetry.
 
-Sources: public FastF1 completed-session data and official public Fantasy feeds.
+Sources: public FastF1 completed-session data, official public Fantasy/Predict
+feeds and explicitly stationary OpenF1 stop durations.
 The source does not grant any additional redistribution rights to those feeds.
 
 Regenerate from the repository root with:
@@ -28,3 +29,11 @@ The separate **Refresh public history** workflow updates this file after races;
 the Pages workflow does not rebuild raw FastF1 history. Existing completed racing
 records are reused, so the updater only loads newly completed racing sessions.
 For upstream corrections, remove the affected racing record and rerun the updater.
+
+The timing archive includes 66 GPs from 2024–2026, qualifying-phase gaps,
+compound/lap-normalized pace, tyre/fastest-lap observations, weather/SC regimes
+and cause-specific retirement labels. `stationary_stops` contains only verified
+`stop_duration` observations; pit-lane transit is excluded. See
+[racing model and evaluation](../docs/racing-model.md) for coverage, collection
+commands, baseline losses and limitations. `racing-evaluation.json` is the offline
+nested walk-forward report; no target outcomes fit their own forecasts.
