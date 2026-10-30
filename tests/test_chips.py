@@ -636,6 +636,38 @@ def test_loader_strict_cutoff_last_five_same_type_and_official_category_uplift(
         assert deviations[0][0] != deviations[-1][0]
 
 
+def test_no_negative_loader_covers_target_downside_and_scheduler_prefers_it(
+    monkeypatch,
+):
+    assets, weekends, estimates, _, _ = history_fixture(monkeypatch)
+    weekends[1] = replace(weekends[1], sprint=False)
+    for a in assets:
+        estimates[0, a.id] = Estimate(2, 0, 20)
+        estimates[1, a.id] = Estimate(-4, 0, -30)
+    values = load_chip_values(assets, weekends, estimates)
+    assert values.no_negative[0, "0"] == Estimate(1, 0, 5)
+    assert values.no_negative[1, "0"] == Estimate(4, 0, 30)
+    assert values.no_negative[1, "c0"] == Estimate(4, 0, 30)
+    lineups = optimize(
+        assets,
+        weekends,
+        estimates,
+        100,
+        available_chips=frozenset({"no_negative"}),
+        chip_values=values,
+    )
+    assert lineups[0].chip is None
+    assert lineups[1].chip == "no_negative"
+    assert lineups[1].session_points == Estimate(0, 0, 0)
+
+
+def test_no_negative_downside_is_sessionwise_not_net_weekend(monkeypatch):
+    assets, weekends, estimates, _, _ = history_fixture(monkeypatch)
+    estimates[1, "0"] = Estimate(25, -18, -30)
+    values = load_chip_values(assets, weekends, estimates)
+    assert values.no_negative[1, "0"] == Estimate(1, 18, 30)
+
+
 def test_loader_excludes_null_weekends_from_the_entire_joint_sample(monkeypatch):
     assets, weekends, estimates, _, get = history_fixture(monkeypatch)
 

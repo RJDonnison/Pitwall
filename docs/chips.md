@@ -71,8 +71,14 @@ It fails if no complete sample remains or other data is inconsistent.
 `skipped_history_gamedays` records excluded null-score weekends. No future-horizon
 actual results or cumulative season totals are used.
 
-No Negative uplift is the mean official sessionwise
+No Negative uplift starts with the mean official sessionwise
 `nonegative_points - points`, including constructor-specific category adjustments.
+For each target session it is at least the magnitude of that asset's negative
+forecast: `max(historical category uplift, -forecast session points)`. Removing
+negative categories cannot leave a negative expected session score. This floor
+lets a large predicted downside increase the chip's value for that weekend,
+instead of assigning identical uplifts to all same-format rounds. It is applied
+before the selected driver's 2× multiplier and excludes transfer penalties.
 A positive session can have a positive uplift: clamping net session scores is
 incorrect. Sprint uplifts come only from Sprint weekends. The 2× driver's
 uplift is counted twice.
@@ -82,8 +88,8 @@ retaining joint historical variation. Each scenario adds the maximum **total
 weekend** score among the five selected drivers, replacing the ordinary fixed
 Boost extra. It does not choose a separate winner per session. This is a small-
 sample empirical approximation, not a calibrated joint predictive distribution;
-one sample has no variation. NN uses empirical mean uplift rather than modeling
-category-level outcomes conditional on the forecast. These approximations are
+one sample has no variation. NN uses empirical mean uplift with a forecast-negative
+floor rather than a full conditional category-outcome model. These approximations are
 exactly optimized by the MILP; they are not claims of exact chip forecasts.
 
 ## Lineup output and transfers

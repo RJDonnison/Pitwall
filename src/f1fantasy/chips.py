@@ -53,6 +53,8 @@ def load_chip_values(
     All samples precede the *first* forecast weekend, even for later horizons.
     Require every active asset in the common sample. The official category-
     adjusted nonegative_points is deliberately not max(0, session points).
+    Target-session uplift cannot be smaller than its forecast negative score;
+    removing negative categories must leave nonnegative expected session points.
     """
     if not weekends or any(w.season != weekends[0].season for w in weekends):
         raise DataError("Chip history requires one nonempty season horizon")
@@ -163,7 +165,11 @@ def load_chip_values(
             )
             nn[t, asset.id] = Estimate(
                 *(
-                    sum(components(u[asset.id])[k] for _, u in sample) / len(sample)
+                    max(
+                        sum(components(u[asset.id])[k] for _, u in sample)
+                        / len(sample),
+                        -components(forecast)[k],
+                    )
                     for k in range(3)
                 )
             )
