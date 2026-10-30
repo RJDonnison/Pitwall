@@ -219,6 +219,11 @@ test("editorial footer retains public data status, privacy and source credits", 
   assert.match(html, /<h3>Forecasts<\/h3>/);
   assert.match(html, /Your teams stay here/);
   assert.match(html, /id="publication-status"/);
+  assert.match(html, /id="publication-window"/);
+  assert.doesNotMatch(
+    html,
+    /data-status-details|<summary><span id="publication-status"/,
+  );
   assert.match(html, /TracingInsights/);
   assert.doesNotMatch(html, /id="refresh"/);
 });

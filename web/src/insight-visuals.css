@@ -309,7 +309,7 @@
   margin: 0;
   min-width: 0;
   padding: 18px;
-  background: #ffffff10;
+  background: transparent;
   border: 1px solid #ffffff29;
   border-radius: 8px;
 }

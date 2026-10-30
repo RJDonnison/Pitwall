@@ -211,6 +211,8 @@ Final Fix or prices differed. Stale publications, inactive selections, invalid s
 data and unfinished weekends cannot update the profile. Other profiles and the
 official Fantasy account are untouched; recommendations are never auto-adopted.
 Selected registry cards use a two-pixel constructor-colour outline and subtle tint.
+Registry sorting supports ascending/descending price, name, next-round unboosted
+points and points per $m. Sorting composes with search and driver/constructor filters.
 The compact 30-pixel Add/Remove visual retains an expanded 44-pixel touch hit area.
 Free transfers are selected explicitly (two, three with carry, or unlimited for
 a new team). The removed new-team/completed/paid checkboxes are replaced by this
@@ -218,9 +220,9 @@ single control and a fixed net-points policy: extra transfers always cost −10.
 Chip icons are coloured when available and grey when marked used; toggles do not
 activate anything on the official game. An active chip is still configured in
 the advanced section. There are no manual Calculate, Recalculate, Refresh or
-snapshot-consent controls. Zero current swaps can be optimal, with later planned
-changes explained. Chip state is shown by colour and accessible pressed-state
-labels rather than repetitive Available/Used text. Redraws do not re-scroll to
+snapshot-consent controls. Zero current swaps can be optimal; the redundant
+no-swap/first-future-change paragraph is removed. Chip state is shown by colour
+and accessible pressed-state labels rather than repetitive Available/Used text. Redraws do not re-scroll to
 the registry hash anchor; automatic completion never changes the selected page.
 
 All 33 current assets have locally hosted 2026 images from the requested
@@ -230,9 +232,10 @@ Transparent car sideviews are retained. The upstream repository uses Apache-2.0
 and identifies Formula 1 as the image source; these images are not labelled
 Creative Commons. The exact commit, original CDN URL and transformations are
 recorded in the footer and `web/public/media/ATTRIBUTION.json`. The five remaining
-venue photographs have separate Commons licences and archival dates. Circuit
-outlines use the MIT-licensed `bacinger/f1-circuits` coordinates. Both venue photo
-and circuit always describe the next race, even while a future round's plan is
+venue photographs have separate Commons licences and archival dates. Current circuit
+sector maps use the official guide geometry; other outlines use the MIT-licensed
+`bacinger/f1-circuits` coordinates. Portrait and car-image backplates are transparent.
+Both venue photo and circuit always describe the next race, even while a future round's plan is
 selected below; unknown circuits are unavailable.
 See [media replacement and provenance](media.md) for both importers and crops.
 
@@ -248,9 +251,9 @@ not measurements. The footer mirrors Stitch's strategic-principle, optimizer,
 forecasts and privacy sections while retaining actual data status and image credits.
 
 The large preview banner is removed. The footer's compact `Price snapshot` label
-shows the price-check time explicitly in UTC; expanding it explains why browser
-verification can be blocked and gives the publication's six-hour expiry in local
-time. A successful direct check instead says `Live prices verified`. This is a
+shows the price-check time explicitly in UTC as plain text, without a dropdown.
+Publication/expiry details remain available to assistive technology. A successful
+direct check instead says `Live prices verified`. This is a
 data-source disclosure, not a solver error. Footer headings/body copy use a consistent
 hierarchy with the three bordered editorial column headings from Stitch, alongside
 image credits. Inputs and chip controls
@@ -274,7 +277,7 @@ publication exposes adoption evidence under `model.fantasy`.
 
 The desktop/mobile page adapts Stitch project `6085770950590244465`, dashboard
 `52730fb5dc454fce9b40080dd77c0495` and mobile `9f99673b1923479895259aaa89f2971a`:
-photo-led dark race hero, translucent four-stat briefing, readable circuit outline,
+photo-led dark race hero, translucent four-stat briefing, readable circuit sector map,
 context tiles and a 7:5 Fantasy/championship workbench. A single selectable driver/
 team deep dive replaces overlapping contender and podium-card sections. Team
 colours identify entrants; qualifying, Sprint and race use ink, warm grey and
@@ -290,12 +293,17 @@ the map annotations, including numbered turns and sector splits. The Mexico and
 Interlagos guides published at the 30 October check also mark straight-mode and
 overtake activation/detection areas: these are the 2026 replacement for DRS.
 Las Vegas, Lusail and Yas Marina maps do not yet annotate activation zones.
-The hero uses the clean projected outline rather than shrinking dense map labels;
-its link opens the detailed official map. Repeated ticker/badges and the verbose
+Both Strategy and Insights use the same clean three-sector SVG rather than
+shrinking dense map labels; the Insights link opens the detailed official map.
+Repeated ticker/badges and the verbose
 activation-zone paragraph are removed. Full-size maps
 and original source links are accessible. Lap records, first-GP years and circuit
 descriptions follow the same season-specific official guides; later seasons
 do not silently inherit these records. Footer credits retain original asset URLs.
+The SVG surfaces are extracted from official coloured track lines, joining short
+gaps obscured by sector text and removing labels/backgrounds. S1/S2/S3 have a compact
+legend; no activation positions are inferred. Regenerate from local source maps with
+`python -m f1fantasy.circuit_maps`, then format `web/src/sector-maps.json` with Prettier.
 
 The selected round also owns its weather briefing. Validated Open-Meteo daily
 air-temperature ranges, precipitation probabilities and maximum 10 m wind speeds

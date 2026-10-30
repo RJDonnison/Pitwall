@@ -24,7 +24,9 @@ test("each remaining race has its own real projected circuit, not a reused image
   assert.equal(new Set(names.map((n) => circuitForRace(n).id)).size, 5);
   for (const name of names) {
     const html = circuitMarkup(name);
-    assert.match(html, /circuit outline/);
+    assert.match(html, /circuit sector map/);
+    assert.equal((html.match(/class="sector-surface"/g) || []).length, 3);
+    assert.match(html, /S1<\/span>.*S2<\/span>.*S3<\/span>/);
     assert.doesNotMatch(html, /NaN|Infinity|undefined/);
     assert.match(racePhotoMarkup(name), /archive venue photograph/);
     const p = raceMedia[circuitForRace(name).id];

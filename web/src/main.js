@@ -86,6 +86,7 @@ let active = 0,
   result = null,
   selectedRound = 0,
   marketKind = "ALL",
+  marketSort = "price-desc",
   worker = null,
   error = "",
   busy = false,
@@ -174,6 +175,14 @@ function shell() {
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
      <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">+ New team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#new-team").onclick = createTeam;
+  $(".market-tools").insertAdjacentHTML(
+    "beforeend",
+    '<label class="market-sort">Sort by<select id="market-sort"><option value="price-desc">Price: high to low</option><option value="price-asc">Price: low to high</option><option value="points">Projected points</option><option value="value">Points per $m</option><option value="name">Name: A–Z</option></select></label>',
+  );
+  $("#market-sort").onchange = (e) => {
+    marketSort = e.target.value;
+    renderMarket();
+  };
   $("#team-switch").onchange = (e) => switchTeam(Number(e.target.value));
   $("#search").oninput = renderMarket;
   document.querySelectorAll("[data-kind]").forEach(
@@ -369,6 +378,14 @@ function renderMarket() {
       b.setAttribute("aria-pressed", String(marketKind === b.dataset.kind)),
     );
   const query = $("#search").value.toLowerCase();
+  const score = (asset) => total(dataset.rounds[0].forecasts[asset.id]);
+  const comparators = {
+    "price-desc": (a, b) => b.price_tenths_m - a.price_tenths_m,
+    "price-asc": (a, b) => a.price_tenths_m - b.price_tenths_m,
+    points: (a, b) => score(b) - score(a),
+    value: (a, b) => score(b) / b.price_tenths_m - score(a) / a.price_tenths_m,
+    name: (a, b) => a.name.localeCompare(b.name),
+  };
   const available = dataset.assets
     .filter(
       (a) =>
@@ -378,8 +395,7 @@ function renderMarket() {
           .includes(query),
     )
     .sort(
-      (a, b) =>
-        b.price_tenths_m - a.price_tenths_m || a.name.localeCompare(b.name),
+      (a, b) => comparators[marketSort](a, b) || a.name.localeCompare(b.name),
     );
   $("#market-list").innerHTML =
     available.map((a) => registryCardMarkup(dataset, team(), a)).join("") ||
@@ -413,13 +429,6 @@ function renderStrategy() {
         $(`[data-round="${selectedRound}"]`).focus({ preventScroll: true });
       }),
   );
-  if (result && result.rounds[0].transfers === 0) {
-    const next = result.rounds.slice(1).find((r) => r.transfers > 0);
-    $(".directive-grid").insertAdjacentHTML(
-      "beforebegin",
-      `<p class="keep-roster-note" role="status">No swap improves this round’s joint season plan. ${next ? `The first planned roster change is R${next.round} · ${esc(next.name)}.` : "Keep these seven; Boost and chip recommendations are shown below."}</p>`,
-    );
-  }
 }
 function renderInsights() {
   const focused = document.activeElement?.id;

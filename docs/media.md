@@ -69,7 +69,12 @@ Card fitting lives in `.asset-photo`, `.official-photo` and `.car-photo` in
 `web/src/style.css`. Driver portraits use contain fitting; the Commons tool can
 crop a source before resizing. Cars keep their natural sideview aspect ratio.
 
-Circuit outlines are projected from MIT-licensed `bacinger/f1-circuits` data,
+The five remaining circuit sector maps are clean transparent SVG surfaces extracted
+from the official 2026 maps listed in `web/src/track-guides.json`. Sector text gaps
+are joined locally; labels, activation markers and background are omitted. Full
+original maps remain linked. `python -m f1fantasy.circuit_maps` regenerates
+`web/src/sector-maps.json` from the local credited WebPs, without network access.
+Other circuit outlines are projected from MIT-licensed `bacinger/f1-circuits` data,
 not generated shapes. `web/src/visuals.js` maps GP names to circuit IDs. Venue
 photos are local `web/public/media/CIRCUIT-ID.webp`; update their attribution
 records when replacing them. They are archival venue illustrations, not claims

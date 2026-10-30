@@ -2,13 +2,14 @@ import photos from "./media.json" with { type: "json" };
 import circuits from "./circuits.json" with { type: "json" };
 import racePhotos from "./race-media.json" with { type: "json" };
 import trackGuides from "./track-guides.json" with { type: "json" };
+import sectorMaps from "./sector-maps.json" with { type: "json" };
 import { esc } from "./text.js";
 
 export const logo = () =>
   '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
 
 export function footerMarkup() {
-  return `<footer class="site-footer"><div class="footer-principle"><h2>Think in seasons.</h2></div><div class="footer-columns"><section><div class="footer-column-heading"><h3>One joint plan</h3><span>Optimizer</span></div><p>Your team, Boost and chips, planned across the season.</p><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Fantasy rules ↗</a></section><section><div class="footer-column-heading"><h3>Forecasts</h3><span>Model</span></div><p>Past results inform estimates. Future prices use today's values. Weather is display-only.</p><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo · CC BY 4.0 ↗</a></section><section><div class="footer-column-heading"><h3>Your teams stay here</h3><span>Privacy</span></div><p>Independent teams, stored in your browser.</p></section></div><div class="footer-status"><span class="footer-brand">${logo()}<b>Pitwall</b></span><details class="data-status-details"><summary><span id="publication-status" role="status">Loading data…</span></summary><p>Official feeds may block browser checks. Plans then use the published snapshot, valid for six hours. Check the official game's prices and lock before making changes.</p><p id="publication-window"></p></details></div><p class="footer-disclaimer">Not affiliated with Formula 1.</p>${creditsMarkup()}</footer>`;
+  return `<footer class="site-footer"><div class="footer-principle"><h2>Think in seasons.</h2></div><div class="footer-columns"><section><div class="footer-column-heading"><h3>One joint plan</h3><span>Optimizer</span></div><p>Your team, Boost and chips, planned across the season.</p><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Fantasy rules ↗</a></section><section><div class="footer-column-heading"><h3>Forecasts</h3><span>Model</span></div><p>Past results inform estimates. Future prices use today's values. Weather is display-only.</p><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo · CC BY 4.0 ↗</a></section><section><div class="footer-column-heading"><h3>Your teams stay here</h3><span>Privacy</span></div><p>Independent teams, stored in your browser.</p></section></div><div class="footer-status"><span class="footer-brand">${logo()}<b>Pitwall</b></span><div class="data-status"><span id="publication-status" role="status">Loading data…</span><p id="publication-window" class="sr-only"></p></div></div><p class="footer-disclaimer">Not affiliated with Formula 1.</p>${creditsMarkup()}</footer>`;
 }
 export function portrait(asset, fallback = "") {
   const photo = photos[asset.id];
@@ -26,7 +27,7 @@ export function creditsMarkup() {
     )
     .join(
       "",
-    )}</ul><p>Race Insights venue hero photographs and detailed ${2026} circuit maps: Formula 1 official circuit guides, checked 30 October 2026. Copyright remains with the respective rights holders; no Creative Commons licence is claimed. Maps retain the official turn, sector and published activation-zone annotations.</p><ul>${Object.entries(
+    )}</ul><p>Venue hero photographs and 2026 sector geometry: Formula 1 official circuit guides, checked 30 October 2026. Copyright remains with the respective rights holders; no Creative Commons licence is claimed. Clean SVG maps extract the coloured sector surfaces, bridge obscuring text-label gaps and omit annotations; full original maps remain linked.</p><ul>${Object.entries(
     trackGuides,
   )
     .map(
@@ -80,6 +81,11 @@ export function circuitMarkup(name) {
   const circuit = circuitForRace(name);
   if (!circuit)
     return '<div class="circuit-missing">Circuit outline unavailable</div>';
+  const map = sectorMaps[circuit.id];
+  if (map) {
+    const colors = ["#e7527d", "#e5bd43", "#55b9cc"];
+    return `<div class="circuit-art sector-map" data-circuit="${circuit.id}"><svg viewBox="0 0 680 300" role="img" aria-label="${esc(circuit.name)} circuit sector map"><title>${esc(circuit.name)} · official sectors 1, 2 and 3</title>${map.sectors.map((paths, i) => `<path class="sector-surface" fill="${colors[i]}" stroke="${colors[i]}" fill-rule="evenodd" d="${paths.map((p) => p.map((v, j) => `${j ? "L" : "M"}${v.join(",")}`).join(" ") + " Z").join(" ")}"/>`).join("")}</svg><div class="sector-legend" aria-label="Circuit sectors">${colors.map((color, i) => `<span><i style="background:${color}"></i>S${i + 1}</span>`).join("")}</div><span>${esc(circuit.name)} · ${esc(circuit.location)}</span></div>`;
+  }
   const coords = circuit.coordinates,
     lat = coords.reduce((sum, p) => sum + p[1], 0) / coords.length;
   const xy = coords.map((p) => [p[0] * Math.cos((lat * Math.PI) / 180), -p[1]]);

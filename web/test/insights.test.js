@@ -145,7 +145,7 @@ test("The selected round owns its sourced hero, map and daily weather briefing",
   assert.match(first, /mx-1962-map-2026.webp/);
   assert.match(first, /1:17.774/);
   assert.match(first, /305.354 km/);
-  assert.match(first, /Circuit outline/);
+  assert.match(first, /Circuit sectors/);
   assert.match(first, /35% rain · 18 km\/h wind/);
   assert.doesNotMatch(
     first,

@@ -126,7 +126,7 @@
   height: 44px;
   flex-shrink: 0;
   overflow: hidden;
-  background: var(--inset);
+  background: transparent;
   border-radius: 4px;
   display: grid;
   place-items: center;
@@ -1104,7 +1104,7 @@ article {
   flex: 0 0 112px;
   border-radius: 8px;
   overflow: hidden;
-  background: #444b45;
+  background: transparent;
 }
 .boost-portrait .asset-photo,
 .boost-candidates .asset-photo,
@@ -1125,7 +1125,7 @@ article {
   height: 48px;
   overflow: hidden;
   border-radius: 5px;
-  background: #444b45;
+  background: transparent;
 }
 .transfer-lists {
   display: grid;
@@ -1172,7 +1172,7 @@ article {
   width: 32px;
   height: 36px;
   overflow: hidden;
-  background: var(--canvas);
+  background: transparent;
   border-radius: 4px;
 }
 .transfer-column li strong {
@@ -1577,6 +1577,9 @@ article {
   color: var(--muted);
 }
 .transfer-divider {
+  display: grid;
+  place-items: center;
+  line-height: 1;
   align-self: center;
   background: #e5e5e2;
   border-radius: 50%;
@@ -3281,7 +3284,7 @@ footer b {
 .registry-photo {
   position: relative;
   overflow: hidden;
-  background: #f0f0ed;
+  background: transparent;
   border-radius: 4px;
 }
 .driver-card-top .roster-photo {
@@ -3299,7 +3302,7 @@ footer b {
 .asset-photo.car-photo {
   object-fit: contain;
   object-position: center;
-  background: white;
+  background: transparent;
 }
 .photo-credit {
   position: absolute;
@@ -3402,7 +3405,7 @@ footer b {
 }
 .constructor-visual .roster-photo {
   height: 125px;
-  background: white;
+  background: transparent;
 }
 .constructor-visual .price-trend {
   margin: 0;
@@ -3515,13 +3518,56 @@ footer b {
 .market .market-tools {
   display: flex;
   flex-direction: row;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 .market-tools > input {
   flex: 1 1 auto;
   min-width: 0;
+}
+.market-sort {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.market-sort select {
+  width: auto;
+  min-width: 160px;
+}
+.sector-map .sector-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin: 4px 0 12px;
+}
+.sector-map .sector-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sector-legend i {
+  width: 16px;
+  height: 4px;
+  border-radius: 2px;
+}
+.sector-surface {
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+@media (max-width: 650px) {
+  .market-sort {
+    width: 100%;
+  }
+  .market-sort select {
+    flex: 1;
+    min-width: 0;
+  }
 }
 .market .market-tools > .segments {
   display: flex;
@@ -4741,20 +4787,11 @@ footer > .hint {
   font-size: 11px;
   color: var(--muted);
 }
-.data-status-details {
+.data-status {
   font-size: 11px;
   max-width: 65ch;
 }
-.data-status-details summary {
-  cursor: pointer;
-  padding: 12px 0;
-}
-.data-status-details p {
-  font-size: 12px;
-  line-height: 1.7;
-  margin-bottom: 10px;
-}
-.data-status-details #publication-status {
+.data-status #publication-status {
   font-size: 11px;
 }
 @media (max-width: 1000px) {
