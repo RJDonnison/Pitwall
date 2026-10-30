@@ -259,6 +259,28 @@ def _summary(observed, draws):
     }
 
 
+def _placements(draw, index):
+    result = {}
+    for kind in ("Q", "R", "S"):
+        if kind not in draw:
+            continue
+        ranks = draw[kind]["ranks"][:, index]
+        classified = draw[kind]["classified"][:, index]
+        finishers = ranks[classified]
+        result[kind] = {
+            "mean": float(finishers.mean()) if len(finishers) else None,
+            "interval80": [float(v) for v in np.quantile(finishers, [0.1, 0.9])]
+            if len(finishers)
+            else None,
+            "positions": [
+                float(((ranks == p) & classified).mean())
+                for p in range(1, draw[kind]["ranks"].shape[1] + 1)
+            ],
+            "nc": float((~classified).mean()),
+        }
+    return result
+
+
 def build(assets, weekends, cutoff, *, telemetry=True, simulations=4000, seed=2026):
     source = public_history.current()
     if not source:
@@ -433,7 +455,15 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
                 key: float(mask[:, indices].any(axis=1).mean())
                 for key, mask in masks.items()
             }
-        rounds.append({"round": weekend.round, **probabilities})
+        placements = {
+            a.id: _placements(
+                {k: draw[k] for k in ("Q", "R") + (("S",) if weekend.sprint else ())}, i
+            )
+            for i, a in enumerate(drivers)
+        }
+        rounds.append(
+            {"round": weekend.round, **probabilities, "placements": placements}
+        )
     championship = {
         "status": "unavailable",
         "message": "Complete current-season Race, Sprint and championship point coverage is required.",

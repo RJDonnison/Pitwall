@@ -138,12 +138,15 @@ test("The selected round owns its sourced hero, map and daily weather briefing",
   assert.match(first, /mx-1962-map-2026.webp/);
   assert.match(first, /1:17.774/);
   assert.match(first, /305.354 km/);
-  assert.match(first, /overtake detection and activation points/);
+  assert.match(first, /Circuit outline/);
   assert.match(first, /35% rain · 18 km\/h wind/);
-  assert.match(first, /Open-Meteo · CC BY 4.0/);
+  assert.doesNotMatch(
+    first,
+    /insight-ticker|insight-hero-badges|insight-weather-source|2026 replaces DRS/,
+  );
   const other = insightsMarkup(data, { round: 3 });
   assert.match(other, /us-2023-hero.webp/);
-  assert.match(other, /Activation zones are not annotated/);
+  assert.match(other, /Open detailed official map/);
   assert.match(other, /Outside the 16-day forecast window/);
   assert.doesNotMatch(
     other,
@@ -151,6 +154,37 @@ test("The selected round owns its sourced hero, map and daily weather briefing",
   );
   data.season = 2027;
   assert.doesNotMatch(insightsMarkup(data), /map-2026.webp|1:17.774/);
+});
+
+test("driver and team deep dives show selected participants and classified position distributions", () => {
+  const data = publication();
+  data.assets[0].team_id = "team-a";
+  data.assets[1].team_id = "team-a";
+  data.insights.rounds[0].placements = {
+    1: {
+      Q: { mean: 1.2, interval80: [1, 2], positions: [0.8, 0.2], nc: 0 },
+      R: { mean: 1.5, interval80: [1, 2], positions: [0.4, 0.4], nc: 0.2 },
+    },
+  };
+  const driver = insightsMarkup(data, { entity: "1" });
+  assert.match(driver, /Driver deep dive/);
+  assert.match(driver, /Expected classified position <strong>1.5/);
+  assert.match(driver, /not classified 20.0%/);
+  assert.match(driver, /position probabilities/);
+  assert.doesNotMatch(driver, /insight-contenders|insight-podiums/);
+  assert.equal(
+    (driver.match(/<h2>Championship horizon<\/h2>/g) || []).length,
+    1,
+  );
+  const team = insightsMarkup(data, {
+    population: "constructors",
+    entity: "a",
+  });
+  assert.match(team, /Team deep dive/);
+  assert.match(team, /each driver's placement is shown separately/);
+  assert.match(team, /Alpha &lt;Test&gt;/);
+  assert.match(team, /detail-identity/);
+  assert.doesNotMatch(team, /NaN|undefined/);
 });
 
 test("Fantasy graphics preserve negative session components and keep F1 projections separate", () => {

@@ -265,10 +265,11 @@ existing private host session directories were not deleted.
 
 The desktop/mobile page adapts Stitch project `6085770950590244465`, dashboard
 `52730fb5dc454fce9b40080dd77c0495` and mobile `9f99673b1923479895259aaa89f2971a`:
-photo-led dark race hero, translucent four-stat briefing, large sector map,
-context tiles, 7:5 Fantasy/championship workbench, portrait comparison cards and
-podium-probability graphics. Team colours identify entrants; qualifying, Sprint
-and race have distinct chart colours. Signed Fantasy bars retain negative session
+photo-led dark race hero, translucent four-stat briefing, readable circuit outline,
+context tiles and a 7:5 Fantasy/championship workbench. A single selectable driver/
+team deep dive replaces overlapping contender and podium-card sections. Team
+colours identify entrants; qualifying, Sprint and race use ink, warm grey and
+vermilion chart colours. Signed Fantasy bars retain negative session
 components, and observed/expected championship points remain separate. Numeric
 labels and full tables accompany the graphics. The downloaded Stitch design is
 the visual reference; its illustrative confidence, weather effects, timings and
@@ -279,8 +280,10 @@ photo/map URLs for all five remaining 2026 circuits. Local WebP files preserve
 the map annotations, including numbered turns and sector splits. The Mexico and
 Interlagos guides published at the 30 October check also mark straight-mode and
 overtake activation/detection areas: these are the 2026 replacement for DRS.
-Las Vegas, Lusail and Yas Marina maps do not yet annotate activation zones and
-say so rather than deriving positions from straight sections. Full-size maps
+Las Vegas, Lusail and Yas Marina maps do not yet annotate activation zones.
+The hero uses the clean projected outline rather than shrinking dense map labels;
+its link opens the detailed official map. Repeated ticker/badges and the verbose
+activation-zone paragraph are removed. Full-size maps
 and original source links are accessible. Lap records, first-GP years and circuit
 descriptions follow the same season-specific official guides; later seasons
 do not silently inherit these records. Footer credits retain original asset URLs.
@@ -288,29 +291,41 @@ do not silently inherit these records. Footer credits retain original asset URLs
 The selected round also owns its weather briefing. Validated Open-Meteo daily
 air-temperature ranges, precipitation probabilities and maximum 10 m wind speeds
 are published alongside the weekend aggregates. Values retain units, UTC dates,
-fetch time and attribution. Out-of-horizon/missing weather stays unavailable;
+fetch time and attribution in the export and site source information. The repeated
+weather footer is removed; Open-Meteo attribution remains in the site footer.
+Out-of-horizon/missing weather stays unavailable;
 air temperature is not labelled track temperature and weather remains display-only.
 
 `f1fantasy.insights` adds an optional `insights` object to the existing schema-1
 forecast publication. It uses 4,000 seeded joint racing draws per remaining round,
-the CLI rank-bootstrap model and earlier cached telemetry. A single cutoff, the
+the chronologically selected racing model and earlier cached telemetry (see
+[model evaluation](racing-model.md)). A single cutoff, the
 earlier of publication time and first target session, applies to racing records,
 telemetry features and pit-label completion/publication dates across the horizon.
 
 Driver probabilities cover GP win, podium, pole, top ten and not classified, plus
 Sprint outcomes on Sprint weekends. A team probability means **at least one car**,
 calculated from joint samples rather than adding individual probabilities. Not
-classified does not necessarily mean mechanical retirement. The history updater
-archives the latest eight finalized official F1 Predict fastest-stationary-stop
-winners, joined by exact team names/explicit aliases rather than cross-game IDs.
-A symmetric one-win-per-team prior smooths those probabilities. Source, dated
-winner evidence and sample count are visible; missing/unmapped labels are unavailable.
-These are not stop-duration estimates or pit-lane transit measurements.
+classified does not necessarily mean mechanical retirement. Stationary-service
+timing and shared stop-opportunity models must pass chronological baselines;
+otherwise decayed finalized official winner labels with a one-win-per-team prior
+remain explicit. Names/aliases join sources rather than cross-game IDs; sources,
+dated evidence and counts remain visible. Transit times are never service times.
+
+The deep dive independently selects a current driver or constructor for the chosen
+round. Portraits/car images accompany names in both the deep dive and Strategy's
+race breakdown. Qualifying, race and Sprint distributions come from the same joint
+draws as the overview: classified-position bins plus NC sum to one. Expected
+position and central 80% ranges condition on classification and are uncalibrated.
+Teams show each current driver's distribution, not a fictitious constructor race
+finishing position. Team outcome probabilities remain at-least-one-car events.
+The full title-contender table is expandable beneath the single horizon chart;
+comparison panels use aligned bounded lists rather than mismatched long columns.
 
 Historical tables enumerate included rounds against completed scheduled rounds.
 GP weekends, individual car entries, classifications, wins, podiums, poles and
 Sprint wins/entries are separate. The current archive covers all 18 completed
-2026 GPs and the final eight GPs of 2025; partial seasons are explicitly labelled.
+2026 GPs plus all 24 GPs in each of 2024 and 2025; partial seasons are explicitly labelled.
 Historical participants remain visible outside the current roster, and past team
 points retain their recorded constructor. Observed real F1 points sum FastF1
 Race/Sprint session points, not Fantasy scores or an independently reconciled FIA

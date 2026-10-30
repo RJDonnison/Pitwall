@@ -7,13 +7,12 @@ import {
   constructorName,
 } from "./views.js";
 import { portrait } from "./visuals.js";
+import { participantDetail } from "./insight-detail.js";
 import {
   insightHero,
   weatherBriefing,
   fantasyChart,
   championshipChart,
-  contenderCards,
-  podiumCards,
 } from "./insight-visuals.js";
 
 const percent = (n) => `${(n * 100).toFixed(1)}%`;
@@ -167,8 +166,7 @@ export function insightsMarkup(dataset, state = {}) {
     <div class="insight-toolbar"><label>Forecast round<select id="insight-round">${dataset.rounds.map((r) => option(r.round, `R${r.round} · ${r.name}${r.sprint ? " · Sprint" : ""}`, round.round)).join("")}</select></label><div class="segments" role="group" aria-label="Insights population">${["drivers", "constructors"].map((p) => `<button data-insight-population="${p}" aria-pressed="${population === p}">${p === "drivers" ? "Drivers" : "Teams"}</button>`).join("")}</div><p>Historical cutoff<br><strong>${esc(stamp(insight.cutoff))}</strong></p></div>
     ${weatherBriefing(round)}
     <div class="insight-workbench">${fantasyChart(dataset, round, population)}${championshipChart(dataset, insight, population)}</div>
-    ${contenderCards(dataset, round, probabilities, population)}
-    ${podiumCards(dataset, probabilities, population)}
+    ${participantDetail(dataset, round, probabilities, population, state.entity)}
     <div class="insight-probability-grid"><section class="panel"><div class="section-heading"><div><h2>Race probabilities</h2><p>${population === "constructors" ? "At least one car achieves the selected outcome." : "Each driver's chance of the selected outcome."}</p></div><label><span class="sr-only">Probability outcome</span><select id="insight-metric">${Object.entries(
       metrics,
     )
@@ -177,7 +175,7 @@ export function insightsMarkup(dataset, state = {}) {
         "",
       )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}<p class="insight-note">${population === "constructors" ? "Team outcomes overlap. " : ""}Not classified is a result classification, not necessarily a mechanical retirement. Probabilities are model estimates.</p></section>
     <aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2><p>Stationary-stop winner probability</p></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
-    <section class="panel"><div class="section-heading"><div><h2>Championship horizon</h2><p>${dataset.season} real F1 points · title contenders · all ${dataset.rounds.length} remaining published rounds</p></div><span class="tag">Observed + simulated</span></div>${championshipMarkup(dataset, insight, population)}<p class="insight-note">Mathematically eliminated entrants are hidden here, but retained in historical records. Maximum final points assume every remaining GP and Sprint is won (constructors: best possible finishes of their current cars); tied ceilings consider GP finish countback, retaining unresolved ties. Full-distance GP points (25–18–15–12–10–8–6–4–2–1) and Sprint points (8–1); no fastest-lap bonus. Ranges show the middle 80% of joint simulated seasons, not calibrated confidence. Rows are ordered by expected points, not official countback standings.</p></section>
+    <details class="panel"><summary>All title-contender projections · ${dataset.season}</summary>${championshipMarkup(dataset, insight, population)}<p class="insight-note">Eliminated entrants remain in historical records. Maximum points assume full-distance GP/Sprint wins with rivals scoring zero; equal ceilings consider GP countback. Middle 80% scenario ranges are uncalibrated. Expected-points order is not official countback order.</p></details>
     <section class="panel"><div class="section-heading"><div><h2>Historical record</h2><p>Observed results · GP counts exclude Sprints</p></div><label>Season<select id="insight-season">${insight.history.map((h) => option(h.season, h.season, history.season)).join("")}</select></label></div><div class="history-tools"><label><span class="sr-only">Search historical participants</span><input id="insight-search" type="search" placeholder="Search historical participants…" value="${esc(state.query || "")}"/></label><label>Order by<select id="insight-sort">${Object.entries(
       {
         points: "Real F1 points",

@@ -1,9 +1,174 @@
 /* The supplied Stitch telemetry deck: photo hero, 7:5 workbench, team-colour data. */
 .insights-page {
-  --session-q: #7c3aed;
-  --session-s: #d97706;
-  --session-r: #0284c7;
+  --session-q: #1c1917;
+  --session-s: #a8a29e;
+  --session-r: #991b1b;
   gap: 28px;
+}
+.race-selection-image,
+.detail-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.race-selection-image > img,
+.race-selection-image > svg,
+.detail-identity > img,
+.detail-identity > svg {
+  width: 48px;
+  height: 52px;
+  object-fit: contain;
+  flex: 0 0 48px;
+}
+.detail-featured > img,
+.detail-featured > svg {
+  width: 100px;
+  height: 110px;
+  flex-basis: 100px;
+}
+.participant-detail {
+  border-top: 3px solid var(--team-color);
+}
+.detail-overview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.detail-overview dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
+  gap: 20px;
+  margin: 0;
+}
+.detail-overview dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+.detail-overview dd {
+  font-size: 22px;
+  font-weight: 600;
+  margin: 4px 0 0;
+}
+.placement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 24px;
+}
+.placement-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 16px;
+  min-width: 0;
+}
+.placement-card > .detail-identity {
+  grid-column: 1/-1;
+}
+.placement-session {
+  min-width: 0;
+}
+.placement-session h4 {
+  margin: 0 0 8px;
+}
+.placement-session > p {
+  font-size: 11px;
+  color: var(--muted);
+  min-height: 48px;
+}
+.placement-distribution {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.placement-distribution li {
+  display: grid;
+  grid-template-columns: 28px 1fr 55px;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  padding: 5px 0;
+}
+.placement-distribution i {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--red) var(--prob),
+    var(--inset) var(--prob)
+  );
+}
+.placement-distribution strong {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.insight-track-map .circuit-art {
+  margin: 0;
+  padding: 12px;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  min-height: 220px;
+}
+.insight-track-map .circuit-art svg {
+  width: 100%;
+  height: 260px;
+}
+.insight-track-map .circuit-art > span {
+  display: none;
+}
+.insight-champ-chart {
+  display: flex;
+  flex-direction: column;
+}
+.insight-champ-chart > ol {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  flex: 1;
+}
+.insight-probability-grid .probability-list,
+.insight-probability-grid .pitstop-list {
+  height: 640px;
+  max-height: 640px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+@media (max-width: 600px) {
+  .detail-overview dl {
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+  }
+  .participant-detail .section-heading {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .participant-detail .section-heading label {
+    width: 100%;
+  }
+  .participant-detail select {
+    width: 100%;
+  }
+  .placement-card {
+    grid-template-columns: 1fr;
+  }
+  .insight-track-map .circuit-art svg {
+    height: 190px;
+  }
+  .insight-probability-grid .probability-list,
+  .insight-probability-grid .pitstop-list {
+    height: 420px;
+    max-height: 420px;
+  }
 }
 .insight-ticker {
   display: flex;

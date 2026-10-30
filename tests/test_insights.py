@@ -165,6 +165,19 @@ def test_pitstop_publication_cutoff_and_unknown_team_are_enforced(scenario):
     assert insights._pitstops(doc, assets, cutoff, 2026)["status"] == "unavailable"
 
 
+def test_placement_distributions_separate_unclassified_outcomes(scenario):
+    result = build(scenario)
+    placements = result["rounds"][0]["placements"]
+    assert placements["1"]["R"]["mean"] == 1.75
+    assert placements["3"]["R"]["nc"] == 0.25
+    for rounds in result["rounds"]:
+        for sessions in rounds["placements"].values():
+            for session in sessions.values():
+                assert sum(session["positions"]) + session["nc"] == pytest.approx(1)
+    assert "S" not in placements["1"]
+    assert "S" in result["rounds"][1]["placements"]["1"]
+
+
 def test_telemetry_has_the_same_cutoff_for_all_rounds(scenario, monkeypatch):
     assets, weekends, cutoff, doc = scenario
 

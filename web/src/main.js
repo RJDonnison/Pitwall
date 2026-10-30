@@ -416,7 +416,7 @@ function renderInsights() {
   document
     .querySelectorAll("#insights details")
     .forEach((d, i) => (d.open = open[i] || false));
-  for (const key of ["round", "season", "metric", "sort"]) {
+  for (const key of ["round", "season", "metric", "sort", "entity"]) {
     const control = $(`#insight-${key}`);
     if (control)
       control.onchange = () => {
