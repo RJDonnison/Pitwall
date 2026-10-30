@@ -186,6 +186,46 @@ test("Autopilot selects one whole-weekend winner per joint scenario", () => {
   assert.ok(Math.abs(r.points - python(data, team).points) < 1e-5);
 });
 
+test("active Wildcard gives the same capped one-round optimum for different starting rosters", () => {
+  const { data, team } = fixture();
+  data.rounds = data.rounds.slice(0, 1);
+  team.active = "wildcard";
+  team.chips = ["wildcard"];
+  team.budget = 350;
+  const first = optimize(highs, data, team);
+  const second = optimize(highs, data, {
+    ...team,
+    selected: ["1", "2", "3", "4", "5", "c1", "c2"],
+  });
+  assert.equal(first.points, second.points);
+  assert.deepEqual(
+    first.rounds[0].entries.map((e) => e.id).sort(),
+    second.rounds[0].entries.map((e) => e.id).sort(),
+  );
+  assert.equal(first.rounds[0].penalty, 0);
+  assert.equal(second.rounds[0].penalty, 0);
+  assert.notEqual(first.rounds[0].transfers, second.rounds[0].transfers);
+});
+
+test("Wildcard still respects budget and remaining chips rather than equating different profiles", () => {
+  const { data, team } = fixture();
+  data.assets[0].price_tenths_m = 150;
+  team.selected = ["1", "2", "3", "4", "5", "c1", "c2"];
+  team.active = "wildcard";
+  team.chips = ["wildcard"];
+  team.budget = 350;
+  const capped = optimize(highs, data, team);
+  const richer = optimize(highs, data, { ...team, budget: 450 });
+  assert.ok(richer.points > capped.points);
+  const extraChip = optimize(highs, data, {
+    ...team,
+    chips: ["wildcard", "no_negative"],
+  });
+  assert.ok(extraChip.points > capped.points);
+  assert.equal(extraChip.rounds[0].chip, "wildcard");
+  assert.equal(extraChip.rounds[1].chip, "no_negative");
+});
+
 test("Autopilot total includes exactly one extra copy of the best whole-weekend driver in each scenario", () => {
   const { data, team } = fixture();
   data.rounds = [data.rounds[1]];

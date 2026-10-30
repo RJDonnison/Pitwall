@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import data, output, public_history, insights
+from . import data, output, public_history, insights, fantasy_model
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
 from .race_context import race_context
@@ -108,6 +108,15 @@ def build(season: int, *, telemetry: bool = True) -> dict:
             "telemetry": telemetry,
             "risk": True,
             "future_prices_assumed_constant": True,
+            "fantasy": {
+                k: v
+                for k, v in fantasy_model.report(
+                    live.assets,
+                    min(weekends[0].first_session, generated),
+                    telemetry=telemetry,
+                ).items()
+                if k != "folds"
+            },
         },
         "preview_only": True,
         "notice": "Published forecasts are a planning preview. Verify current prices, roster, budget, transfers and chip eligibility on the official game before changing your team.",

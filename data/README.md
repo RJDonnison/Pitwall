@@ -1,5 +1,8 @@
 # Public historical inputs
 
+`fantasy-evaluation.json` records chronological official-Fantasy validation and
+per-session adoption decisions; see [the model documentation](../docs/fantasy-model.md).
+
 `history.json` is a compact, versioned input dataset: completed session score
 summaries, race classifications / championship points, calendar metadata,
 official past-weekend Fantasy scores and recorded round prices, and date-stamped

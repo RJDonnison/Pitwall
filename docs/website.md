@@ -263,6 +263,12 @@ existing private host session directories were not deleted.
 
 ## V6 Race Insights
 
+Unboosted Fantasy session forecasts now use the chronologically evaluated
+[Fantasy feature model](fantasy-model.md) where its chronological group-specific
+MAE beats both existing and recent-score baselines. Rejected/sparse groups retain
+the existing estimator. This is separate from the real-F1 placement distributions;
+publication exposes adoption evidence under `model.fantasy`.
+
 The desktop/mobile page adapts Stitch project `6085770950590244465`, dashboard
 `52730fb5dc454fce9b40080dd77c0495` and mobile `9f99673b1923479895259aaa89f2971a`:
 photo-led dark race hero, translucent four-stat briefing, readable circuit outline,

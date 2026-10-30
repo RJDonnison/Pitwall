@@ -51,7 +51,36 @@ def _position(value: Any) -> int | None:
 
 
 def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]:
-    from .public_history import scores
+    from .public_history import current, scores
+
+    source = current()
+    if source and f"{year}/{round_number}/{kind}" not in source["document"].get(
+        "scores", {}
+    ):
+        records = [
+            r
+            for r in source["document"].get("racing", [])
+            if r["season"] == year and r["round"] == round_number
+        ]
+        if len(records) == 1 and kind in records[0]["sessions"]:
+            output = {}
+            for row in records[0]["sessions"][kind]:
+                position = _position(row.get("position"))
+                if kind == "Q":
+                    score = QUALIFYING.get(position, 0) if position else -5
+                else:
+                    classified = row["classified"]
+                    score = (
+                        (RACE if kind == "R" else SPRINT).get(position, 0)
+                        if classified
+                        else (-20 if kind == "R" else -10)
+                    )
+                    grid = _position(row.get("grid"))
+                    if grid and classified and position:
+                        change = grid - position
+                        score += max(-10, change) if kind == "S" else change
+                output[row["tla"]] = float(score)
+            return output
 
     return scores(
         year, round_number, kind, lambda: _load_session_scores(year, round_number, kind)
@@ -142,7 +171,7 @@ def _track_form(
     return track
 
 
-def estimate_assets(
+def _estimate_legacy(
     assets: tuple[Asset, ...],
     weekends: list[Weekend],
     lookback: int = 5,
@@ -325,3 +354,23 @@ def estimate_assets(
                 blended(constructor.id, "R", sum(m.race for m in members)),
             )
     return output
+
+
+def estimate_assets(
+    assets: tuple[Asset, ...],
+    weekends: list[Weekend],
+    lookback: int = 5,
+    *,
+    use_telemetry: bool = True,
+    use_risk: bool = True,
+    use_joint_model: bool = True,
+) -> dict[tuple[int, str], Estimate]:
+    """Retain the established model wherever chronological evidence rejects a replacement."""
+    baseline = _estimate_legacy(
+        assets, weekends, lookback, use_telemetry=use_telemetry, use_risk=use_risk
+    )
+    if not use_joint_model or not use_risk or lookback != 5:
+        return baseline
+    from .fantasy_model import forecast
+
+    return forecast(assets, weekends, baseline, telemetry=use_telemetry)
