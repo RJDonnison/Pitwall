@@ -457,3 +457,45 @@ archive includes generation/cutoff times, models, roster, weather, selected and
 candidate session scores. Settlement requires matching season/round, completed
 official Fantasy totals and a completed racing record. A new archive starts
 empty: waiting for finalized outcomes is an honest unavailable state.
+# V8 — Forward accuracy and visual uncertainty
+
+Race Insights follows the selected driver/team and regular/Sprint weekend
+format. Session cards show population MAE, the selected participant's forecast
+and (when supported) error bars. A dot/cross/diamond chart connects archived
+forecasts to finalized outcomes and their last-three baseline; a visible table
+retains exact values, signed errors, publication and finalization dates. Negative
+Fantasy scores are preserved. Baseline and model MAE use identical paired rows.
+
+The confidence labels describe evidence depth, not probability of correctness:
+
+- **Insufficient history:** fewer than eight archived weekends in the same
+  model configuration, population, session and format; no range is published.
+- **Provisional range:** at least eight earlier calibration weekends, but fewer
+  than eight later weekends with genuinely published prediction intervals.
+- **Forward checked:** coverage has been measured on at least eight later
+  weekends. Read the measured hit/observation counts; this is not an accuracy
+  guarantee or a claim that the model beats its baseline.
+
+Ranges use split-conformal-style absolute residuals with the finite-sample rank
+`ceil((n + 1) * 0.8)`. Each calibration observation is a weekend's **maximum**
+absolute error across its population: correlated entrants do not count as
+independent weekends. The selected residual radius is applied symmetrically to
+each current session forecast, with no clipping of negative points. This targets
+four-in-five population coverage under exchangeable weekend blocks; seasonal,
+roster and model drift can invalidate that assumption. Ranges are deliberately
+conservative and provisional until later coverage is available.
+
+Every interval is frozen in its original pre-weekend archive. Coverage is
+computed against those original bounds, never bounds refitted using that
+weekend's outcome. Evaluation/calibration only uses official settlements earlier
+than the publication cutoff. Model algorithm versions, telemetry/risk settings
+and selected group modes define a configuration fingerprint; different
+configurations are not pooled. Retrained parameters within that configuration
+remain part of the evolving forecasting procedure.
+
+MAE is historical error, not confidence in one prediction. Current ranges and
+past MAE have different meanings and are displayed separately. Driver,
+constructor, qualifying, Sprint and race errors remain separate, as do regular
+and Sprint weekends. Individual errors are not summed into team/transfer/chip
+uncertainty. The archive starts empty and acquires real evidence over time;
+retrospective reconstructed folds are not relabelled as published predictions.

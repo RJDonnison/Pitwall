@@ -16,6 +16,7 @@ from . import (
     fantasy_model,
     forecast_archive,
     weather_model,
+    accuracy,
 )
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
@@ -102,7 +103,7 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
             row["history_gamedays"] = values.history_gamedays[t]
         rounds.append(row)
     generated = datetime.now(timezone.utc)
-    return {
+    publication = {
         "schema_version": 1,
         "status": "ready",
         "season": season,
@@ -116,7 +117,7 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         "insights": insights.build(
             live.assets,
             weekends,
-            min(weekends[0].first_session, generated),
+            cutoff,
             telemetry=telemetry,
         ),
         "price_gameday_id": live.weekend.gameday_id,
@@ -136,7 +137,7 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
                 k: v
                 for k, v in fantasy_model.report(
                     live.assets,
-                    min(weekends[0].first_session, generated),
+                    cutoff,
                     telemetry=telemetry,
                 ).items()
                 if k != "folds"
@@ -145,6 +146,20 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         "preview_only": True,
         "notice": "Published forecasts are a planning preview. Verify current prices, roster, budget, transfers and chip eligibility on the official game before changing your team.",
     }
+    publication["accuracy"] = accuracy.report(
+        forecast_archive.settled(archive, document, cutoff),
+        publication["model"],
+        generated,
+    )
+    for row, weekend in zip(rounds, weekends):
+        row["baseline"] = accuracy.baseline(
+            live.assets, document, cutoff, weekend.sprint
+        )
+        row["intervals"] = accuracy.intervals(
+            live.assets, row["forecasts"], weekend.sprint, publication["accuracy"]
+        )
+    publication["generated_at"] = datetime.now(timezone.utc).isoformat()
+    return publication
 
 
 def main(argv=None):

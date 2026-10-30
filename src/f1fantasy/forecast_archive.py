@@ -41,8 +41,9 @@ def capture(archive, publication):
                 "assets": publication["assets"],
                 "forecasts": row["forecasts"],
                 "weather_model": row.get("weather_model"),
-                "baseline": row.get("baseline", row["forecasts"]),
+                "baseline": row.get("baseline", {}),
                 "weather": row.get("weather"),
+                "intervals": row.get("intervals", {}),
             }
         )
         known.add(key)

@@ -1,0 +1,129 @@
+.accuracy-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+  margin: 24px 0;
+}
+.accuracy-card {
+  background: var(--surface-container-low, #f3f3f2);
+  padding: 20px;
+  min-width: 0;
+}
+.accuracy-card h3 {
+  margin: 0 0 12px;
+}
+.accuracy-card p {
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+.accuracy-confidence {
+  color: var(--primary, #760009);
+  font-weight: 700;
+}
+.accuracy-plot {
+  margin: 28px 0;
+}
+.accuracy-plot figcaption {
+  font-weight: 600;
+  line-height: 1.6;
+}
+.accuracy-plot figcaption span {
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.accuracy-plot svg {
+  width: 100%;
+  height: auto;
+  margin-top: 18px;
+}
+.accuracy-plot text {
+  font-size: 11px;
+  fill: currentColor;
+}
+.accuracy-zero {
+  stroke: #b9bab6;
+  stroke-dasharray: 3 4;
+}
+.accuracy-whisker {
+  fill: none;
+  stroke: #760009;
+  stroke-width: 2;
+}
+.accuracy-gap {
+  stroke: #777a76;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+.accuracy-prediction {
+  fill: #760009;
+}
+.accuracy-actual {
+  stroke: #1a1c1c;
+  stroke-width: 2;
+  fill: none;
+}
+.accuracy-baseline {
+  stroke: #57655e;
+  stroke-width: 1.5;
+  fill: #f9f9f8;
+}
+.accuracy-mae {
+  display: grid;
+  gap: 5px;
+  font-size: 0.8rem;
+}
+.accuracy-mae i,
+.accuracy-mae b {
+  display: block;
+  height: 7px;
+  min-width: 2px;
+  background: #760009;
+}
+.accuracy-mae b {
+  background: #777a76;
+}
+.accuracy-table {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.accuracy-table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.75rem;
+}
+.accuracy-table th,
+.accuracy-table td {
+  padding: 10px;
+  border-bottom: 1px solid #deded9;
+  white-space: nowrap;
+}
+.accuracy-table caption {
+  text-align: left;
+  padding-bottom: 10px;
+}
+.accuracy-definitions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  font-size: 0.8rem;
+}
+.accuracy-definitions dt {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.accuracy-definitions dd {
+  margin: 0;
+  line-height: 1.6;
+}
+@media (max-width: 600px) {
+  .accuracy-cards {
+    gap: 12px;
+  }
+  .accuracy-plot {
+    overflow-x: auto;
+  }
+  .accuracy-plot svg {
+    min-width: 540px;
+  }
+}

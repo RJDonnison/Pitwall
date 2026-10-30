@@ -33,7 +33,7 @@
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
 - Daily weather classifications drive a shrunk official-score analogue candidate for Q/S/R. Candidate predictions stay separate from the selected optimizer until forward evidence supports a change. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages.
 
-### V8 — Forecast confidence and accuracy scores
+### V8 — Forecast confidence and accuracy scores (implemented; forward archive collecting)
 
 - Show MAE (mean absolute error) in Fantasy points, with predicted-versus-actual history for drivers, constructors and qualifying/Sprint/race forecasts. Include sample counts, evaluation dates and model version.
 - Evaluate archived pre-weekend predictions chronologically against finalized results; exclude current-weekend outcomes from training, calibration and the original prediction. Compare against a clearly identified baseline.
@@ -41,6 +41,7 @@
 - Distinguish regular and Sprint weekends and disclose sparse or missing evidence. Show unavailable or insufficient-history states instead of invented confidence scores.
 - Where supported by joint outcome evidence, expose uncertainty in recommended changes and team totals, accounting for correlated driver/constructor and chip effects rather than simply adding individual errors.
 - Use defined text confidence labels; keep numeric confidence scores rare. Prioritize error bars and visual error comparisons.
+- Shipped: archived error diagrams and accessible values, paired last-three baseline MAE, separate population/session/format evidence, weekend-block conformal ranges, and later-only coverage. Defined labels are “Insufficient history”, “Provisional range” and “Forward checked”; no arbitrary confidence percentage. Ranges wait for eight archived weekends and team uncertainty remains unavailable without joint evidence.
 
 ### V9 — Website prediction system
 

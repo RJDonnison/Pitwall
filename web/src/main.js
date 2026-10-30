@@ -5,6 +5,7 @@ import "@fontsource/inter/700.css";
 import "./style.css";
 import "./insight-visuals.css";
 import "./participant-browser.css";
+import "./accuracy.css";
 import {
   CHIPS,
   PREWEEK,
