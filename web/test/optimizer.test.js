@@ -10,8 +10,45 @@ import {
   total,
 } from "../src/optimizer.js";
 import { verifyLive } from "../src/data.js";
+import { suggestionRequest } from "../src/team-suggestion.js";
 
 const highs = await loadHighs();
+test("Suggest team fills an empty slot with a capped optimized roster and normal 2× Boost", () => {
+  const { data, team } = fixture();
+  team.selected = [];
+  team.chips = ["x3", "wildcard"];
+  const original = structuredClone(team);
+  const request = suggestionRequest(data, team);
+  const result = optimize(highs, request.dataset, request.team);
+  assert.equal(result.rounds.length, 1);
+  assert.equal(result.rounds[0].entries.length, 7);
+  assert.equal(result.rounds[0].cost, 350);
+  assert.equal(result.rounds[0].points, 131);
+  assert.equal(result.rounds[0].penalty, 0);
+  assert.equal(result.rounds[0].chip, null);
+  assert.deepEqual(result.rounds[0].entries.map((e) => e.id).sort(), [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "c0",
+    "c1",
+  ]);
+  assert.deepEqual(team, original);
+  assert.equal(data.rounds.length, 2);
+});
+
+test("Suggest team handles partial rosters but fails for unaffordable or stale data", () => {
+  const { data, team } = fixture();
+  team.selected = ["5"];
+  assert.equal(suggestionRequest(data, team).team.selected.length, 7);
+  team.budget = 349;
+  assert.throws(() => suggestionRequest(data, team), /budget/);
+  team.budget = 400;
+  data.generated_at = new Date(Date.now() - 7 * 3600000).toISOString();
+  assert.throws(() => suggestionRequest(data, team), /six hours/);
+});
 function fixture() {
   const assets = [
     ...Array.from({ length: 6 }, (_, i) => ({

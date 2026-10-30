@@ -8,7 +8,7 @@ Pitwall is a static website where you enter your F1 Fantasy teams and plan the r
 
 - **Season-wide planning:** plans every remaining published round, not a rolling horizon.
 - **Exact optimisation:** a mixed-integer optimiser (HiGHS WebAssembly) runs in a browser worker.
-- **Independent teams:** create a blank team in Garage and save teams in your browser, with JSON import/export.
+- **Three independent teams:** use Garage's Suggest team button to fill a slot with an optimized lineup, with browser storage and JSON import/export.
 - **Detailed forecasts:** qualifying, Sprint and race projections, with [chronologically validated Fantasy modeling](docs/fantasy-model.md) adopted only where it beats both baselines.
 - **Race Insights:** searchable driver/team cards and placement distributions, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
 - **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.

@@ -2,7 +2,7 @@
 
 ## What users can do
 
-- Save independent teams locally, add a blank team with **New team**, name them, and import/export JSON.
+- Save up to three independent teams locally, fill a slot with **Suggest team**, name them, and import/export JSON.
 - Enter the original race-week five drivers/two constructors, total budget
   (roster value plus cash), one carried transfer, initial-team status and chips.
 - Allow paid net transfers only when their predicted gain justifies their cost.
@@ -24,9 +24,17 @@ an input. Update your manual team after a race; the browser replans after edits.
 No passwords, cookies, account identifiers or users' teams are sent to a server.
 Local storage is browser/origin-specific; export a team to move devices or preserve
 it when clearing site data. Saved teams can belong to different people. Garage's
-**New team** button adds and selects a separate blank roster without overwriting
-existing teams. It starts with a $100m budget, all chips available, no carried
-transfers and unlimited initial team selection; additional teams persist after reload.
+**Suggest team** button fills or replaces the active slot's roster with the exact
+best next-round five-driver/two-constructor lineup within its entered budget,
+including the normal 2× Boost. It uses fresh publication/price verification and
+the same browser solver; it spends no chip and preserves the name, budget and
+available chip inventory. An incomplete team becomes an initial selection with
+no carried transfer; a complete team's transfer settings remain intact. Normal
+remaining-season planning resumes afterward. Failure leaves the roster intact.
+There are always three slots; other slots are unaffected. If the earlier additive
+button created extra profiles, the first three are retained and the previous
+list is backed up locally as `pitwall-teams-before-three-slot-limit` when storage
+permits.
 
 ## Exact browser optimization
 
