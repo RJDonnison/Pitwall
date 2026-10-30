@@ -325,7 +325,7 @@ test("racing-only deep dives and team outlook use post-round championship totals
   );
 });
 
-test("participant grid supports name, team and driver-code searches while keeping selected predictions", () => {
+test("participant cards show most likely race positions and keep selection without a search", () => {
   const data = publication();
   data.assets[0].tla = "AAA";
   data.assets.push({
@@ -336,22 +336,26 @@ test("participant grid supports name, team and driver-code searches while keepin
     tla: "BBB",
   });
   data.rounds[0].forecasts["2"] = [4, 0, 16];
-  const html = insightsMarkup(data, { entity: "2", participantQuery: "bbb" });
+  data.insights.rounds[0].placements = {
+    1: { R: { mean: 2, positions: [0.481, 0.238, 0.081, 0.2], nc: 0 } },
+    2: { R: { mean: 2.1, positions: [0.1, 0.7, 0.2], nc: 0 } },
+  };
+  const html = insightsMarkup(data, { entity: "2" });
   assert.match(html, /participant-grid/);
   assert.match(html, /aria-label="Bravo Driver predictions"/);
   assert.match(html, /data-insight-entity="2"[^>]*aria-pressed="true"/);
-  assert.match(html, /data-insight-entity="1"[^>]*hidden/);
-  assert.doesNotMatch(html, /data-insight-entity="2"[^>]*hidden/);
-  assert.match(html, /value="bbb"/);
-  const missing = insightsMarkup(data, {
-    participantQuery: "not-a-participant",
-  });
-  assert.match(
-    missing,
-    /id="insight-participant-empty"[^>]*role="status"[^>]*>No matching/,
+  assert.doesNotMatch(html, /data-insight-entity="[12]"[^>]*hidden/);
+  assert.doesNotMatch(
+    html,
+    /participant-search|data-participant-search|insight-participant-empty/,
   );
   assert.match(
-    insightsMarkup(data, { participantQuery: "Team A" }),
-    /data-insight-entity="1"[^>]*aria-pressed="true"/,
+    html,
+    /participant-position" title="Most likely race result: P1 · 48.1%"><small>Likely race<\/small><strong>P1/,
   );
+  assert.match(
+    html,
+    /participant-position" title="Most likely race result: P2 · 70.0%"><small>Likely race<\/small><strong>P2/,
+  );
+  assert.match(html, /position-estimate">P2<\/strong><small>70.0%/);
 });

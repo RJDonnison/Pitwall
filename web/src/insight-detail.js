@@ -15,6 +15,23 @@ const image = (a) => portrait(a, a.kind === "DRIVER" ? helmet() : car());
 const position = (value) =>
   Number.isFinite(value) ? `P${points(value)}` : "Unavailable";
 
+function mostLikelyResult(p) {
+  if (!p) return { label: "Unavailable", probability: null, tied: false };
+  const outcomes = [...p.positions, p.nc];
+  const peak = Math.max(...outcomes);
+  const modes = outcomes.flatMap((value, i) =>
+    Math.abs(value - peak) < 1e-9
+      ? [i === p.positions.length ? "NC" : `P${i + 1}`]
+      : [],
+  );
+  return {
+    label:
+      modes.length <= 2 ? modes.join(" / ") : `${modes.length} tied outcomes`,
+    probability: peak,
+    tied: modes.length > 1,
+  };
+}
+
 function curve(asset, p, label) {
   const values = [...p.positions, p.nc];
   const peak = Math.max(0.01, ...values);
@@ -73,16 +90,8 @@ function placements(asset, data, sprint, named) {
       const p = data?.[kind],
         label = { Q: "Qualifying", S: "Sprint", R: "Race" }[kind];
       if (!p) return `<p>${label}: placement estimates unavailable.</p>`;
-      const outcomes = [...p.positions, p.nc];
-      const peak = Math.max(...outcomes);
-      const modes = outcomes.flatMap((value, i) =>
-        Math.abs(value - peak) < 1e-9
-          ? [i === p.positions.length ? "NC" : `P${i + 1}`]
-          : [],
-      );
-      const mostLikely =
-        modes.length <= 2 ? modes.join(" / ") : `${modes.length} tied outcomes`;
-      return `<section class="placement-session"><div class="placement-session-heading"><h4>${label}</h4><div class="placement-result"><span>Most likely result</span><strong class="position-estimate">${mostLikely}</strong><small>${pct(peak)}${modes.length > 1 ? " each" : ""}</small></div></div><p class="placement-average">Average classified position <strong>${position(p.mean)}</strong></p>${curve(asset, p, label)}</section>`;
+      const mostLikely = mostLikelyResult(p);
+      return `<section class="placement-session"><div class="placement-session-heading"><h4>${label}</h4><div class="placement-result"><span>Most likely result</span><strong class="position-estimate">${mostLikely.label}</strong><small>${pct(mostLikely.probability)}${mostLikely.tied ? " each" : ""}</small></div></div><p class="placement-average">Average classified position <strong>${position(p.mean)}</strong></p>${curve(asset, p, label)}</section>`;
     })
     .join("")}</article>`;
 }
@@ -104,7 +113,6 @@ export function participantDetail(
   probabilities,
   population,
   selected,
-  query = "",
 ) {
   const assets = dataset.assets.filter(
     (a) => a.kind === (population === "drivers" ? "DRIVER" : "CONSTRUCTOR"),
@@ -121,15 +129,14 @@ export function participantDetail(
   const after = probabilities?.championship_after;
   const championship =
     after?.status === "ready" ? after[population]?.[asset.id] : null;
-  return `<section class="panel participant-detail" style="--team-color:${teamColor(dataset, asset)}"><div class="section-heading"><div><span class="insight-kicker">Race breakdown · R${round.round}</span><h2>${population === "drivers" ? "Driver" : "Team"} deep dive</h2></div><span class="detail-round-tag">${assets.length} ${population === "drivers" ? "drivers" : "teams"} · R${round.round}</span></div><div class="participant-browser"><div class="participant-catalogue"><label class="participant-search">Search ${population === "drivers" ? "drivers" : "teams"}<input id="insight-participant-search" type="search" placeholder="${population === "drivers" ? "Name, team or driver code…" : "Team name…"}" value="${esc(query)}" aria-controls="insight-participant-grid" autocomplete="off" /></label><div class="participant-grid" id="insight-participant-grid" role="group" aria-label="Choose ${population === "drivers" ? "driver" : "team"}">${assets
+  return `<section class="panel participant-detail" style="--team-color:${teamColor(dataset, asset)}"><div class="section-heading"><div><span class="insight-kicker">Race breakdown · R${round.round}</span><h2>${population === "drivers" ? "Driver" : "Team"} deep dive</h2></div><span class="detail-round-tag">${assets.length} ${population === "drivers" ? "drivers" : "teams"} · R${round.round}</span></div><div class="participant-browser"><div class="participant-catalogue"><div class="participant-grid" id="insight-participant-grid" role="group" aria-label="Choose ${population === "drivers" ? "driver" : "team"}">${assets
     .map((a) => {
-      const search =
-        `${a.name} ${a.tla || ""} ${constructorName(dataset, a)}`.toLowerCase();
-      return `<button type="button" class="participant-tile" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" data-participant-search="${esc(search)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}" ${search.includes(query.trim().toLowerCase()) ? "" : "hidden"}>${image(a)}<span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span></button>`;
+      const likely = mostLikelyResult(probabilities?.placements?.[a.id]?.R);
+      return `<button type="button" class="participant-tile" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}">${image(a)}<span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span>${a.kind === "DRIVER" ? `<span class="participant-position" title="Most likely race result: ${likely.label} · ${pct(likely.probability)}${likely.tied ? " each" : ""}"><small>Likely race</small><strong>${likely.label}</strong></span>` : ""}</button>`;
     })
     .join(
       "",
-    )}</div><p id="insight-participant-empty" class="insight-empty" role="status" ${assets.some((a) => `${a.name} ${a.tla || ""} ${constructorName(dataset, a)}`.toLowerCase().includes(query.trim().toLowerCase())) ? "hidden" : ""}>No matching participants. Try a name, team or driver code.</p></div><aside class="participant-prediction" aria-label="${esc(asset.name)} predictions"><div class="detail-overview"><div class="detail-identity detail-featured">${image(asset)}<div><h3>${esc(asset.name)}</h3>${asset.kind === "DRIVER" ? `<p>${esc(constructorName(dataset, asset))}</p>` : ""}</div></div><dl>${[
+    )}</div></div><aside class="participant-prediction" aria-label="${esc(asset.name)} predictions"><div class="detail-overview"><div class="detail-identity detail-featured">${image(asset)}<div><h3>${esc(asset.name)}</h3>${asset.kind === "DRIVER" ? `<p>${esc(constructorName(dataset, asset))}</p>` : ""}</div></div><dl>${[
     ["Race win", pct(p.win)],
     ["Podium", pct(p.podium)],
     ["Top 10", pct(p.top10)],

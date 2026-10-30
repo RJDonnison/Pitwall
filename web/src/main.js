@@ -120,7 +120,6 @@ const insightState = {
   round: null,
   metric: "win",
   entity: null,
-  participantQuery: "",
 };
 const team = () => profiles[active];
 function save() {
@@ -249,9 +248,8 @@ function render() {
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
   $("#publication-window").textContent =
     `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
-  $("#planning-status").textContent = busy
-    ? "Updating strategy…"
-    : result
+  $("#planning-status").textContent =
+    busy || result
       ? ""
       : error
         ? "Check team settings"
@@ -480,26 +478,6 @@ function renderInsights() {
           ?.scrollIntoView({ block: "start" });
     };
   });
-  const search = $("#insight-participant-search");
-  const filterParticipants = () => {
-    const rows = document.querySelectorAll("[data-participant-search]");
-    rows.forEach(
-      (r) =>
-        (r.hidden = !r.dataset.participantSearch.includes(
-          (insightState.participantQuery || "").trim().toLowerCase(),
-        )),
-    );
-    if ($("#insight-participant-empty"))
-      $("#insight-participant-empty").hidden = Array.from(rows).some(
-        (r) => !r.hidden,
-      );
-  };
-  if (search)
-    search.oninput = () => {
-      insightState.participantQuery = search.value;
-      filterParticipants();
-    };
-  filterParticipants();
   if (focused && focused.startsWith("insight-"))
     document.getElementById(focused)?.focus({ preventScroll: true });
 }

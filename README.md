@@ -10,7 +10,7 @@ Pitwall is a static website where you enter your F1 Fantasy teams and plan the r
 - **Exact optimisation:** a mixed-integer optimiser (HiGHS WebAssembly) runs in a browser worker.
 - **Three independent teams:** use Garage's Suggest team button to fill a slot with an optimized lineup, with browser storage and JSON import/export.
 - **Detailed forecasts:** qualifying, Sprint and race projections, with [chronologically validated Fantasy modeling](docs/fantasy-model.md) adopted only where it beats both baselines.
-- **Race Insights:** searchable driver/team cards and placement distributions, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
+- **Race Insights:** selectable driver/team cards with likely race positions and placement distributions, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
 - **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.
 - **Privacy-friendly:** no F1 login, server-side team storage or automatic submission required.
 - **Companion CLI:** a Python CLI and official F1 Predict tooling (see [Predict commands](docs/predict.md)).
@@ -35,7 +35,7 @@ Open the local URL printed by Vite.
 2. Enter **team value plus cash**, free transfers and remaining chips.
 3. Open **Strategy** to see transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's selection breakdown.
 
-Strategy updates automatically as you edit. Open **Race Insights** to select a remaining round, search drivers or teams by name, abbreviation or constructor, inspect placement predictions in the sidebar and explore championship projections. Observed points, real F1 predictions and Fantasy forecasts are separate; probabilities and ranges are explicitly uncalibrated. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
+Strategy updates automatically as you edit. Open **Race Insights** to select a remaining round, choose a driver or team card, inspect placement predictions in the sidebar and explore championship projections. Observed points, real F1 predictions and Fantasy forecasts are separate; probabilities and ranges are explicitly uncalibrated. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
 
 The interface follows [`DESIGN.md`](DESIGN.md), with a full-width Garage, compact mobile roster, bottom navigation, recorded round-price trends and coloured chip controls. Driver and car images come from the TracingInsights 2026 collection; venue photographs and circuit outline change with the selected round. Credits are in the footer.
 

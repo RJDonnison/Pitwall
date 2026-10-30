@@ -343,20 +343,22 @@ forecasts is negative, proportionally to the positive/negative shared scales;
 positive-only comparisons start at the left edge. Championship summaries separate
 scored points, expected gain, scenario range and maximum into labelled values.
 Probability lists retain right-side breathing room for their percentages.
-Garage omits the successful "Strategy up to date" message, while pending/error
-statuses remain visible. The navbar team selector uses a themed native popup where
+Garage omits both "Updating strategy…" and "Strategy up to date" messages, while
+errors remain visible. The navbar team selector uses a themed native popup where
 supported, with the standard accessible select as fallback.
 
-Race probabilities precede the deep dive. Its searchable participant grid replaces
-the participant dropdown: search by name, team or driver code, then choose a
-portrait/car card showing only the participant's name, team and image. Qualifying/race
+Race probabilities precede the deep dive. Its participant grid replaces
+the participant dropdown: choose a portrait/car card directly without a search box.
+Driver cards show name, team, image and the most likely race result, computed from
+the same distribution as the sidebar (including tied outcomes and NC). Qualifying/race
 estimates and projected post-race championship points stay in the prediction sidebar.
 Championship position is explicitly labelled post-race. The deep dive is racing-only; Fantasy predictions
 remain in their separate output chart. Selection uses the highlighted card rather
 than repeated "Selected"/"View predictions" labels.
 Selected predictions occupy a right-hand sidebar on desktop and stack beneath
 the grid on mobile; selecting a mobile card brings its predictions into view.
-Search text and selection survive round changes. The page has no collapsible
+Selection survives round changes, and each card's likely result updates for the
+selected round. The page has no collapsible
 sections or Historical record section; the round and probability-outcome selectors
 remain. Portraits/car images accompany names in both the deep dive and Strategy's
 race breakdown. Qualifying, race and Sprint distributions come from the same joint
