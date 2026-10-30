@@ -12,3 +12,4 @@ build/
 web/node_modules/
 web/dist/
 web/public/forecast.json
+scripts/
