@@ -310,23 +310,30 @@ classified does not necessarily mean mechanical retirement. Stationary-service
 timing and shared stop-opportunity models must pass chronological baselines;
 otherwise decayed finalized official winner labels with a one-win-per-team prior
 remain explicit. Names/aliases join sources rather than cross-game IDs; sources,
-dated evidence and counts remain visible. Transit times are never service times.
+counts remain visible, with dated evidence retained in the publication. Transit
+times are never service times.
 
-The deep dive independently selects a current driver or constructor for the chosen
-round. Portraits/car images accompany names in both the deep dive and Strategy's
+Race probabilities precede the deep dive. Its searchable participant grid replaces
+the participant dropdown: search by name, team or driver code, then choose a
+portrait/car card showing unboosted Fantasy points and expected race position.
+Selected predictions occupy a right-hand sidebar on desktop and stack beneath
+the grid on mobile; selecting a mobile card brings its predictions into view.
+Search text and selection survive round changes. The page has no collapsible
+sections or Historical record section; the round and probability-outcome selectors
+remain. Portraits/car images accompany names in both the deep dive and Strategy's
 race breakdown. Qualifying, race and Sprint distributions come from the same joint
 draws as the overview: classified-position bins plus NC sum to one. Expected
 position and central 80% ranges condition on classification and are uncalibrated.
 Teams show each current driver's distribution, not a fictitious constructor race
 finishing position. Team outcome probabilities remain at-least-one-car events.
-The full title-contender table is expandable beneath the single horizon chart;
-comparison panels use aligned bounded lists rather than mismatched long columns.
+The title-contender horizon remains a single chart, and comparison panels use
+aligned bounded lists rather than mismatched long columns.
 
-Historical tables enumerate included rounds against completed scheduled rounds.
+Historical exports enumerate included rounds against completed scheduled rounds.
 GP weekends, individual car entries, classifications, wins, podiums, poles and
 Sprint wins/entries are separate. The current archive covers all 18 completed
 2026 GPs plus all 24 GPs in each of 2024 and 2025; partial seasons are explicitly labelled.
-Historical participants remain visible outside the current roster, and past team
+Historical participants remain in those exports outside the current roster, and past team
 points retain their recorded constructor. Observed real F1 points sum FastF1
 Race/Sprint session points, not Fantasy scores or an independently reconciled FIA
 standings feed; subsequent non-session championship adjustments may differ.

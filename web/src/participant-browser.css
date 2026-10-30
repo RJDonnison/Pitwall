@@ -1,0 +1,188 @@
+.participant-browser {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 1fr);
+  align-items: start;
+  gap: 24px;
+}
+.participant-catalogue {
+  min-width: 0;
+}
+.participant-search {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.participant-search input {
+  width: 100%;
+}
+.participant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 12px;
+}
+.participant-tile {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--team-color);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+}
+.participant-tile:hover {
+  background: var(--inset);
+}
+.participant-tile[aria-pressed="true"] {
+  background: #fff7f5;
+  border-color: var(--red);
+}
+.participant-tile .asset-photo,
+.participant-tile > svg {
+  width: 48px;
+  height: 54px;
+  object-fit: contain;
+}
+.participant-tile-name {
+  align-self: center;
+  min-width: 0;
+}
+.participant-tile-name strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.participant-tile-name small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 4px;
+}
+.participant-tile-metric {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 3px;
+}
+.participant-tile-metric > strong {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.participant-tile-metric small {
+  font-size: 10px;
+  font-weight: 400;
+}
+.participant-tile-metric > span,
+.participant-tile-selected {
+  font-size: 10px;
+  color: var(--muted);
+}
+.participant-tile-selected {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--rule);
+  padding-top: 8px;
+}
+.participant-tile[aria-pressed="true"] .participant-tile-selected {
+  color: var(--red);
+  font-weight: 600;
+}
+.detail-round-tag {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.participant-prediction {
+  position: sticky;
+  top: 24px;
+  padding: 20px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--team-color);
+  border-radius: 6px;
+  background: var(--canvas);
+  min-width: 0;
+  scroll-margin-top: 16px;
+}
+.participant-prediction .detail-overview {
+  display: block;
+}
+.participant-prediction .detail-overview dl {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 20px;
+  width: 100%;
+}
+.participant-prediction .detail-featured h3 {
+  font-size: 22px;
+}
+.participant-prediction .placement-grid {
+  display: block;
+}
+.participant-prediction .placement-card {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 16px;
+  padding: 14px;
+}
+.participant-prediction .placement-session {
+  min-width: 0;
+}
+.participant-prediction .placement-distribution {
+  max-height: 145px;
+}
+.detail-fantasy-sessions {
+  display: flex;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+.detail-fantasy-sessions > span {
+  flex: 1;
+  font-size: 10px;
+  color: var(--muted);
+}
+.detail-fantasy-sessions strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  margin-top: 4px;
+}
+@media (max-width: 1000px) {
+  .participant-browser {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
+    gap: 16px;
+  }
+  .participant-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .participant-tile {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .participant-browser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .participant-prediction {
+    position: static;
+    padding: 16px;
+  }
+  .participant-tile {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+}
+@media (max-width: 400px) {
+  .participant-tile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .participant-tile-name strong {
+    font-size: 12px;
+  }
+  .participant-detail .section-heading {
+    flex-wrap: wrap;
+  }
+}

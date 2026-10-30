@@ -4,6 +4,7 @@ import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./style.css";
 import "./insight-visuals.css";
+import "./participant-browser.css";
 import {
   CHIPS,
   PREWEEK,
@@ -94,10 +95,9 @@ let active = 0,
 const insightState = {
   population: "drivers",
   round: null,
-  season: null,
   metric: "win",
-  sort: "points",
-  query: "",
+  entity: null,
+  participantQuery: "",
 };
 const team = () => profiles[active];
 function save() {
@@ -408,15 +408,8 @@ function renderStrategy() {
 }
 function renderInsights() {
   const focused = document.activeElement?.id;
-  const open = Array.from(
-    document.querySelectorAll("#insights details"),
-    (d) => d.open,
-  );
   $("#insights").innerHTML = insightsMarkup(dataset, insightState);
-  document
-    .querySelectorAll("#insights details")
-    .forEach((d, i) => (d.open = open[i] || false));
-  for (const key of ["round", "season", "metric", "sort", "entity"]) {
+  for (const key of ["round", "metric"]) {
     const control = $(`#insight-${key}`);
     if (control)
       control.onchange = () => {
@@ -434,24 +427,36 @@ function renderInsights() {
         });
       }),
   );
-  const search = $("#insight-search");
-  const filterHistory = () => {
-    const rows = document.querySelectorAll("[data-history-name]");
+  document.querySelectorAll("[data-insight-entity]").forEach((button) => {
+    button.onclick = () => {
+      insightState.entity = button.dataset.insightEntity;
+      renderInsights();
+      if (window.matchMedia("(max-width: 760px)").matches)
+        document
+          .querySelector(".participant-prediction")
+          ?.scrollIntoView({ block: "start" });
+    };
+  });
+  const search = $("#insight-participant-search");
+  const filterParticipants = () => {
+    const rows = document.querySelectorAll("[data-participant-search]");
     rows.forEach(
       (r) =>
-        (r.hidden = !r.dataset.historyName.includes(
-          insightState.query.toLowerCase(),
+        (r.hidden = !r.dataset.participantSearch.includes(
+          (insightState.participantQuery || "").trim().toLowerCase(),
         )),
     );
-    if ($("#history-empty"))
-      $("#history-empty").hidden = Array.from(rows).some((r) => !r.hidden);
+    if ($("#insight-participant-empty"))
+      $("#insight-participant-empty").hidden = Array.from(rows).some(
+        (r) => !r.hidden,
+      );
   };
   if (search)
     search.oninput = () => {
-      insightState.query = search.value;
-      filterHistory();
+      insightState.participantQuery = search.value;
+      filterParticipants();
     };
-  filterHistory();
+  filterParticipants();
   if (focused && focused.startsWith("insight-"))
     document.getElementById(focused)?.focus({ preventScroll: true });
 }

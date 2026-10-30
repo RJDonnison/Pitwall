@@ -124,7 +124,7 @@ export function championshipChart(dataset, insight, population) {
     })
     .join(
       "",
-    )}</ol><p class="insight-note">${eliminated} mathematically eliminated entrants hidden. Eligibility assumes maximum GP and Sprint points with rivals scoring zero; equal-point ceilings use GP finish countback, retaining unresolved ties. Historical records retain everyone. ${dataset.rounds.length} remaining rounds; uncalibrated simulation ranges.</p></section>`;
+    )}</ol><p class="insight-note">${eliminated} mathematically eliminated entrants hidden. Eligibility assumes maximum GP and Sprint points with rivals scoring zero; equal-point ceilings use GP finish countback, retaining unresolved ties. Eliminated entrants remain in the public data export. ${dataset.rounds.length} remaining rounds; uncalibrated simulation ranges.</p></section>`;
 }
 
 export function contenderCards(dataset, round, probabilities, population) {

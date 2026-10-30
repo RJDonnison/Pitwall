@@ -74,15 +74,22 @@ function publication(sprint = false) {
   };
 }
 
-test("Insights separates probabilities, partial observations, championship ranges and Fantasy scores", () => {
+test("Insights keeps probabilities, championship ranges and Fantasy scores without accordions or history", () => {
   const html = insightsMarkup(publication());
   assert.match(html, /25\.0%/);
-  assert.match(html, /Partial historical coverage/);
-  assert.match(html, /Central 80% simulation range/);
-  assert.match(html, /Unboosted Fantasy point forecasts/);
+  assert.match(html, /80% range 25.0–45.0/);
+  assert.match(html, /Unboosted Fantasy session forecast/);
   assert.match(html, /No verified winners\./);
   assert.match(html, /Alpha &lt;Test&gt;/);
   assert.doesNotMatch(html, /Alpha <Test>|NaN|undefined|Sprint win<\/option>/);
+  assert.doesNotMatch(
+    html,
+    /<details|<summary|Historical record|insight-season|insight-sort|id="insight-entity"/,
+  );
+  assert.ok(
+    html.indexOf("<h2>Race probabilities") <
+      html.indexOf("<h2>Driver deep dive"),
+  );
 });
 
 test("Sprint outcomes are format-specific and team probabilities use the published any-car estimate", () => {
@@ -202,7 +209,7 @@ test("Fantasy graphics preserve negative session components and keep F1 projecti
   assert.doesNotMatch(html, /NaN|undefined|Alpha <Test>/);
 });
 
-test("Championship horizon excludes mathematical elimination while historical records retain entrants", () => {
+test("Championship horizon excludes eliminated entrants and historical records are not rendered", () => {
   const data = publication();
   const eliminated = {
     ...data.insights.championship.drivers[0],
@@ -217,10 +224,38 @@ test("Championship horizon excludes mathematical elimination while historical re
   data.insights.championship.drivers.unshift(eliminated);
   data.insights.history[0].drivers.push(eliminated);
   const html = insightsMarkup(data);
-  const beforeHistory = html.split("Historical record")[0];
-  assert.doesNotMatch(beforeHistory, /Eliminated racer|999\.0/);
-  assert.match(html, /Eliminated racer/);
+  assert.doesNotMatch(html, /Eliminated racer|999\.0|Historical record/);
   assert.match(html, /1 mathematically eliminated entrants hidden/);
-  assert.match(html, /Maximum possible final/);
   assert.match(html, /maximum possible 50\.0/);
+});
+
+test("participant grid supports name, team and driver-code searches while keeping selected predictions", () => {
+  const data = publication();
+  data.assets[0].tla = "AAA";
+  data.assets.push({
+    id: "2",
+    name: "Bravo Driver",
+    kind: "DRIVER",
+    team_id: "a",
+    tla: "BBB",
+  });
+  data.rounds[0].forecasts["2"] = [4, 0, 16];
+  const html = insightsMarkup(data, { entity: "2", participantQuery: "bbb" });
+  assert.match(html, /participant-grid/);
+  assert.match(html, /aria-label="Bravo Driver predictions"/);
+  assert.match(html, /data-insight-entity="2"[^>]*aria-pressed="true"/);
+  assert.match(html, /data-insight-entity="1"[^>]*hidden/);
+  assert.doesNotMatch(html, /data-insight-entity="2"[^>]*hidden/);
+  assert.match(html, /value="bbb"/);
+  const missing = insightsMarkup(data, {
+    participantQuery: "not-a-participant",
+  });
+  assert.match(
+    missing,
+    /id="insight-participant-empty"[^>]*role="status"[^>]*>No matching/,
+  );
+  assert.match(
+    insightsMarkup(data, { participantQuery: "Team A" }),
+    /data-insight-entity="1"[^>]*aria-pressed="true"/,
+  );
 });
