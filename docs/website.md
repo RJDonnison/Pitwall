@@ -430,3 +430,30 @@ Garage team. Missing Insights does not block valid Fantasy forecasts. Six-hour
 freshness and price verification still apply. Model, seed, samples, cutoff and
 sources are disclosed. V7 question recommendations, V8 weather modeling and V9
 calibrated accuracy remain planned.
+# V7 — Weather-aware candidate and forward archive
+
+The selected round exposes a timestamped Open-Meteo daily outlook (CC BY 4.0).
+Dry means a maximum daily precipitation probability below 30%, wet at least
+70%, and changeable the intervening range. These are forecast classifications,
+not observed track conditions or session-specific rainfall probabilities.
+
+`weather_model.py` builds separate Q/S/R candidates from earlier official Fantasy
+session scores matched to observed historical dry/wet/mixed regimes. At least
+three matching observations are required; differences from unconditional form
+are shrunk with eight prior observations. Pace, incident and reliability effects
+remain combined in the official scores; separate causal effects are not claimed.
+Missing weather or sparse analogues retain the existing session estimate.
+
+Weather is a shadow candidate, not a claimed improvement. The website reports
+paired candidate/existing-model MAE separately for regular and Sprint weekends.
+Only actual archived forecasts, retrieved before the first session, can enter
+these forward comparisons. No observed historical weather is substituted for
+an unavailable historical issued forecast. Daily maxima are a coarse proxy;
+session-specific predictions and automatic promotion require stronger evidence.
+
+Pages preserves the first publication for the nearest upcoming round in
+`data/forecast-archive.json`. Later runs never rewrite that prediction. The
+archive includes generation/cutoff times, models, roster, weather, selected and
+candidate session scores. Settlement requires matching season/round, completed
+official Fantasy totals and a completed racing record. A new archive starts
+empty: waiting for finalized outcomes is an honest unavailable state.

@@ -8,7 +8,15 @@ from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import data, output, public_history, insights, fantasy_model
+from . import (
+    data,
+    output,
+    public_history,
+    insights,
+    fantasy_model,
+    forecast_archive,
+    weather_model,
+)
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import estimate_assets
 from .race_context import race_context
@@ -48,8 +56,13 @@ def price_history(live):
     return result
 
 
-def build(season: int, *, telemetry: bool = True) -> dict:
+def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
     live, weekends = data.snapshot(season)
+    contexts = [race_context(weekend) for weekend in weekends]
+    generated = datetime.now(timezone.utc)
+    cutoff = min(weekends[0].first_session, generated)
+    document = (public_history.current() or {}).get("document", {})
+    archive = archive if archive is not None else {"schema": 1, "forecasts": []}
     forecasts = estimate_assets(live.assets, weekends, use_telemetry=telemetry)
     for t, weekend in enumerate(weekends):
         for asset in live.assets:
@@ -68,8 +81,16 @@ def build(season: int, *, telemetry: bool = True) -> dict:
         row["last_session_utc"] = (
             weekend.last_session.isoformat() if weekend.last_session else None
         )
-        row.update(race_context(weekend))
+        row.update(contexts[t])
         row["forecasts"] = {a.id: components(forecasts[t, a.id]) for a in live.assets}
+        row["weather_model"] = weather_model.candidate(
+            live.assets,
+            weekend,
+            row["forecasts"],
+            row.get("weather", {}),
+            document,
+            cutoff,
+        )
         if values is not None:
             row["no_negative"] = {
                 a.id: components(values.no_negative[t, a.id]) for a in live.assets
@@ -91,7 +112,7 @@ def build(season: int, *, telemetry: bool = True) -> dict:
         "generated_at": generated.isoformat(),
         "price_checked_at": live.fetched_at.isoformat(),
         "price_published_at": live.published_at.isoformat(),
-        "forecast_cutoff": min(weekends[0].first_session, generated).isoformat(),
+        "forecast_cutoff": cutoff.isoformat(),
         "insights": insights.build(
             live.assets,
             weekends,
@@ -99,6 +120,9 @@ def build(season: int, *, telemetry: bool = True) -> dict:
             telemetry=telemetry,
         ),
         "price_gameday_id": live.weekend.gameday_id,
+        "weather_evaluation": weather_model.evaluation(
+            forecast_archive.settled(archive, document, generated)
+        ),
         "price_history": price_history(live),
         "assets": [{**output.asset(a), "tla": a.tla} for a in live.assets],
         "rounds": rounds,
@@ -129,10 +153,16 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, default=Path("web/public/forecast.json"))
     parser.add_argument("--no-telemetry", action="store_true")
     parser.add_argument("--history", type=Path, default=public_history.DEFAULT)
+    parser.add_argument("--archive", type=Path, default=forecast_archive.DEFAULT)
     args = parser.parse_args(argv)
     try:
         with public_history.repository(args.history):
-            payload = build(args.season, telemetry=not args.no_telemetry)
+            archive = forecast_archive.load(args.archive)
+            payload = build(
+                args.season, telemetry=not args.no_telemetry, archive=archive
+            )
+            forecast_archive.capture(archive, payload)
+            forecast_archive.save(archive, args.archive)
     except (data.DataError, OSError, ValueError) as exc:
         # A failed publication replaces prior data with an explicit unavailable
         # state; Pages must never keep serving old forecasts as current data.

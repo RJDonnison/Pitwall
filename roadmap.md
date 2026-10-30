@@ -25,26 +25,28 @@
 - Real F1 championship projections retain historical participants and original team attribution. Central 80% ranges use joint season samples; missing current-season coverage disables totals and partial seasons are labelled.
 - Visible sample sizes, cutoff, model/seed, sources and uncalibrated status. See [methodology](docs/website.md#v6-race-insights).
 
-### V7 — Website prediction system
-
-- Fetch the latest official F1 Predict questions, legal answer choices, variable payouts and lock state.
-- Bring the existing CLI expected-points model to the website: calculate the highest expected-scoring valid answers, ordered podium and question Boost, with probability and points breakdowns.
-- Keep Predict scoring distinct from Fantasy and fail clearly on unsupported questions or unverifiable data. Account submission is not implied by this website version.
-
-### V8 — Weather-aware race model
+### V7 — Weather-aware race model (implemented; forward evaluation collecting)
 
 - The V5 Strategy page already displays sourced track specifications and optional public weather context. This version adds weather to the predictive model, rather than treating that display as a model improvement.
 - Add sourced, timestamped weather forecasts and condition classification, such as dry, wet and changeable, to the race model.
 - Evaluate effects on pace, reliability and qualifying/Sprint/race outcomes using only weather information available at prediction time.
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
+- Daily weather classifications drive a shrunk official-score analogue candidate for Q/S/R. Candidate predictions stay separate from the selected optimizer until forward evidence supports a change. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages.
 
-### V9 — Forecast confidence and accuracy scores
+### V8 — Forecast confidence and accuracy scores
 
 - Show MAE (mean absolute error) in Fantasy points, with predicted-versus-actual history for drivers, constructors and qualifying/Sprint/race forecasts. Include sample counts, evaluation dates and model version.
 - Evaluate archived pre-weekend predictions chronologically against finalized results; exclude current-weekend outcomes from training, calibration and the original prediction. Compare against a clearly identified baseline.
 - Add empirically calibrated prediction ranges and show their measured coverage. Keep historical accuracy separate from confidence in an individual forecast; MAE is not a confidence percentage.
 - Distinguish regular and Sprint weekends and disclose sparse or missing evidence. Show unavailable or insufficient-history states instead of invented confidence scores.
 - Where supported by joint outcome evidence, expose uncertainty in recommended changes and team totals, accounting for correlated driver/constructor and chip effects rather than simply adding individual errors.
+- Use defined text confidence labels; keep numeric confidence scores rare. Prioritize error bars and visual error comparisons.
+
+### V9 — Website prediction system
+
+- Fetch the latest official F1 Predict questions, legal answer choices, variable payouts and lock state.
+- Bring the existing CLI expected-points model to the website: calculate the highest expected-scoring valid answers, ordered podium and question Boost, with probability and points breakdowns.
+- Keep Predict scoring distinct from Fantasy and fail clearly on unsupported questions or unverifiable data.
 
 ## V1 — Fantasy recommendations (implemented)
 

@@ -57,7 +57,9 @@ export function weatherBriefing(round) {
       cloud,
       "Rain outlook",
       ready ? `${num(w.daily_rain_probability_max)}%` : "Unavailable",
-      ready ? "Highest daily precipitation chance" : note,
+      ready
+        ? `Daily outlook: ${round.weather_model?.condition || "unclassified"} · not session rain probability`
+        : note,
       "blue",
     ],
     [
