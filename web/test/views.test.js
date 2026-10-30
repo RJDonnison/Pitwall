@@ -214,6 +214,25 @@ test("rounds stay expanded, use chip icons and omit redundant marketing text", (
   assert.match(html, /class="transfer-estimate positive"[^>]*>\+10\.0/);
 });
 
+test("chip plan shows all six icons with available and spent states", () => {
+  const { data, team, result } = fixture();
+  team.chips = ["autopilot", "x3", "limitless"];
+  team.active = "autopilot";
+  result.rounds[0].chip = "autopilot";
+  const html = strategyMarkup(data, team, result);
+  const inventory = html.match(/<ul class="chip-inventory"[\s\S]*?<\/ul>/)[0];
+  assert.equal((inventory.match(/<li /g) || []).length, 6);
+  assert.equal((inventory.match(/<svg /g) || []).length, 6);
+  assert.equal(
+    (inventory.match(/class="chip-[^"]+ available"/g) || []).length,
+    2,
+  );
+  assert.equal((inventory.match(/class="chip-[^"]+ spent"/g) || []).length, 4);
+  assert.match(inventory, /aria-label="Autopilot: spent"/);
+  assert.match(inventory, /aria-label="3× Boost: available"/);
+  assert.doesNotMatch(html, /chip-dots/);
+});
+
 test("registry shows unboosted next-round points and team colours for both kinds", () => {
   const { data, team } = fixture();
   data.assets[6].name = "Ferrari";

@@ -246,6 +246,9 @@ def main():
                             "e => 12 <= parseFloat(getComputedStyle(e).fontSize) <= 14"
                         )
                         if width == 1440:
+                            assert page.locator(".race-context").evaluate(
+                                "e => { const map = e.querySelector('.circuit-art').getBoundingClientRect(); const panel = e.getBoundingClientRect(); const padding = parseFloat(getComputedStyle(e).paddingBottom); return Math.abs(map.bottom - (panel.bottom-padding)) < 2 && map.height > 180; }"
+                            ), "Circuit should fill the space below the track readings"
                             assert page.locator(".directive-grid").evaluate(
                                 "e => { const r = [...e.children].map(c => ({top:c.getBoundingClientRect().top,height:c.getBoundingClientRect().height,fits:c.scrollHeight <= c.clientHeight+1})); return r.every(v => Math.abs(v.height - r[0].height) < 1 && Math.abs(v.top-r[0].top) < 1 && v.height <= 341 && v.fits); }"
                             ), page.locator(".directive-grid").evaluate(
@@ -291,6 +294,10 @@ def main():
                         assert page.locator(".circuit-art").evaluate(
                             "e => !['rgb(255, 255, 255)', 'rgba(0, 0, 0, 0)'].includes(getComputedStyle(e).backgroundColor)"
                         )
+                        assert page.locator(".chip-callout").evaluate(
+                            "e => { const a = e.firstElementChild.getBoundingClientRect(), b = e.lastElementChild.getBoundingClientRect(), style = getComputedStyle(e); const offset = style.flexDirection === 'column' ? (a.left+a.right)-(b.left+b.right) : (a.top+a.bottom)-(b.top+b.bottom); return Math.abs(offset) < 2 && style.justifyContent === 'center' && style.alignItems === 'center'; }"
+                        ), "Chip icon and recommendation should be centred together"
+                        assert page.locator(".chip-inventory > li svg").count() == 6
                     if width <= 650:
                         assert not page.locator("#header-cap").is_visible()
                         if route == "strategy":

@@ -275,13 +275,16 @@ export function strategyMarkup(
   );
   const denominator = Math.max(1, first.points, reference[0]);
   let cumulative = 0;
-  return `${heroMarkup(dataset, team, result)}<div class="directive-grid">${transferDirective(dataset, team, first)}${boostDirective(dataset, first)}<section class="panel directive chip-directive"><div class="directive-heading"><span>${icon("shield")}Chip plan</span><span class="tag ${first.chip ? "red" : ""}">${first.chip ? "Use" : "Save"}</span></div><div class="chip-callout ${first.chip ? `plan-chip chip-${first.chip}` : ""}">${first.chip ? chipIcon(first.chip) : icon("shield")}<div><h2>${first.chip ? chipNames[first.chip] : "Save chips"}</h2></div></div><div class="chip-dots" aria-label="${team.chips.length} chips marked available">${Object.keys(
+  return `${heroMarkup(dataset, team, result)}<div class="directive-grid">${transferDirective(dataset, team, first)}${boostDirective(dataset, first)}<section class="panel directive chip-directive"><div class="directive-heading"><span>${icon("shield")}Chip plan</span><span class="tag ${first.chip ? "red" : ""}">${first.chip ? "Use" : "Save"}</span></div><div class="chip-callout ${first.chip ? `plan-chip chip-${first.chip}` : ""}">${first.chip ? chipIcon(first.chip) : icon("shield")}<div><h2>${first.chip ? chipNames[first.chip] : "Save chips"}</h2></div></div><ul class="chip-inventory" aria-label="Remaining chips">${Object.keys(
     chipNames,
   )
-    .map((c) => `<i class="${team.chips.includes(c) ? "available" : ""}"></i>`)
+    .map((c) => {
+      const available = team.chips.includes(c) && team.active !== c;
+      return `<li class="chip-${c} ${available ? "available" : "spent"}" aria-label="${chipNames[c]}: ${available ? "available" : "spent"}" title="${chipNames[c]}">${chipIcon(c)}</li>`;
+    })
     .join(
       "",
-    )}</div><div class="directive-footer">Next chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "None planned"}</span></div></section></div>
+    )}</ul><div class="directive-footer">Next chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "None planned"}</span></div></section></div>
    <section class="panel score-panel"><div class="section-heading"><h2>Next race</h2></div><div class="score-comparison"><div class="projected-number"><strong>${points(first.points)}</strong><span>Estimated points</span></div><div><div class="comparison-label"><span>Current team · 2× only</span><strong>${points(reference[0])}</strong></div><div class="comparison-track"><i style="width:${(100 * Math.max(0, reference[0])) / denominator}%"></i></div><div class="comparison-label accent"><span>Suggested team</span><strong>${points(first.points)}</strong></div><div class="comparison-track recommended"><i style="width:${(100 * Math.max(0, first.points)) / denominator}%"></i></div><div class="score-components"><span>Drivers <b>${points(driverScore)}</b></span><span>Constructors <b>${points(constructorScore)}</b></span><span>Penalty <b>−${first.transfer_penalty}</b></span></div></div></div></section>
    <section class="panel horizon"><div class="section-heading"><h2>Season plan</h2><div class="horizon-total"><strong>${points(result.points)} pts</strong></div></div><div class="chart-scroll">${chart(
      result.rounds.map((r) => (cumulative += r.points)),

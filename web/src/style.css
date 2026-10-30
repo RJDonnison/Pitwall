@@ -875,6 +875,9 @@ article {
 }
 .chip-callout {
   display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 12px;
   padding: 15px;
   background: var(--inset);
@@ -983,30 +986,34 @@ article {
 }
 .chip-callout h2 {
   font-size: 20px;
-  margin-bottom: 8px;
+  margin: 0;
 }
 .chip-callout p {
   font-size: 11px;
 }
-.chip-dots {
+.chip-inventory {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin: 22px 0;
+  gap: 6px;
+  margin: 18px 0;
+  padding: 0;
+  list-style: none;
 }
-.chip-dots i {
-  height: 9px;
-  width: 9px;
-  background: var(--rule);
-  border-radius: 50%;
+.chip-inventory > li {
+  display: grid;
+  place-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 36px;
+  color: var(--chip);
 }
-.chip-dots i.available {
-  background: var(--red);
+.chip-inventory svg {
+  width: 24px;
+  height: 24px;
 }
-.chip-dots small {
-  margin-left: 8px;
-  font-size: 9px;
-  color: var(--muted);
+.chip-inventory > .spent {
+  color: #8f8d86;
+  opacity: 0.55;
 }
 .score-panel,
 .horizon,
@@ -2221,7 +2228,7 @@ footer b {
     padding: 11px;
     flex-direction: column;
   }
-  .chip-dots {
+  .chip-inventory {
     flex-wrap: wrap;
   }
   .hero-bottom {
@@ -2420,7 +2427,7 @@ footer b {
   .chip-callout h2 {
     font-size: 21px;
   }
-  .chip-dots {
+  .chip-inventory {
     margin: 18px 0 0;
   }
   .section-heading {
@@ -3884,7 +3891,7 @@ footer > .hint {
   .chip-callout p {
     display: none;
   }
-  .chip-dots {
+  .chip-inventory {
     margin-top: 12px;
   }
   .chip-directive {
@@ -4137,6 +4144,7 @@ footer > .hint {
 }
 .race-context-readings {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
 }
@@ -4147,14 +4155,23 @@ footer > .hint {
   position: static;
   width: 100%;
   max-width: none;
-  height: 180px;
-  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 180px;
+  flex: 1 1 0;
   padding: 12px 16px;
   border-radius: 6px;
 }
 .race-context .circuit-art svg {
   width: 100%;
-  height: 120px;
+  height: 0;
+  min-height: 130px;
+  flex: 1 1 0;
+}
+.race-context .circuit-art > span {
+  flex-shrink: 0;
+  padding-bottom: 0;
 }
 .race-context strong {
   display: block;
@@ -4421,10 +4438,13 @@ footer > .hint {
     order: 0;
     width: 100%;
     height: auto;
+    min-height: 0;
+    flex: none;
     padding: 12px;
   }
   .race-context .circuit-art svg {
-    height: 130px;
+    height: auto;
+    flex: none;
   }
   .race-context .circuit-art > span {
     font-size: 9px;
