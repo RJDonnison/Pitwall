@@ -1,0 +1,1777 @@
+{
+  "folds": 50,
+  "first": [
+    2024,
+    9
+  ],
+  "last": [
+    2026,
+    18
+  ],
+  "reference": "v2 (before NC change)",
+  "summary": {
+    "uniform": {
+      "winner_brier": 0.9530606399999999,
+      "winner_log_loss": 3.046465286673355,
+      "pole_brier": 0.9557398799999999,
+      "podium_brier": 0.12411551200000001,
+      "head_to_head_brier": 0.2501286532024438,
+      "position_rps": 0.1808854947297521,
+      "nc_brier": 0.13527272727272727,
+      "either_nc_brier": 0.2383636363636364,
+      "nc_predicted": 0.0,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": null
+    },
+    "last 8 races": {
+      "winner_brier": 0.89309568,
+      "winner_log_loss": 2.6129249615486687,
+      "pole_brier": 0.8788239999999999,
+      "podium_brier": 0.10569531236363637,
+      "head_to_head_brier": 0.21690337916051242,
+      "position_rps": 0.15760646077975204,
+      "nc_brier": 0.12594081254545456,
+      "either_nc_brier": 0.2082593790909091,
+      "nc_predicted": 0.03386545454545455,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": null
+    },
+    "rank model v1 (shipped before v2)": {
+      "winner_brier": 0.8474733600000001,
+      "winner_log_loss": 1.9944109615116827,
+      "pole_brier": 0.8324829199999999,
+      "podium_brier": 0.09029473072727273,
+      "head_to_head_brier": 0.18625268019383248,
+      "position_rps": 0.13556266527396693,
+      "nc_brier": 0.11625969136363634,
+      "either_nc_brier": 0.17485877054545454,
+      "nc_predicted": 0.1240082727272727,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": null
+    },
+    "v2 (before NC change)": {
+      "winner_brier": 0.78013696,
+      "winner_log_loss": 1.7603633950341495,
+      "pole_brier": 0.86806532,
+      "podium_brier": 0.08689042709090908,
+      "head_to_head_brier": 0.183930024900259,
+      "position_rps": 0.13378682799008265,
+      "nc_brier": 0.11657363500000001,
+      "either_nc_brier": 0.18051387309090913,
+      "nc_predicted": 0.13256863636363636,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": {
+        "half_life": 2.0,
+        "temperature": 1.0,
+        "team_share": 0.35,
+        "grid_weight": 0.0,
+        "prior": 4.0
+      }
+    },
+    "v2 + team-weighted NC": {
+      "winner_brier": 0.7834351199999999,
+      "winner_log_loss": 1.7663886028663485,
+      "pole_brier": 0.86744876,
+      "podium_brier": 0.08749653200000002,
+      "head_to_head_brier": 0.18394498951131205,
+      "position_rps": 0.13347628139173554,
+      "nc_brier": 0.11418965081818179,
+      "either_nc_brier": 0.17382319272727276,
+      "nc_predicted": 0.13224154545454547,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": {
+        "half_life": 2.0,
+        "temperature": 1.0,
+        "team_share": 0.35,
+        "grid_weight": 0.0,
+        "prior": 4.0
+      }
+    },
+    "v2 + actual grid": {
+      "winner_brier": 0.5889775199999999,
+      "winner_log_loss": 1.34880168860984,
+      "pole_brier": 0.862821,
+      "podium_brier": 0.06786776527272728,
+      "head_to_head_brier": 0.1678217250330166,
+      "position_rps": 0.12370719559586776,
+      "nc_brier": 0.1143383108181818,
+      "either_nc_brier": 0.17449772672727273,
+      "nc_predicted": 0.13317954545454544,
+      "nc_observed": 0.13527272727272727,
+      "information": "post-quali",
+      "selected": {
+        "half_life": 2.0,
+        "temperature": 1.25,
+        "team_share": 0.7,
+        "grid_weight": 2.5,
+        "prior": 4.0
+      }
+    },
+    "Plackett-Luce": {
+      "winner_brier": 0.85828372,
+      "winner_log_loss": 2.091161300755204,
+      "pole_brier": 0.8395248399999998,
+      "podium_brier": 0.09157137963636364,
+      "head_to_head_brier": 0.1821697734281387,
+      "position_rps": 0.13249471665,
+      "nc_brier": 0.11527095881818183,
+      "either_nc_brier": 0.17535316090909092,
+      "nc_predicted": 0.13449154545454547,
+      "nc_observed": 0.13527272727272727,
+      "information": "pre",
+      "selected": {
+        "half_life": 6.0,
+        "team_ridge": 0.3,
+        "driver_ridge": 1.5,
+        "scale": 1.0,
+        "team_shock": 0.0,
+        "driver_shock": 0.0,
+        "borrow_weight": 0.35,
+        "quali_weight": 1.0,
+        "grid_effect": false,
+        "reliability_half_life": 12.0,
+        "reliability_team_prior": 8.0,
+        "reliability_driver_prior": 16.0,
+        "attrition_sd": 0.0
+      }
+    },
+    "Plackett-Luce + actual grid": {
+      "winner_brier": 0.6364314000000001,
+      "winner_log_loss": 1.469834309445278,
+      "pole_brier": 0.89477244,
+      "podium_brier": 0.07359600018181818,
+      "head_to_head_brier": 0.1710716311510315,
+      "position_rps": 0.12540211120619835,
+      "nc_brier": 0.11527095881818183,
+      "either_nc_brier": 0.17535316090909092,
+      "nc_predicted": 0.13449154545454547,
+      "nc_observed": 0.13527272727272727,
+      "information": "post-quali",
+      "selected": {
+        "half_life": 6.0,
+        "team_ridge": 10.0,
+        "driver_ridge": 20.0,
+        "scale": 1.3,
+        "team_shock": 0.0,
+        "driver_shock": 0.0,
+        "borrow_weight": 0.35,
+        "quali_weight": 1.0,
+        "grid_effect": true,
+        "reliability_half_life": 12.0,
+        "reliability_team_prior": 8.0,
+        "reliability_driver_prior": 16.0,
+        "attrition_sd": 0.0
+      }
+    }
+  },
+  "paired_vs_reference": {
+    "uniform": {
+      "winner_brier": {
+        "mean": 0.17292368,
+        "lo90": 0.10729197400000003,
+        "hi90": 0.23920907200000005
+      },
+      "winner_log_loss": {
+        "mean": 1.2861018916392053,
+        "lo90": 1.0887307698294948,
+        "hi90": 1.4867016068183385
+      },
+      "pole_brier": {
+        "mean": 0.0876745599999999,
+        "lo90": 0.043742555999999946,
+        "hi90": 0.1327421579999999
+      },
+      "podium_brier": {
+        "mean": 0.037225084909090905,
+        "lo90": 0.029442986936363626,
+        "hi90": 0.044752841536363615
+      },
+      "head_to_head_brier": {
+        "mean": 0.0661986283021848,
+        "lo90": 0.0544973032905046,
+        "hi90": 0.07745873454774506
+      },
+      "position_rps": {
+        "mean": 0.04709866673966943,
+        "lo90": 0.040327158868553724,
+        "hi90": 0.053741920973760335
+      },
+      "nc_brier": {
+        "mean": 0.01869909227272727,
+        "lo90": 0.012866344727272726,
+        "hi90": 0.024728632436363623
+      },
+      "either_nc_brier": {
+        "mean": 0.05784976327272726,
+        "lo90": 0.039492588636363644,
+        "hi90": 0.07706243303636363
+      }
+    },
+    "last 8 races": {
+      "winner_brier": {
+        "mean": 0.11295872000000004,
+        "lo90": 0.059055422,
+        "hi90": 0.16792221000000007
+      },
+      "winner_log_loss": {
+        "mean": 0.8525615665145189,
+        "lo90": 0.6854983029052554,
+        "hi90": 1.0146720094880735
+      },
+      "pole_brier": {
+        "mean": 0.010758679999999987,
+        "lo90": -0.02785614000000006,
+        "hi90": 0.04996125599999995
+      },
+      "podium_brier": {
+        "mean": 0.018804885272727275,
+        "lo90": 0.012173748881818186,
+        "hi90": 0.025340048545454543
+      },
+      "head_to_head_brier": {
+        "mean": 0.032973354260253426,
+        "lo90": 0.024365772851791728,
+        "hi90": 0.04144686098076218
+      },
+      "position_rps": {
+        "mean": 0.023819632789669417,
+        "lo90": 0.018961922727995868,
+        "hi90": 0.02866731496338842
+      },
+      "nc_brier": {
+        "mean": 0.009367177545454542,
+        "lo90": 0.004806792463636358,
+        "hi90": 0.013996683877272719
+      },
+      "either_nc_brier": {
+        "mean": 0.027745505999999996,
+        "lo90": 0.014147079418181814,
+        "hi90": 0.041875524763636346
+      }
+    },
+    "rank model v1 (shipped before v2)": {
+      "winner_brier": {
+        "mean": 0.06733640000000006,
+        "lo90": 0.008942832000000114,
+        "hi90": 0.12923773200000005
+      },
+      "winner_log_loss": {
+        "mean": 0.23404756647753275,
+        "lo90": 0.046337003225799527,
+        "hi90": 0.4241881448057445
+      },
+      "pole_brier": {
+        "mean": -0.035582399999999986,
+        "lo90": -0.06849575200000001,
+        "hi90": -0.0030012320000000234
+      },
+      "podium_brier": {
+        "mean": 0.0034043036363636376,
+        "lo90": -0.002263791190909091,
+        "hi90": 0.009139783418181818
+      },
+      "head_to_head_brier": {
+        "mean": 0.002322655293573445,
+        "lo90": -0.002220950744697229,
+        "hi90": 0.006950075771347937
+      },
+      "position_rps": {
+        "mean": 0.0017758372838842934,
+        "lo90": -0.001015969561508267,
+        "hi90": 0.0046313978725619764
+      },
+      "nc_brier": {
+        "mean": -0.0003139436363636372,
+        "lo90": -0.0025203442545454545,
+        "hi90": 0.002002446981818177
+      },
+      "either_nc_brier": {
+        "mean": -0.005655102545454541,
+        "lo90": -0.011296261145454543,
+        "hi90": 8.696270909090967e-05
+      }
+    },
+    "v2 + team-weighted NC": {
+      "winner_brier": {
+        "mean": 0.003298159999999979,
+        "lo90": -0.0012705920000000098,
+        "hi90": 0.008071410000000006
+      },
+      "winner_log_loss": {
+        "mean": 0.006025207832198239,
+        "lo90": -0.008344049342903292,
+        "hi90": 0.022962856048302793
+      },
+      "pole_brier": {
+        "mean": -0.0006165600000000082,
+        "lo90": -0.00255640000000001,
+        "hi90": 0.0012704399999999795
+      },
+      "podium_brier": {
+        "mean": 0.000606104909090909,
+        "lo90": -9.991389090909078e-05,
+        "hi90": 0.0013873949636363625
+      },
+      "head_to_head_brier": {
+        "mean": 1.4964611053068788e-05,
+        "lo90": -0.0011165046303901814,
+        "hi90": 0.0012598024125798817
+      },
+      "position_rps": {
+        "mean": -0.0003105465983471106,
+        "lo90": -0.0012392028622107475,
+        "hi90": 0.0006261736658057818
+      },
+      "nc_brier": {
+        "mean": -0.002383984181818185,
+        "lo90": -0.004081672931818183,
+        "hi90": -0.0007769934909090938
+      },
+      "either_nc_brier": {
+        "mean": -0.006690680363636363,
+        "lo90": -0.01078456514545455,
+        "hi90": -0.0027800078090909064
+      }
+    },
+    "v2 + actual grid": {
+      "winner_brier": {
+        "mean": -0.19115943999999996,
+        "lo90": -0.285353914,
+        "hi90": -0.09289249599999998
+      },
+      "winner_log_loss": {
+        "mean": -0.4115617064243097,
+        "lo90": -0.7263508978998907,
+        "hi90": -0.054412383399449524
+      },
+      "pole_brier": {
+        "mean": -0.005244320000000005,
+        "lo90": -0.018552325999999994,
+        "hi90": 0.007104787999999999
+      },
+      "podium_brier": {
+        "mean": -0.019022661818181817,
+        "lo90": -0.026608240318181816,
+        "hi90": -0.011458332109090915
+      },
+      "head_to_head_brier": {
+        "mean": -0.016108299867242395,
+        "lo90": -0.02344644240748886,
+        "hi90": -0.008881008087201782
+      },
+      "position_rps": {
+        "mean": -0.010079632394214881,
+        "lo90": -0.014612365603140496,
+        "hi90": -0.005669167746239674
+      },
+      "nc_brier": {
+        "mean": -0.002235324181818185,
+        "lo90": -0.003969055840909095,
+        "hi90": -0.0005888349863636381
+      },
+      "either_nc_brier": {
+        "mean": -0.006016146363636363,
+        "lo90": -0.010211605227272727,
+        "hi90": -0.00203770674545455
+      }
+    },
+    "Plackett-Luce": {
+      "winner_brier": {
+        "mean": 0.07814676000000007,
+        "lo90": 0.027753214000000068,
+        "hi90": 0.13066336400000003
+      },
+      "winner_log_loss": {
+        "mean": 0.3307979057210542,
+        "lo90": 0.17426651918624544,
+        "hi90": 0.4864254741337475
+      },
+      "pole_brier": {
+        "mean": -0.02854048000000001,
+        "lo90": -0.058979118000000025,
+        "hi90": 0.001324743999999929
+      },
+      "podium_brier": {
+        "mean": 0.004680952545454544,
+        "lo90": -0.0008055118090909096,
+        "hi90": 0.010007881745454542
+      },
+      "head_to_head_brier": {
+        "mean": -0.001760251472120288,
+        "lo90": -0.005331529898265565,
+        "hi90": 0.0016733797129084157
+      },
+      "position_rps": {
+        "mean": -0.0012921113400826503,
+        "lo90": -0.0035357272258264506,
+        "hi90": 0.0009177559472933795
+      },
+      "nc_brier": {
+        "mean": -0.0013026761818181805,
+        "lo90": -0.003985386822727276,
+        "hi90": 0.0013672642636363645
+      },
+      "either_nc_brier": {
+        "mean": -0.005160712181818179,
+        "lo90": -0.011034784690909094,
+        "hi90": 0.0007689349999999993
+      }
+    },
+    "Plackett-Luce + actual grid": {
+      "winner_brier": {
+        "mean": -0.14370555999999998,
+        "lo90": -0.25079223999999994,
+        "hi90": -0.028363390000000065
+      },
+      "winner_log_loss": {
+        "mean": -0.2905290855888721,
+        "lo90": -0.6080277949605781,
+        "hi90": 0.0609749733768743
+      },
+      "pole_brier": {
+        "mean": 0.026707120000000008,
+        "lo90": -0.013460645999999956,
+        "hi90": 0.06874016199999998
+      },
+      "podium_brier": {
+        "mean": -0.013294426909090908,
+        "lo90": -0.021434756781818182,
+        "hi90": -0.005411729690909098
+      },
+      "head_to_head_brier": {
+        "mean": -0.012858393749227492,
+        "lo90": -0.020286030951369525,
+        "hi90": -0.005621679785717973
+      },
+      "position_rps": {
+        "mean": -0.008384716783884303,
+        "lo90": -0.012935758560971077,
+        "hi90": -0.003980956547148759
+      },
+      "nc_brier": {
+        "mean": -0.0013026761818181805,
+        "lo90": -0.003985386822727276,
+        "hi90": 0.0013672642636363645
+      },
+      "either_nc_brier": {
+        "mean": -0.005160712181818179,
+        "lo90": -0.011034784690909094,
+        "hi90": 0.0007689349999999993
+      }
+    }
+  },
+  "selection_counts": {
+    "uniform": null,
+    "last 8 races": null,
+    "rank model v1 (shipped before v2)": null,
+    "v2 (before NC change)": {
+      "{'half_life': 2.0, 'temperature': 0.6, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 1,
+      "{'half_life': 2.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 32,
+      "{'half_life': 2.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 12,
+      "{'half_life': 4.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 2,
+      "{'half_life': 4.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 2,
+      "{'half_life': 6.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 1
+    },
+    "v2 + team-weighted NC": {
+      "{'half_life': 2.0, 'temperature': 0.6, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 1,
+      "{'half_life': 2.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 32,
+      "{'half_life': 2.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 13,
+      "{'half_life': 4.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 1,
+      "{'half_life': 4.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 1,
+      "{'half_life': 6.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 0.0, 'prior': 4.0}": 1,
+      "{'half_life': 6.0, 'temperature': 1.0, 'team_share': 0.7, 'grid_weight': 0.0, 'prior': 4.0}": 1
+    },
+    "v2 + actual grid": {
+      "{'half_life': 2.0, 'temperature': 1.0, 'team_share': 0.35, 'grid_weight': 1.5, 'prior': 4.0}": 2,
+      "{'half_life': 2.0, 'temperature': 1.25, 'team_share': 0.35, 'grid_weight': 1.5, 'prior': 4.0}": 11,
+      "{'half_life': 2.0, 'temperature': 1.25, 'team_share': 0.7, 'grid_weight': 1.5, 'prior': 4.0}": 3,
+      "{'half_life': 2.0, 'temperature': 1.25, 'team_share': 0.7, 'grid_weight': 2.5, 'prior': 4.0}": 25,
+      "{'half_life': 4.0, 'temperature': 1.25, 'team_share': 0.35, 'grid_weight': 1.5, 'prior': 4.0}": 3,
+      "{'half_life': 4.0, 'temperature': 1.25, 'team_share': 0.35, 'grid_weight': 2.5, 'prior': 4.0}": 6
+    },
+    "Plackett-Luce": {
+      "{'half_life': 2.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 0.8, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 1,
+      "{'half_life': 3.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 1.0, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 12,
+      "{'half_life': 6.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 0.8, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 3,
+      "{'half_life': 6.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 1.0, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 29,
+      "{'half_life': 6.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 1.0, 'team_shock': 0.4, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 2,
+      "{'half_life': 6.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 1.3, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 2,
+      "{'half_life': 6.0, 'team_ridge': 0.3, 'driver_ridge': 1.5, 'scale': 1.3, 'team_shock': 0.4, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': False, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 1
+    },
+    "Plackett-Luce + actual grid": {
+      "{'half_life': 2.0, 'team_ridge': 10.0, 'driver_ridge': 20.0, 'scale': 0.8, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': True, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 1,
+      "{'half_life': 6.0, 'team_ridge': 10.0, 'driver_ridge': 20.0, 'scale': 0.8, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': True, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 8,
+      "{'half_life': 6.0, 'team_ridge': 10.0, 'driver_ridge': 20.0, 'scale': 0.8, 'team_shock': 0.4, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': True, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 10,
+      "{'half_life': 6.0, 'team_ridge': 10.0, 'driver_ridge': 20.0, 'scale': 1.0, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': True, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 7,
+      "{'half_life': 6.0, 'team_ridge': 10.0, 'driver_ridge': 20.0, 'scale': 1.3, 'team_shock': 0.0, 'driver_shock': 0.0, 'borrow_weight': 0.35, 'quali_weight': 1.0, 'grid_effect': True, 'reliability_half_life': 12.0, 'reliability_team_prior': 8.0, 'reliability_driver_prior': 16.0, 'attrition_sd': 0.0}": 24
+    }
+  },
+  "all_configs": {
+    "uniform": null,
+    "last 8 races": null,
+    "rank model v1 (shipped before v2)": null,
+    "v2 (before NC change)": [
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.07099490942715
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0855902610382775
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.032672653186932
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0389874808897694
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.020416553542889
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.021203383391704
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1283463748286926
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1548114383450674
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0678843026445866
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.078303987355036
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0395267181964427
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0460666060996844
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1500208739286593
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1814535473692853
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0846010212815393
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1044476555055116
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0548987352700583
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0640743545861024
+      }
+    ],
+    "v2 + team-weighted NC": [
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0768273209459926
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0924559275097154
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.035087079627001
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0416310870817487
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0204030102930775
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.020716331611446
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1375353485962187
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1665781809632962
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0725656984129044
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.085341109803297
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0408532865048588
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0485231315676677
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.6,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.1608784340646245
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.6,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.195790311126869
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0888337417954266
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 0.8,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.111585736916366
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0562469011561877
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 0.0,
+          "prior": 4.0
+        },
+        "objective": 2.0660936513564967
+      }
+    ],
+    "v2 + actual grid": [
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8072862072380316
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.7837888284961951
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.7924483677632077
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8032091408526099
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.7834757378423
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.794396651008587
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8126789077302206
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.7846707047129198
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.783662993261939
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8024768242353073
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.780215812616428
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.7836495554985192
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8222650141977073
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.7932861260366382
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.35,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.8029649816518745
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.820527168752423
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.7972960091630341
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.0,
+          "team_share": 0.7,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.8100843534111237
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.8224149481796443
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.787688175182352
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.35,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.789156241044803
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 1.5,
+          "prior": 4.0
+        },
+        "objective": 1.815623078165943
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 2.5,
+          "prior": 4.0
+        },
+        "objective": 1.790797244425305
+      },
+      {
+        "config": {
+          "half_life": 4.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 3.5,
+          "prior": 4.0
+        },
+        "objective": 1.7920456128602873
+      }
+    ],
+    "Plackett-Luce": [
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.081385447030412
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.086563413449272
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0785358458976946
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0786569836666793
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.1040747170543734
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.098348555198824
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.080661770493107
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0852345207659235
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0733300399450685
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.076253512264569
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0976712573071183
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0930694031226893
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.083275784837167
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.089205262348581
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.072141717421009
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0774533457331685
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0915672599743145
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 0.3,
+          "driver_ridge": 1.5,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": false,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 2.0891221259006665
+      }
+    ],
+    "Plackett-Luce + actual grid": [
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.978297999260302
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9868034424619594
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9410387542923957
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9470904335605248
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9169401434641389
+      },
+      {
+        "config": {
+          "half_life": 2.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9225221543890973
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.971910564309069
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9802187691982005
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9284645730926766
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9341816459921914
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9037008223130207
+      },
+      {
+        "config": {
+          "half_life": 3.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9087961375973819
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9562884780300496
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 0.8,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9649194684800497
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9103179021202967
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.0,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.9185293353250699
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.0,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.8827932636258282
+      },
+      {
+        "config": {
+          "half_life": 6.0,
+          "team_ridge": 10.0,
+          "driver_ridge": 20.0,
+          "scale": 1.3,
+          "team_shock": 0.4,
+          "driver_shock": 0.0,
+          "borrow_weight": 0.35,
+          "quali_weight": 1.0,
+          "grid_effect": true,
+          "reliability_half_life": 12.0,
+          "reliability_team_prior": 8.0,
+          "reliability_driver_prior": 16.0,
+          "attrition_sd": 0.0
+        },
+        "objective": 1.8882452024024479
+      }
+    ]
+  }
+}

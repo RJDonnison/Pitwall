@@ -210,3 +210,28 @@ def test_uniform_history_keeps_not_classified_flat_across_teams():
     )
     rates = (~draws["R"]["classified"]).mean(axis=0)
     assert rates.max() - rates.min() < 0.08
+
+
+def test_known_grid_moves_race_win_probability_and_is_opt_in():
+    records = history()
+    drivers = racing_model.roster(records[-1])
+    params = {**racing_model.POST_QUALIFYING_PARAMETERS}
+    # Drivers "0" and "3" swap places on the grid; "0" is the faster car otherwise.
+    grid = {"0": 4, "1": 2, "2": 3, "3": 1}
+    free = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, params
+    )
+    held = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, params, grid=grid
+    )
+
+    def win(draws, i):
+        return ((draws["R"]["ranks"][:, i] == 1) & draws["R"]["classified"][:, i]).mean()
+
+    assert win(held, 3) > win(free, 3) + 0.05
+    assert win(held, 0) < win(free, 0) - 0.05
+
+
+def test_pre_weekend_parameters_do_not_use_the_grid():
+    assert racing_model.PARAMETERS[0]["grid_weight"] in {0.0, 0.6}
+    assert racing_model.POST_QUALIFYING_PARAMETERS["grid_weight"] > 0

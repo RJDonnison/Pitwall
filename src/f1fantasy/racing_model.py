@@ -26,6 +26,18 @@ PARAMETERS = [
     )
 ]
 
+# Opt-in parameters for a forecast made after qualifying, when the starting grid
+# is known (``draw(..., grid=...)``). Chosen on the 50-race walk-forward in
+# docs/model-evaluation.md (python -m f1fantasy.model_compare): the plateau sits
+# at grid_weight 2-3.5; pre-weekend forecasts never use these.
+POST_QUALIFYING_PARAMETERS = {
+    "half_life": 2.0,
+    "temperature": 1.25,
+    "team_share": 0.7,
+    "grid_weight": 2.5,
+    "prior": 4.0,
+}
+
 
 def roster(record):
     return [
@@ -184,7 +196,10 @@ def _retirement_propensity(records, kind, team_ids, teams, drivers):
     )
 
 
-def draw(records, drivers, simulations, rng, telemetry, params):
+def draw(records, drivers, simulations, rng, telemetry, params, grid=None):
+    """Simulate the weekend. ``grid`` (driver code -> starting position) is an
+    opt-in post-qualifying condition: when given, the race uses the known grid
+    instead of a simulated qualifying result. It is never used pre-weekend."""
     from .racing_data import cause
 
     n = len(drivers)
@@ -235,11 +250,13 @@ def draw(records, drivers, simulations, rng, telemetry, params):
             )
         if kind in {"R", "S"}:
             grid_kind = "SQ" if kind == "S" and "SQ" in output else "Q"
+            if grid is not None and kind == "R":
+                worst = max(n, max(grid.values()))
+                grid_ranks = np.array([grid.get(d["tla"], worst) for d in drivers])[None, :]
+            else:
+                grid_ranks = output[grid_kind]["ranks"]
             performance += (
-                params["grid_weight"]
-                * np.ptp(means)
-                * (output[grid_kind]["ranks"] - 1)
-                / max(1, n - 1)
+                params["grid_weight"] * np.ptp(means) * (grid_ranks - 1) / max(1, n - 1)
             )
         # Existing Fantasy telemetry corrections are bounded and converted from
         # point units to an empirically measured pace spread, never seconds.

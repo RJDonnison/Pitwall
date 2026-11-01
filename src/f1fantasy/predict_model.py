@@ -215,13 +215,20 @@ def _target(snapshot, cutoff):
     )
 
 
-def _draw(records, drivers, simulations, rng, telemetry):
+def _draw(records, drivers, simulations, rng, telemetry, grid=None):
+    """``grid`` (driver code -> starting position) is an explicit post-qualifying
+    opt-in; no pre-weekend forecast passes it."""
     from . import racing_model
 
     fitted = racing_model.selection(records)
     if fitted["selected"] == "margin_v2":
+        params = (
+            racing_model.POST_QUALIFYING_PARAMETERS
+            if grid is not None
+            else fitted["parameters"]
+        )
         return racing_model.draw(
-            records, drivers, simulations, rng, telemetry, fitted["parameters"]
+            records, drivers, simulations, rng, telemetry, params, grid=grid
         )
     return _rank_draw(records, drivers, simulations, rng, telemetry)
 
