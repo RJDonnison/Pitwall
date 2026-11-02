@@ -1002,3 +1002,34 @@ def test_award_ties_and_unknown_predicates_remain_explicit(
         "Unrecognized"
         in model.forecast(s, simulations=10, use_telemetry=False)[1]["unsupported"]
     )
+
+
+def test_verified_starting_grid_conditions_the_race_and_is_reported(snapshot):
+    options = snapshot["roster"]
+    snapshot["questions"] = [
+        question(1, "Predict the podium for the Mexico Grand Prix", options, 1)
+    ]
+    free = model.forecast(snapshot, simulations=800, use_telemetry=False)
+    # Last-placed car in form starts on pole.
+    gridded = {**snapshot, "starting_grid": {"BEA": 4, "OCO": 3, "PER": 2, "VER": 1}}
+    held = model.forecast(gridded, simulations=800, use_telemetry=False)
+    assert free[1]["evidence"]["starting_grid_used"] is False
+    assert held[1]["evidence"]["starting_grid_used"] is True
+    assert free != held
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [
+        {"BEA": 1, "OCO": 2, "PER": 3},  # missing a driver
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 0},
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 4.0},
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 4, "XXX": 5},
+    ],
+)
+def test_invalid_starting_grid_is_rejected_not_ignored(snapshot, grid):
+    snapshot["questions"] = [
+        question(1, "Predict the podium for the Mexico Grand Prix", snapshot["roster"], 1)
+    ]
+    with pytest.raises(model.DataError):
+        model.forecast({**snapshot, "starting_grid": grid}, simulations=200, use_telemetry=False)

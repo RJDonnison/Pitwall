@@ -49,6 +49,18 @@ bootstrap interval) are in `data/model-comparison.json`.
   interval [-0.069, -0.003] for v1 being better). Qualifying prediction is the
   obvious next thing to improve.
 
+## What is used
+
+* **Pre-weekend (default):** v2 with team-weighted NC, shipped parameters. It is the
+  best pre-weekend variant on winner, podium and NC, and re-tuning did not beat it
+  in nested validation.
+* **After qualifying:** supply a verified `starting_grid` (driver code to starting
+  position, covering every driver) in the Predict snapshot. Race questions then use
+  the grid-conditioned parameters; the forecast's evidence reports
+  `starting_grid_used`. A partial or invalid grid raises an error rather than being
+  ignored. The grid applies only when the timing model is the selected one; the legacy
+  rank fallback ignores it.
+
 ## Not covered
 
 The Fantasy points model and the history-weights commit are not part of this

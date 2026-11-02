@@ -1143,6 +1143,31 @@ def _season_forecast(snapshot, drivers, cutoff, simulations, seed):
     return output
 
 
+
+def _starting_grid(snapshot, drivers):
+    """Optional verified post-qualifying grid (driver code -> position).
+
+    Supplying ``starting_grid`` switches the race forecast to the grid-conditioned
+    parameters, which the 50-race walk-forward (docs/model-evaluation.md) shows cut
+    winner Brier by about a third. Only the race is conditioned; qualifying
+    questions and pre-weekend forecasts are unchanged. A partial or invalid grid
+    is rejected rather than silently ignored.
+    """
+    grid = snapshot.get("starting_grid")
+    if grid is None:
+        return None
+    tlas = {d["tla"] for d in drivers}
+    if (
+        not isinstance(grid, dict)
+        or set(grid) != tlas
+        or any(
+            isinstance(v, bool) or not isinstance(v, int) or v < 1
+            for v in grid.values()
+        )
+    ):
+        raise DataError("starting_grid must give every driver a positive integer position")
+    return dict(grid)
+
 def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
     """Return supported question marginals; no payout-driven feature engineering.
 
@@ -1190,7 +1215,10 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
             for d in drivers
         )
         telemetry = adjustments(assets, [weekend])
-    draws = _draw(records, drivers, simulations, np.random.default_rng(seed), telemetry)
+    grid = _starting_grid(snapshot, drivers)
+    draws = _draw(
+        records, drivers, simulations, np.random.default_rng(seed), telemetry, grid=grid
+    )
     from . import racing_model
 
     context = {**snapshot, "_sprint": weekend.sprint}
@@ -1205,6 +1233,7 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         ],
         "form_lookback": min(8, len(records)),
         "telemetry_adjustments": bool(telemetry),
+        "starting_grid_used": grid is not None,
         "calibrated": False,
         "model_selection": racing_model.selection(records),
         "assumptions": [
