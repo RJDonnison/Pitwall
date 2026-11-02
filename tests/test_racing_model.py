@@ -235,3 +235,117 @@ def test_known_grid_moves_race_win_probability_and_is_opt_in():
 def test_pre_weekend_parameters_do_not_use_the_grid():
     assert racing_model.PARAMETERS[0]["grid_weight"] in {0.0, 0.6}
     assert racing_model.POST_QUALIFYING_PARAMETERS["grid_weight"] > 0
+
+
+class DataNotLoadedError(Exception):
+    """Same name as fastf1.exceptions.DataNotLoadedError (not an AttributeError)."""
+
+
+class UnloadedSession:
+    """Results loaded, but laps and weather never were (FastF1 raises on access)."""
+
+    def __init__(self, results):
+        self.results = results
+
+    @property
+    def laps(self):
+        raise DataNotLoadedError("not loaded")
+
+    @property
+    def weather_data(self):
+        raise DataNotLoadedError("not loaded")
+
+
+def test_extract_survives_a_session_whose_laps_and_weather_never_loaded():
+    results = pd.DataFrame(
+        [
+            dict(
+                Abbreviation=d,
+                Position=i + 1,
+                ClassifiedPosition=str(i + 1),
+                Points=0,
+                TeamName="Team",
+                Status="Finished",
+                Laps=5,
+            )
+            for i, d in enumerate("ABC")
+        ]
+    )
+    rows, context = racing_data.extract(UnloadedSession(results), "R")
+    assert [r["tla"] for r in rows] == ["A", "B", "C"]
+    assert context["regime"] == "unknown"
+    assert rows[0]["pace_gap_pct"] is None
+
+
+def test_other_session_errors_are_not_swallowed():
+    from f1fantasy.session_laps import loaded
+
+    class Broken:
+        @property
+        def weather_data(self):
+            raise RuntimeError("real failure")
+
+    with pytest.raises(RuntimeError):
+        loaded(Broken(), "weather_data")
+    assert loaded(UnloadedSession(None), "weather_data") is None
+
+
+def _refresh_setup(monkeypatch, race_start, sessions):
+    saved = []
+    schedule = pd.DataFrame(
+        [
+            {
+                "RoundNumber": 1,
+                "race_start": race_start.isoformat(),
+                "Location": "Austin",
+                "EventFormat": "conventional",
+            }
+        ]
+    )
+    monkeypatch.setattr(racing_data.history, "configure_cache", lambda: None)
+    monkeypatch.setattr(racing_data.public_history, "schedule", lambda year: schedule)
+    monkeypatch.setattr(racing_data.public_history, "racing_record", lambda *a: None)
+    monkeypatch.setattr(racing_data.public_history, "save_racing", saved.append)
+    monkeypatch.setattr(racing_data, "_practice_pace", lambda *a: {})
+
+    class Session:
+        def __init__(self, identifier):
+            self._inner = sessions
+
+        def load(self, **_):
+            pass
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+    monkeypatch.setattr(racing_data.fastf1, "get_session", lambda y, n, i: Session(i))
+    return saved
+
+
+def _results():
+    return pd.DataFrame(
+        [
+            dict(Abbreviation=d, Position=i + 1, ClassifiedPosition=str(i + 1),
+                 Points=0, TeamName="T", Status="Finished", Laps=5)
+            for i, d in enumerate("ABC")
+        ]
+    )
+
+
+def test_recent_race_with_missing_timing_is_retried_not_archived(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 11, 2, tzinfo=timezone.utc)
+    saved = _refresh_setup(monkeypatch, now - timedelta(days=2), UnloadedSession(_results()))
+    racing_data.refresh({}, 2026, 2026, now)
+    assert saved == []  # not archived with permanent holes; the next run retries
+
+
+def test_old_race_with_missing_timing_is_archived_as_it_is(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 11, 2, tzinfo=timezone.utc)
+    saved = _refresh_setup(monkeypatch, now - timedelta(days=30), UnloadedSession(_results()))
+    racing_data.refresh({}, 2026, 2026, now)
+    assert len(saved) == 1
+    assert saved[0]["session_context"]["R"]["regime"] == "unknown"

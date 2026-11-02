@@ -11,10 +11,20 @@ from __future__ import annotations
 
 
 def loaded_laps(session):
+    return loaded(session, "laps")
+
+
+def loaded(session, name):
+    """Any lazily loaded FastF1 session property (``laps``, ``weather_data``,
+    ``results``, ...), or ``None`` when that part of the session was not loaded.
+
+    FastF1 raises ``DataNotLoadedError`` (not an ``AttributeError``) for a part
+    that ``Session.load`` skipped or could not fetch, so ``getattr(session, name,
+    None)`` does not protect callers. Other errors still propagate.
+    """
     try:
-        laps = session.laps
-    except Exception as exc:  # DataNotLoadedError, or a partially loaded session
+        return getattr(session, name)
+    except Exception as exc:
         if type(exc).__name__ != "DataNotLoadedError":
             raise
         return None
-    return laps
