@@ -1033,3 +1033,56 @@ def test_invalid_starting_grid_is_rejected_not_ignored(snapshot, grid):
     ]
     with pytest.raises(model.DataError):
         model.forecast({**snapshot, "starting_grid": grid}, simulations=200, use_telemetry=False)
+
+
+def test_history_survives_a_race_whose_lap_timing_never_loaded(monkeypatch):
+    """Regression for the daily refresh: results exist but ``session.laps`` raises."""
+
+    class DataNotLoadedError(Exception):
+        pass
+
+    class Event(dict):
+        def get_session_date(self, *_a, **_k):
+            return "2026-02-01T12:00:00Z"
+
+    class Schedule:
+        def __init__(self, events):
+            self.events = events
+
+        def iterrows(self):
+            return iter(enumerate(self.events))
+
+    class Session:
+        def __init__(self, kind):
+            self.results = pd.DataFrame(
+                [
+                    {
+                        "Abbreviation": "BEA",
+                        "Position": 1,
+                        "ClassifiedPosition": "1",
+                        "Points": 25,
+                        "Status": "Finished",
+                        "TeamName": "Haas",
+                    }
+                ]
+            )
+
+        @property
+        def laps(self):
+            raise DataNotLoadedError("The data you are trying to access has not been loaded")
+
+        def load(self, **_):
+            pass
+
+    monkeypatch.setattr(model, "configure_cache", lambda: None)
+    monkeypatch.setattr(
+        model.fastf1,
+        "get_event_schedule",
+        lambda season, **_: Schedule(
+            [Event(RoundNumber=1, EventFormat="conventional")] if season == 2026 else []
+        ),
+    )
+    monkeypatch.setattr(model.fastf1, "get_session", lambda *a: Session(a[2]))
+    (record,) = model._history(2026, datetime(2026, 10, 1, tzinfo=timezone.utc))
+    assert "fastest_lap" not in record
+    assert record["sessions"]["R"][0]["tla"] == "BEA"

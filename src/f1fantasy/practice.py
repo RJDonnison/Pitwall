@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 
 from . import data
+from .session_laps import loaded_laps
 
 BEST_LAPS = 3
 MIN_LAPS = 2
@@ -29,7 +30,7 @@ def identifier(name: str) -> str | None:
 
 def session_pace(session) -> dict[str, float]:
     """Driver code -> pace gap (percent, lower is faster) from one session's laps."""
-    laps = getattr(session, "laps", None)
+    laps = loaded_laps(session)
     if laps is None or laps.empty or "LapTime" not in laps:
         return {}
     mask = laps["LapTime"].notna()

@@ -15,6 +15,7 @@ import requests
 
 from . import history, public_history
 from .data import DataError
+from .session_laps import loaded_laps
 
 VERSION = 2
 
@@ -73,7 +74,7 @@ def cause(status):
 
 def extract(session, kind):
     results = session.results
-    laps = getattr(session, "laps", None)
+    laps = loaded_laps(session)
     qualifying = kind in {"Q", "SQ"}
     phases = {}
     for phase in ("Q1", "Q2", "Q3"):
@@ -255,7 +256,7 @@ def refresh(document, start_season, season, cutoff):
                     raise DataError(
                         f"Missing historical results {year}/{number}/{kind}"
                     )
-                laps = session.laps
+                laps = loaded_laps(session)
                 if (
                     laps is not None
                     and not laps.empty
