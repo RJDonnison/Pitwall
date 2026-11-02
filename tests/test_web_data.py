@@ -234,3 +234,16 @@ def test_practice_that_cannot_load_degrades_to_the_plain_forecast(public, monkey
     assert result["status"] == "ready"
     assert result["model"]["practice"]["used"] is False
     assert "FP1 laps unavailable" in result["model"]["practice"]["error"]
+
+
+def test_publication_reports_the_committed_model_fit(public):
+    result = web_data.build(2026)
+    fit = result["model"]["fit"]
+    assert fit["evaluated_races"] >= 24
+    assert fit["pre_weekend"]["params"]["half_life"] > 0
+    assert fit["gate"]["min_gain"] > 0
+    assert set(fit["practice"]) >= {"status", "weights"}
+    assert result["model"]["practice"]["validated"] is (
+        fit["practice"]["status"] == "fitted"
+    )
+    json.dumps(result, allow_nan=False)

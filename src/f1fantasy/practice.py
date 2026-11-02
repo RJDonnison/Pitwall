@@ -106,7 +106,9 @@ def load(season: int, round_number: int, names, *, loader=None) -> dict[str, flo
 
 # Share of the standardised points spread taken from practice pace (see
 # racing_model.PRACTICE_WEIGHT for why these are priors, not fitted values).
-POINTS_WEIGHT = {"qualifying": 0.25, "race": 0.15}
+from .racing_model import PRACTICE_WEIGHT  # noqa: E402  (fitted when available)
+
+POINTS_WEIGHT = {"qualifying": PRACTICE_WEIGHT["Q"], "race": PRACTICE_WEIGHT["R"]}
 MIN_DRIVERS = 5
 
 

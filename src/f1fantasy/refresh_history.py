@@ -12,6 +12,7 @@ from . import (
     web_data,
     insights,
     racing_data,
+    practice_archive,
 )
 
 
@@ -47,6 +48,7 @@ def main(argv=None):
             public_history.fantasy_feed(f"drivers/{day}_en.json", data._get_json)
         predict_model._history(args.season, now)
         racing_data.refresh(document, args.season - 2, args.season, now)
+        practice_archive.backfill(document, now)
         racing_data.refresh_stops(document, now)
         insights.refresh_pitstops(document, args.season, now)
         # This exercises the actual upcoming-venue/session/chip inputs, not an
