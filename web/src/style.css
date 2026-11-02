@@ -4955,3 +4955,37 @@ footer > .hint {
 .state-banner[hidden] {
   display: none;
 }
+
+.model-fit .fit-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin: 12px 0;
+}
+.model-fit .fit-family {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  background: var(--canvas);
+}
+.model-fit h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.model-fit .fit-params {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  margin: 0 0 8px;
+}
+.model-fit .fit-params div {
+  display: contents;
+}
+.model-fit .fit-params dt {
+  color: var(--muted);
+}
+.model-fit .fit-params dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+}
