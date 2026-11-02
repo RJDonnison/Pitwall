@@ -215,7 +215,7 @@ def _target(snapshot, cutoff):
     )
 
 
-def _draw(records, drivers, simulations, rng, telemetry, grid=None):
+def _draw(records, drivers, simulations, rng, telemetry, grid=None, practice=None):
     """``grid`` (driver code -> starting position) is an explicit post-qualifying
     opt-in; no pre-weekend forecast passes it."""
     from . import racing_model
@@ -228,7 +228,14 @@ def _draw(records, drivers, simulations, rng, telemetry, grid=None):
             else fitted["parameters"]
         )
         return racing_model.draw(
-            records, drivers, simulations, rng, telemetry, params, grid=grid
+            records,
+            drivers,
+            simulations,
+            rng,
+            telemetry,
+            params,
+            grid=grid,
+            practice=practice,
         )
     return _rank_draw(records, drivers, simulations, rng, telemetry)
 
@@ -1168,6 +1175,32 @@ def _starting_grid(snapshot, drivers):
         raise DataError("starting_grid must give every driver a positive integer position")
     return dict(grid)
 
+
+def _practice_pace(snapshot, drivers):
+    """Optional current-weekend practice pace (driver code -> field-centred gap, %).
+
+    Supplied by the publisher from completed practice sessions only; it is
+    pre-qualifying evidence, so it is allowed alongside the pre-weekend cutoff.
+    Invalid values are rejected, not ignored.
+    """
+    pace = snapshot.get("practice_pace")
+    if pace is None:
+        return None
+    tlas = {d["tla"] for d in drivers}
+    if (
+        not isinstance(pace, dict)
+        or not pace
+        or not set(pace) <= tlas
+        or any(
+            isinstance(v, bool)
+            or not isinstance(v, (int, float))
+            or not np.isfinite(v)
+            for v in pace.values()
+        )
+    ):
+        raise DataError("practice_pace must map known drivers to finite pace gaps")
+    return {k: float(v) for k, v in pace.items()}
+
 def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
     """Return supported question marginals; no payout-driven feature engineering.
 
@@ -1216,8 +1249,15 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         )
         telemetry = adjustments(assets, [weekend])
     grid = _starting_grid(snapshot, drivers)
+    practice = _practice_pace(snapshot, drivers)
     draws = _draw(
-        records, drivers, simulations, np.random.default_rng(seed), telemetry, grid=grid
+        records,
+        drivers,
+        simulations,
+        np.random.default_rng(seed),
+        telemetry,
+        grid=grid,
+        practice=practice,
     )
     from . import racing_model
 
@@ -1234,6 +1274,7 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         "form_lookback": min(8, len(records)),
         "telemetry_adjustments": bool(telemetry),
         "starting_grid_used": grid is not None,
+        "practice_pace_used": practice is not None,
         "calibrated": False,
         "model_selection": racing_model.selection(records),
         "assumptions": [

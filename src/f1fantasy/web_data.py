@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from decimal import Decimal, InvalidOperation
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from . import (
@@ -17,10 +17,18 @@ from . import (
     forecast_archive,
     weather_model,
     accuracy,
+    practice as practice_model,
+    weekend_phase,
 )
 from .chips import CHIPS, components, load_chip_values, valid_estimate
 from .projections import Estimate, estimate_assets
 from .race_context import race_context
+
+
+def racing_model_weights():
+    from .racing_model import PRACTICE_WEIGHT
+
+    return dict(PRACTICE_WEIGHT)
 
 
 def price_history(live):
@@ -57,14 +65,35 @@ def price_history(live):
     return result
 
 
-def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
-    live, weekends = data.snapshot(season)
+def build(
+    season: int, *, telemetry: bool = True, archive=None, phase=None, practice_loader=None
+) -> dict:
+    phase = phase or weekend_phase.Phase(weekend_phase.OPEN, None)
+    pace, practice_error = {}, None
+    if phase.state == weekend_phase.PRACTICE:
+        # The weekend in progress is the forecast target until qualifying; its
+        # Fantasy roster is already published even though the game is locked.
+        live, weekends = data.snapshot(
+            season,
+            phase.weekend.first_session - timedelta(seconds=1),
+            allow_old_prices=True,
+        )
+        try:
+            pace = practice_model.load(
+                season, phase.weekend.round, phase.practice, loader=practice_loader
+            )
+        except data.DataError as exc:
+            practice_error = str(exc)
+    else:
+        live, weekends = data.snapshot(season)
     contexts = [race_context(weekend) for weekend in weekends]
     generated = datetime.now(timezone.utc)
     cutoff = min(weekends[0].first_session, generated)
     document = (public_history.current() or {}).get("document", {})
     archive = archive if archive is not None else {"schema": 1, "forecasts": []}
-    forecasts = estimate_assets(live.assets, weekends, use_telemetry=telemetry)
+    forecasts = estimate_assets(
+        live.assets, weekends, use_telemetry=telemetry, practice=pace or None
+    )
     weather_models = []
     for t, weekend in enumerate(weekends):
         weather = weather_model.candidate(
@@ -135,6 +164,7 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
             weekends,
             cutoff,
             telemetry=telemetry,
+            practice=pace or None,
         ),
         "price_gameday_id": live.weekend.gameday_id,
         "price_history": price_history(live),
@@ -142,8 +172,24 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
         "rounds": rounds,
         "chip_support": support,
         "skipped_history_gamedays": values.skipped_history_gamedays if values else [],
+        "publication_state": {
+            **phase.describe(),
+            "mode": "live",
+            "last_updated": generated.isoformat(),
+        },
         "model": {
             "telemetry": telemetry,
+            "practice": {
+                "used": bool(pace),
+                "sessions": list(phase.practice) if pace else [],
+                "drivers": len(pace),
+                "error": practice_error,
+                "weights": {
+                    "racing_model": racing_model_weights(),
+                    "fantasy_points": practice_model.POINTS_WEIGHT,
+                },
+                "validated": False,
+            },
             "risk": True,
             "weather": weather_model.VERSION,
             "historical_mae_scope": "Base Fantasy model replay excludes weather; weather_evaluation and accuracy use archived forward forecasts",
@@ -181,6 +227,71 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
     return publication
 
 
+def load_previous(path):
+    """The last good published forecast, or None when there is not one."""
+    try:
+        previous = json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return None
+    ok = (
+        isinstance(previous, dict)
+        and previous.get("status") == "ready"
+        and isinstance(previous.get("rounds"), list)
+        and previous["rounds"]
+    )
+    return previous if ok else None
+
+
+def carry_forward(previous, phase, reason):
+    """Re-publish the last good forecast, truthfully labelled.
+
+    ``generated_at`` is left alone so every page shows when the numbers were
+    really produced; only ``publication_state`` says why they were not refreshed.
+    """
+    carried = dict(previous)
+    carried["publication_state"] = {
+        **phase.describe(),
+        "mode": "carried_forward",
+        "reason": reason,
+        "last_updated": previous.get("generated_at"),
+    }
+    return carried
+
+
+def produce(season, *, now, previous, history, archive_path, telemetry=True):
+    """Fresh forecast when the weekend phase allows it, otherwise the last good one.
+
+    The site must never go blank: a paused weekend, an unpublished roster or a
+    failed refresh all keep the previous forecast, and ``unavailable`` is only
+    published when there has never been a good forecast to show.
+    """
+    phase = weekend_phase.Phase(weekend_phase.OPEN, None)
+    try:
+        phase = weekend_phase.phase(data.season_weekends(season), now)
+    except (data.DataError, OSError, ValueError):
+        pass  # schedule unavailable: try a normal refresh, fall back below
+    if phase.state == weekend_phase.PAUSED and previous:
+        return carry_forward(
+            previous, phase, "Predictions are paused from qualifying until the race finishes."
+        )
+    try:
+        with public_history.repository(history):
+            archive = forecast_archive.load(archive_path)
+            payload = build(season, telemetry=telemetry, archive=archive, phase=phase)
+            forecast_archive.capture(archive, payload)
+            forecast_archive.save(archive, archive_path)
+        return payload
+    except (data.DataError, OSError, ValueError) as exc:
+        if previous:
+            return carry_forward(previous, phase, f"Latest refresh unavailable: {exc}")
+        return {
+            "schema_version": 1,
+            "status": "unavailable",
+            "generated_at": now.isoformat(),
+            "message": str(exc),
+        }
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--season", type=int, default=datetime.now(timezone.utc).year)
@@ -188,29 +299,27 @@ def main(argv=None):
     parser.add_argument("--no-telemetry", action="store_true")
     parser.add_argument("--history", type=Path, default=public_history.DEFAULT)
     parser.add_argument("--archive", type=Path, default=forecast_archive.DEFAULT)
+    parser.add_argument(
+        "--previous",
+        type=Path,
+        default=Path(".f1fantasy/previous-forecast.json"),
+        help="last published forecast.json, kept on the site when no new one can be made",
+    )
     args = parser.parse_args(argv)
-    try:
-        with public_history.repository(args.history):
-            archive = forecast_archive.load(args.archive)
-            payload = build(
-                args.season, telemetry=not args.no_telemetry, archive=archive
-            )
-            forecast_archive.capture(archive, payload)
-            forecast_archive.save(archive, args.archive)
-    except (data.DataError, OSError, ValueError) as exc:
-        # A failed publication replaces prior data with an explicit unavailable
-        # state; Pages must never keep serving old forecasts as current data.
-        payload = {
-            "schema_version": 1,
-            "status": "unavailable",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "message": str(exc),
-        }
+    payload = produce(
+        args.season,
+        now=datetime.now(timezone.utc),
+        previous=load_previous(args.previous),
+        history=args.history,
+        archive_path=args.archive,
+        telemetry=not args.no_telemetry,
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(payload, allow_nan=False, separators=(",", ":")) + "\n"
     )
-    print(f"Published {payload['status']} forecast data to {args.output}")
+    mode = payload.get("publication_state", {}).get("mode", payload["status"])
+    print(f"Published {payload['status']} ({mode}) forecast data to {args.output}")
     return 0
 
 

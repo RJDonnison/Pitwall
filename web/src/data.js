@@ -1,4 +1,22 @@
-import { validateDataset } from "./optimizer.js";
+import { prepare } from "./publication.js";
+
+const CACHE_KEY = "pitwall:last-forecast";
+
+function readCache() {
+  try {
+    return JSON.parse(localStorage.getItem(CACHE_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(json) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(json));
+  } catch {
+    /* storage may be full, blocked or private: the page works without it */
+  }
+}
 
 export async function fetchDataset() {
   const url = new URL(
@@ -6,12 +24,36 @@ export async function fetchDataset() {
     location.href,
   );
   url.searchParams.set("at", Date.now());
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok)
-    throw new Error(
-      "Published forecasts are not available. Run the forecast publishing workflow.",
-    );
-  return validateDataset(await response.json());
+  let failure;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok)
+      throw new Error(
+        "Published forecasts are not available. Run the forecast publishing workflow.",
+      );
+    const json = await response.json();
+    const dataset = prepare(json);
+    writeCache(json);
+    return dataset;
+  } catch (error) {
+    failure = error;
+  }
+  const cached = readCache();
+  if (cached?.status === "ready") {
+    try {
+      return prepare({
+        ...cached,
+        publication_state: {
+          ...(cached.publication_state || {}),
+          mode: "cached",
+          reason: `Showing the last forecasts this browser received (${failure.message})`,
+        },
+      });
+    } catch {
+      /* fall through to the original failure */
+    }
+  }
+  throw failure;
 }
 
 // Pages cannot bypass the official site's CORS policy. A failed network request

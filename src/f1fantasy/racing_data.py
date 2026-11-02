@@ -196,6 +196,24 @@ def extract(session, kind):
     return rows, summary
 
 
+def _practice_pace(year, number, fmt):
+    """{'FP1': {tla: gap %}, ...}; best effort, never blocks archiving a race."""
+    from . import practice
+
+    names = ["FP1"] if "sprint" in fmt else ["FP1", "FP2", "FP3"]
+    archived = {}
+    for name in names:
+        try:
+            session = fastf1.get_session(year, number, name)
+            session.load(laps=True, telemetry=False, weather=False, messages=False)
+            pace = practice.session_pace(session)
+        except Exception:
+            continue
+        if pace:
+            archived[name] = {k: round(v, 4) for k, v in pace.items()}
+    return archived
+
+
 def refresh(document, start_season, season, cutoff):
     history.configure_cache()
     for year in range(start_season, season + 1):
@@ -263,6 +281,9 @@ def refresh(document, start_season, season, cutoff):
                         record[
                             "fastest_lap" if kind == "R" else "sprint_fastest_lap"
                         ] = str(laps.loc[laps.loc[valid, "LapTime"].idxmin(), "Driver"])
+            # Practice pace is archived for new rounds so the practice weights can
+            # be fitted by model_compare once enough rounds carry it.
+            record["practice_pace"] = _practice_pace(year, number, fmt)
             public_history.save_racing(record)
             print(f"Archived timing {year}/{number}", flush=True)
 

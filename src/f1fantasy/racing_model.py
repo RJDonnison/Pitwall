@@ -39,6 +39,42 @@ POST_QUALIFYING_PARAMETERS = {
 }
 
 
+# Share of the standardised car/driver pace spread taken from current-weekend
+# practice. These are priors: history.json has no practice archive yet, so the
+# value could not be fitted by walk-forward; ``practice_pace`` is recorded for new
+# rounds so model_compare can test it. Race pace gets less because practice
+# programmes mix fuel loads and tyre plans.
+PRACTICE_WEIGHT = {"Q": 0.25, "SQ": 0.25, "R": 0.15}
+
+
+def apply_practice(means, drivers, practice, kind):
+    """Shrink each driver's modelled pace toward their standardised practice pace.
+
+    Both signals are z-scored over the drivers that have practice laps, so the
+    spread of the form model is kept and only the ordering information moves.
+    Drivers without practice laps keep their form-model pace. Sprint races get no
+    practice adjustment (they follow qualifying/sprint-qualifying evidence).
+    """
+    weight = PRACTICE_WEIGHT.get(kind, 0.0)
+    if not practice or weight == 0.0:
+        return means
+    index = [i for i, d in enumerate(drivers) if d["tla"] in practice]
+    if len(index) < 5:
+        return means
+    modelled = np.asarray(means, dtype=float)[index]
+    observed = np.array([practice[drivers[i]["tla"]] for i in index], dtype=float)
+    spread, scale = float(np.std(modelled)), float(np.std(observed))
+    if spread <= 0 or scale <= 0:
+        return means
+    z_model = (modelled - modelled.mean()) / spread
+    z_practice = (observed - observed.mean()) / scale
+    adjusted = np.array(means, dtype=float)
+    adjusted[index] = modelled.mean() + spread * (
+        (1 - weight) * z_model + weight * z_practice
+    )
+    return adjusted
+
+
 def roster(record):
     return [
         {
@@ -196,10 +232,15 @@ def _retirement_propensity(records, kind, team_ids, teams, drivers):
     )
 
 
-def draw(records, drivers, simulations, rng, telemetry, params, grid=None):
+def draw(
+    records, drivers, simulations, rng, telemetry, params, grid=None, practice=None
+):
     """Simulate the weekend. ``grid`` (driver code -> starting position) is an
     opt-in post-qualifying condition: when given, the race uses the known grid
-    instead of a simulated qualifying result. It is never used pre-weekend."""
+    instead of a simulated qualifying result. It is never used pre-weekend.
+
+    ``practice`` (driver code -> field-centred pace gap, percent) is the current
+    weekend's completed practice evidence; see ``apply_practice``."""
     from .racing_data import cause
 
     n = len(drivers)
@@ -219,6 +260,7 @@ def draw(records, drivers, simulations, rng, telemetry, params, grid=None):
     )
     for kind in kinds:
         means, noise, teams = _form(records, drivers, kind, params)
+        means = apply_practice(means, drivers, practice, kind)
         sigma = noise * params["temperature"]
         share = params["team_share"]
         shared = np.sqrt(share) * team_shock + np.sqrt((1 - share) / 2) * driver_shock
