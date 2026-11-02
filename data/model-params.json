@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "fitted_at": "2026-11-02T20:07:14.684743+00:00",
-  "evaluated_races": 50,
+  "fitted_at": "2026-11-02T20:33:11.528814+00:00",
+  "evaluated_races": 51,
   "last_race": [
     2026,
-    18
+    19
   ],
-  "simulations": 600,
+  "simulations": 1000,
   "gate": {
     "min_gain": 0.005,
     "holdout_races": 12,
@@ -22,45 +22,45 @@
       "ret_half_life": 6.0,
       "ret_prior": 16.0
     },
-    "objective": 2.012379984494792,
-    "defaults_objective": 2.035442034513156,
-    "gain_vs_defaults": 0.023062050018364345,
+    "objective": 2.0294119483971067,
+    "defaults_objective": 2.0445231119378127,
+    "gain_vs_defaults": 0.015111163540705652,
     "gain_vs_defaults_interval90": [
-      0.0036172672389794855,
-      0.04255594246421493
+      -0.0020723067302379,
+      0.03221817332636099
     ],
     "metrics": {
-      "winner_brier": 0.7800466666666667,
-      "winner_log_loss": 1.76721338775361,
-      "pole_brier": 0.844978888888889,
-      "podium_brier": 0.08753225353535353,
-      "head_to_head_brier": 0.18557167313115527,
-      "position_rps": 0.13454001394513315,
-      "nc_brier": 0.11425050227272728,
-      "either_nc_brier": 0.17435315505050508
+      "winner_brier": 0.7878987058823529,
+      "winner_log_loss": 1.7932130179067183,
+      "pole_brier": 0.8538387450980391,
+      "podium_brier": 0.08763837878787879,
+      "head_to_head_brier": 0.18525741853970948,
+      "position_rps": 0.13449914213984768,
+      "nc_brier": 0.11477870008912656,
+      "either_nc_brier": 0.17486475561497328
     },
     "default_metrics": {
-      "winner_brier": 0.7963544444444445,
-      "winner_log_loss": 1.7989889730685489,
-      "pole_brier": 0.8510945555555556,
-      "podium_brier": 0.08822316414141414,
-      "head_to_head_brier": 0.18569977996770148,
-      "position_rps": 0.1348009495087236,
-      "nc_brier": 0.11407009040404041,
-      "either_nc_brier": 0.17432237676767678
+      "winner_brier": 0.798471568627451,
+      "winner_log_loss": 1.8198737394981765,
+      "pole_brier": 0.8570803921568626,
+      "podium_brier": 0.08867223885918002,
+      "head_to_head_brier": 0.18494182842622617,
+      "position_rps": 0.13465919868740886,
+      "nc_brier": 0.11535708386809268,
+      "either_nc_brier": 0.17485326684491984
     },
     "decision": {
-      "folds": 50,
+      "folds": 51,
       "holdout_folds": 12,
-      "adopted": true,
-      "reason": "Adopted: better on older races, not worse on the latest, gain over the minimum",
-      "candidate": "{\"grid_weight\": 0.0, \"half_life\": 1.5, \"prior\": 4.0, \"ret_half_life\": 6.0, \"ret_prior\": 16.0, \"team_share\": 0.35, \"temperature\": 0.8}",
-      "gain_train": 0.019933726736597546,
-      "gain_holdout": 0.032968407077291095,
-      "gain_all": 0.023062050018364033,
+      "adopted": false,
+      "reason": "Best neighbour is worse than the current setting on the latest races",
+      "candidate": "{\"grid_weight\": 0.0, \"half_life\": 1.5, \"prior\": 4.0, \"ret_half_life\": 6.0, \"ret_prior\": 16.0, \"team_share\": 0.35, \"temperature\": 1.0}",
+      "gain_train": 0.013657614781842131,
+      "gain_holdout": -0.006980871374373754,
+      "gain_all": 0.008801500392144224,
       "interval90": [
-        -0.04266074256584647,
-        -0.0038024862437613057
+        -0.027619594815426068,
+        0.010777233305948613
       ]
     }
   },
@@ -74,45 +74,45 @@
       "ret_half_life": 6.0,
       "ret_prior": 16.0
     },
-    "objective": 1.783001500090014,
-    "defaults_objective": 1.783001500090014,
+    "objective": 1.7986029564048267,
+    "defaults_objective": 1.7986029564048267,
     "gain_vs_defaults": -0.0,
     "gain_vs_defaults_interval90": [
       -0.0,
       -0.0
     ],
     "metrics": {
-      "winner_brier": 0.5725709999999999,
-      "winner_log_loss": 1.3158356147241992,
-      "pole_brier": 0.857206111111111,
-      "podium_brier": 0.06829512424242425,
-      "head_to_head_brier": 0.17085917433243802,
-      "position_rps": 0.12574709226813593,
-      "nc_brier": 0.11407009040404041,
-      "either_nc_brier": 0.17432237676767678
+      "winner_brier": 0.5878556862745098,
+      "winner_log_loss": 1.3741855070920406,
+      "pole_brier": 0.8567116470588236,
+      "podium_brier": 0.06844266773618539,
+      "head_to_head_brier": 0.17023587146721547,
+      "position_rps": 0.12558716046912982,
+      "nc_brier": 0.11535708386809268,
+      "either_nc_brier": 0.17485326684491984
     },
     "default_metrics": {
-      "winner_brier": 0.5725709999999999,
-      "winner_log_loss": 1.3158356147241992,
-      "pole_brier": 0.857206111111111,
-      "podium_brier": 0.06829512424242425,
-      "head_to_head_brier": 0.17085917433243802,
-      "position_rps": 0.12574709226813593,
-      "nc_brier": 0.11407009040404041,
-      "either_nc_brier": 0.17432237676767678
+      "winner_brier": 0.5878556862745098,
+      "winner_log_loss": 1.3741855070920406,
+      "pole_brier": 0.8567116470588236,
+      "podium_brier": 0.06844266773618539,
+      "head_to_head_brier": 0.17023587146721547,
+      "position_rps": 0.12558716046912982,
+      "nc_brier": 0.11535708386809268,
+      "either_nc_brier": 0.17485326684491984
     },
     "decision": {
-      "folds": 50,
+      "folds": 51,
       "holdout_folds": 12,
       "adopted": false,
-      "reason": "Best neighbour is worse than the current setting on the latest races",
-      "candidate": "{\"grid_weight\": 2.5, \"half_life\": 2.0, \"prior\": 4.0, \"ret_half_life\": 6.0, \"ret_prior\": 16.0, \"team_share\": 0.5, \"temperature\": 1.25}",
-      "gain_train": 0.006325041926122488,
-      "gain_holdout": -0.0019099945108183025,
-      "gain_all": 0.004348633181257222,
+      "reason": "No neighbouring setting beats the current one on the older races",
+      "candidate": "{\"grid_weight\": 2.5, \"half_life\": 2.0, \"prior\": 4.0, \"ret_half_life\": 3.0, \"ret_prior\": 16.0, \"team_share\": 0.7, \"temperature\": 1.25}",
+      "gain_train": 0.0025069106655555284,
+      "gain_holdout": -0.0029105151489252634,
+      "gain_all": 0.001232222238618963,
       "interval90": [
-        -0.010789262714393191,
-        0.00235278633936852
+        -0.003610305324173253,
+        0.0011247996791251406
       ]
     }
   },
@@ -148,6 +148,38 @@
       "post_qualifying": {
         "adopted": false,
         "reason": "Best neighbour is worse than the current setting on the latest races",
+        "params": {
+          "half_life": 2.0,
+          "temperature": 1.25,
+          "team_share": 0.7,
+          "grid_weight": 2.5,
+          "prior": 4.0,
+          "ret_half_life": 6.0,
+          "ret_prior": 16.0
+        },
+        "gain_vs_defaults": -0.0
+      }
+    },
+    {
+      "at": "2026-11-02T20:33:11.528814+00:00",
+      "races": 51,
+      "pre": {
+        "adopted": false,
+        "reason": "Best neighbour is worse than the current setting on the latest races",
+        "params": {
+          "half_life": 1.5,
+          "temperature": 0.8,
+          "team_share": 0.35,
+          "grid_weight": 0.0,
+          "prior": 4.0,
+          "ret_half_life": 6.0,
+          "ret_prior": 16.0
+        },
+        "gain_vs_defaults": 0.015111163540705652
+      },
+      "post_qualifying": {
+        "adopted": false,
+        "reason": "No neighbouring setting beats the current one on the older races",
         "params": {
           "half_life": 2.0,
           "temperature": 1.25,
