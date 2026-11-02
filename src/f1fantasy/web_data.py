@@ -25,6 +25,56 @@ from .projections import Estimate, estimate_assets
 from .race_context import race_context
 
 
+def model_fit_summary():
+    """What the scheduled fit last did, for the site (None when never fitted)."""
+    from . import racing_model
+
+    fit = racing_model.FIT
+    if not fit:
+        return None
+    document = fit["document"]
+
+    def family(key):
+        part = document[key]
+        decision = part.get("decision", {})
+        return {
+            "params": part["params"],
+            "objective": part.get("objective"),
+            "defaults_objective": part.get("defaults_objective"),
+            "gain_vs_defaults": part.get("gain_vs_defaults"),
+            "gain_vs_defaults_interval90": part.get("gain_vs_defaults_interval90"),
+            "latest_decision": {
+                "adopted": decision.get("adopted"),
+                "reason": decision.get("reason"),
+                "holdout_gain": decision.get("gain_holdout"),
+            },
+            "metrics": part.get("metrics"),
+            "default_metrics": part.get("default_metrics"),
+        }
+
+    return {
+        "fitted_at": document.get("fitted_at"),
+        "evaluated_races": document.get("evaluated_races"),
+        "last_race": document.get("last_race"),
+        "pre_weekend": family("pre"),
+        "post_qualifying": family("post_qualifying"),
+        "practice": {
+            k: document.get("practice", {}).get(k)
+            for k in ("status", "weights", "races_with_practice", "needed")
+        },
+        "recent": [
+            {
+                "at": e.get("at"),
+                "races": e.get("races"),
+                "pre_adopted": e.get("pre", {}).get("adopted"),
+                "post_adopted": e.get("post_qualifying", {}).get("adopted"),
+            }
+            for e in document.get("log", [])[-5:]
+        ],
+        "gate": document.get("gate"),
+    }
+
+
 def racing_model_weights():
     from .racing_model import PRACTICE_WEIGHT
 
@@ -188,8 +238,12 @@ def build(
                     "racing_model": racing_model_weights(),
                     "fantasy_points": practice_model.POINTS_WEIGHT,
                 },
-                "validated": False,
+                "validated": (model_fit_summary() or {})
+                .get("practice", {})
+                .get("status")
+                == "fitted",
             },
+            "fit": model_fit_summary(),
             "risk": True,
             "weather": weather_model.VERSION,
             "historical_mae_scope": "Base Fantasy model replay excludes weather; weather_evaluation and accuracy use archived forward forecasts",

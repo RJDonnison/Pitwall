@@ -6,6 +6,7 @@ new complexity is used only when its walk-forward score beats those baselines.
 """
 
 from functools import lru_cache
+from pathlib import Path
 from datetime import timedelta
 import json
 from itertools import product
@@ -13,6 +14,90 @@ from itertools import product
 import numpy as np
 
 VERSION = "timing-team-regime-walkforward-v2"
+
+# Hard-coded defaults. ``data/model-params.json`` (written by the scheduled
+# ``python -m f1fantasy.model_fit`` job, only when a hold-out confirms the change)
+# may override them; a missing, malformed or out-of-range file is ignored.
+DEFAULT_PRE = {
+    "half_life": 2.0,
+    "temperature": 0.8,
+    "team_share": 0.35,
+    "grid_weight": 0.0,
+    "prior": 4.0,
+}
+# Opt-in parameters for a forecast made after qualifying, when the starting grid
+# is known (``draw(..., grid=...)``). Pre-weekend forecasts never use these.
+DEFAULT_POST = {
+    "half_life": 2.0,
+    "temperature": 1.25,
+    "team_share": 0.7,
+    "grid_weight": 2.5,
+    "prior": 4.0,
+}
+# Share of the standardised car/driver pace spread taken from current-weekend
+# practice. Priors until enough archived rounds carry ``practice_pace`` for the fit.
+DEFAULT_PRACTICE = {"Q": 0.25, "SQ": 0.25, "R": 0.15}
+DEFAULT_RETIREMENT = {"half_life": 6.0, "prior": 16.0}
+
+# Allowed range of every fitted value; the loader rejects anything outside.
+BOUNDS = {
+    "half_life": (0.5, 12.0),
+    "temperature": (0.2, 3.0),
+    "team_share": (0.0, 0.95),
+    "grid_weight": (0.0, 8.0),
+    "prior": (0.5, 64.0),
+    "ret_half_life": (1.0, 24.0),
+    "ret_prior": (1.0, 128.0),
+}
+PARAMS_FILE = Path(__file__).resolve().parents[2] / "data" / "model-params.json"
+
+
+def _valid_params(values, keys):
+    return (
+        isinstance(values, dict)
+        and set(keys) <= set(values)
+        and all(
+            isinstance(values[k], (int, float))
+            and not isinstance(values[k], bool)
+            and BOUNDS[k][0] <= values[k] <= BOUNDS[k][1]
+            for k in keys
+            if k in BOUNDS
+        )
+    )
+
+
+def load_fit(path=None):
+    """The committed fit, or None when absent or invalid."""
+    try:
+        document = json.loads(Path(path or PARAMS_FILE).read_text())
+        pre, post = document["pre"]["params"], document["post_qualifying"]["params"]
+        practice = document.get("practice", {}).get("weights")
+        keys = ("half_life", "temperature", "team_share", "grid_weight", "prior")
+        if document.get("schema") != 1 or not (
+            _valid_params(pre, keys) and _valid_params(post, keys)
+        ):
+            return None
+        if practice is not None and not (
+            isinstance(practice, dict)
+            and all(
+                isinstance(practice.get(k), (int, float)) and 0 <= practice[k] <= 0.6
+                for k in ("Q", "SQ", "R")
+            )
+        ):
+            practice = None
+        for key in ("ret_half_life", "ret_prior"):
+            if key in pre and not _valid_params(pre, (key,)):
+                return None
+        return {"document": document, "pre": pre, "post": post, "practice": practice}
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+FIT = load_fit()
+PRE_PARAMETERS = dict(FIT["pre"]) if FIT else dict(DEFAULT_PRE)
+POST_QUALIFYING_PARAMETERS = dict(FIT["post"]) if FIT else dict(DEFAULT_POST)
+PRACTICE_WEIGHT = dict(FIT["practice"]) if FIT and FIT["practice"] else dict(DEFAULT_PRACTICE)
+
 PARAMETERS = [
     {
         "half_life": half,
@@ -25,29 +110,13 @@ PARAMETERS = [
         (2.0, 6.0), (0.4, 0.8), (0.35, 0.7), (0.0, 0.6)
     )
 ]
-
-# Opt-in parameters for a forecast made after qualifying, when the starting grid
-# is known (``draw(..., grid=...)``). Chosen on the 50-race walk-forward in
-# docs/model-evaluation.md (python -m f1fantasy.model_compare): the plateau sits
-# at grid_weight 2-3.5; pre-weekend forecasts never use these.
-POST_QUALIFYING_PARAMETERS = {
-    "half_life": 2.0,
-    "temperature": 1.25,
-    "team_share": 0.7,
-    "grid_weight": 2.5,
-    "prior": 4.0,
-}
+# The fitted pre-weekend configuration competes in the existing nested selection;
+# it is only ever used when it also wins there.
+if PRE_PARAMETERS not in PARAMETERS and PRE_PARAMETERS["grid_weight"] == 0.0:
+    PARAMETERS.append(PRE_PARAMETERS)
 
 
-# Share of the standardised car/driver pace spread taken from current-weekend
-# practice. These are priors: history.json has no practice archive yet, so the
-# value could not be fitted by walk-forward; ``practice_pace`` is recorded for new
-# rounds so model_compare can test it. Race pace gets less because practice
-# programmes mix fuel loads and tyre plans.
-PRACTICE_WEIGHT = {"Q": 0.25, "SQ": 0.25, "R": 0.15}
-
-
-def apply_practice(means, drivers, practice, kind):
+def apply_practice(means, drivers, practice, kind, weights=None):
     """Shrink each driver's modelled pace toward their standardised practice pace.
 
     Both signals are z-scored over the drivers that have practice laps, so the
@@ -55,7 +124,7 @@ def apply_practice(means, drivers, practice, kind):
     Drivers without practice laps keep their form-model pace. Sprint races get no
     practice adjustment (they follow qualifying/sprint-qualifying evidence).
     """
-    weight = PRACTICE_WEIGHT.get(kind, 0.0)
+    weight = (weights or PRACTICE_WEIGHT).get(kind, 0.0)
     if not practice or weight == 0.0:
         return means
     index = [i for i, d in enumerate(drivers) if d["tla"] in practice]
@@ -195,11 +264,17 @@ def _form(records, drivers, kind, params):
 # Chosen on the 2025-2026 walk-forward in docs/racing-model.md (not-classified
 # section): a slower decay than the pace half-life and a pooling prior of 16
 # driver-races toward the field rate.
-RETIREMENT_HALF_LIFE = 6.0
-RETIREMENT_PRIOR = 16.0
+RETIREMENT_HALF_LIFE = float(
+    (FIT["pre"].get("ret_half_life") if FIT else None) or DEFAULT_RETIREMENT["half_life"]
+)
+RETIREMENT_PRIOR = float(
+    (FIT["pre"].get("ret_prior") if FIT else None) or DEFAULT_RETIREMENT["prior"]
+)
 
 
-def _retirement_propensity(records, kind, team_ids, teams, drivers):
+def _retirement_propensity(
+    records, kind, team_ids, teams, drivers, half_life=None, prior=None
+):
     """Per-team not-classified rate, pooled toward the field, in event-decayed counts.
 
     Counts every retirement that is not a disqualification, a did-not-start or an
@@ -215,7 +290,7 @@ def _retirement_propensity(records, kind, team_ids, teams, drivers):
         original = next(d["team_id"] for d in drivers if str(d["team_id"]) == team)
         by_name[teams[original]] = team
     for age, rec in enumerate(reversed(records[-24:])):
-        weight = 2.0 ** (-age / RETIREMENT_HALF_LIFE)
+        weight = 2.0 ** (-age / (half_life or RETIREMENT_HALF_LIFE))
         for row in rec["sessions"].get(kind, []):
             team = by_name.get(row.get("team_name"))
             reason = cause(row.get("status", ""))
@@ -223,10 +298,11 @@ def _retirement_propensity(records, kind, team_ids, teams, drivers):
                 continue
             exposures[team] += weight
             failures[team] += weight * (not row["classified"] and reason != "mechanical")
+    prior = RETIREMENT_PRIOR if prior is None else prior
     field = (sum(failures.values()) + 0.5) / (sum(exposures.values()) + 1.0)
     return np.array(
         [
-            (failures[t] + RETIREMENT_PRIOR * field) / (exposures[t] + RETIREMENT_PRIOR)
+            (failures[t] + prior * field) / (exposures[t] + prior)
             for t in team_ids
         ]
     )
@@ -260,7 +336,9 @@ def draw(
     )
     for kind in kinds:
         means, noise, teams = _form(records, drivers, kind, params)
-        means = apply_practice(means, drivers, practice, kind)
+        means = apply_practice(
+            means, drivers, practice, kind, params.get("practice_weight")
+        )
         sigma = noise * params["temperature"]
         share = params["team_share"]
         shared = np.sqrt(share) * team_shock + np.sqrt((1 - share) / 2) * driver_shock
@@ -364,7 +442,15 @@ def draw(
             # Selection is weighted by each team's recent retirement propensity
             # (Gumbel top-k), because most retirements carry no usable cause and
             # would otherwise be spread uniformly over the grid.
-            propensity = _retirement_propensity(records, kind, team_ids, teams, drivers)
+            propensity = _retirement_propensity(
+                records,
+                kind,
+                team_ids,
+                teams,
+                drivers,
+                params.get("ret_half_life"),
+                params.get("ret_prior"),
+            )
             keys = np.log(propensity)[ti][None, :] + rng.gumbel(size=(simulations, n))
             order = np.argsort(-keys, axis=1)
             incident_rank = np.argsort(order, axis=1)
