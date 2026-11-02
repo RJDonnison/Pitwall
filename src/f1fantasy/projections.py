@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from math import isfinite
 from typing import Any
 import unicodedata
@@ -178,11 +178,16 @@ def _estimate_legacy(
     *,
     use_telemetry: bool = True,
     use_risk: bool = True,
+    practice: dict[str, float] | None = None,
 ) -> dict[tuple[int, str], Estimate]:
     """Use completed rounds strictly before the first predicted weekend.
 
     Upcoming events share the same historical inputs; Sprint forecasts differ by
     event format. Future prices and future results are never used as evidence.
+
+    ``practice`` (driver code -> field-centred pace gap) is the weekend in
+    progress's completed practice evidence. It shifts only the first weekend's
+    driver qualifying and race estimates; constructors follow from their drivers.
     """
     if not weekends or lookback < 1:
         raise ValueError("Need upcoming weekends and at least one historical race")
@@ -331,6 +336,26 @@ def _estimate_legacy(
             )
             q, s, r = q + q_delta, s + s_delta, r + r_delta
             output[index, driver.id] = Estimate(q, s, r)
+        if practice and index == 0:
+            from .practice import POINTS_WEIGHT, shrink_scores
+
+            codes = {d.id: d.tla for d in drivers}
+            for field, weight in (
+                ("qualifying", POINTS_WEIGHT["qualifying"]),
+                ("race", POINTS_WEIGHT["race"]),
+            ):
+                shifted = shrink_scores(
+                    {
+                        codes[d.id]: getattr(output[index, d.id], field)
+                        for d in drivers
+                    },
+                    practice,
+                    weight,
+                )
+                for d in drivers:
+                    output[index, d.id] = replace(
+                        output[index, d.id], **{field: shifted[codes[d.id]]}
+                    )
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [
                 output[index, d.id] for d in drivers if d.team_id == constructor.team_id

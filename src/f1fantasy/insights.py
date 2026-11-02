@@ -338,7 +338,16 @@ def _championship_after(
     return result
 
 
-def build(assets, weekends, cutoff, *, telemetry=True, simulations=4000, seed=2026):
+def build(
+    assets,
+    weekends,
+    cutoff,
+    *,
+    telemetry=True,
+    simulations=4000,
+    seed=2026,
+    practice=None,
+):
     source = public_history.current()
     if not source:
         return {
@@ -347,7 +356,9 @@ def build(assets, weekends, cutoff, *, telemetry=True, simulations=4000, seed=20
         }
     document = source["document"]
     try:
-        return _build(document, assets, weekends, cutoff, telemetry, simulations, seed)
+        return _build(
+            document, assets, weekends, cutoff, telemetry, simulations, seed, practice
+        )
     except (DataError, KeyError, TypeError, ValueError) as exc:
         return {"status": "unavailable", "message": str(exc)}
 
@@ -415,7 +426,9 @@ def _title_eligibility(championship, records, assets, weekends):
             )
 
 
-def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
+def _build(
+    document, assets, weekends, cutoff, telemetry, simulations, seed, practice=None
+):
     if (
         simulations < 1
         or not weekends
@@ -475,6 +488,8 @@ def _build(document, assets, weekends, cutoff, telemetry, simulations, seed):
             simulations,
             rng,
             {(0, a.id): deltas.get((t, a.id), (0, 0, 0)) for a in drivers},
+            # Practice evidence belongs to the weekend in progress only.
+            **({"practice": practice} if practice and t == 0 else {}),
         )
         probabilities = {"drivers": {}, "constructors": {}}
         masks = {}

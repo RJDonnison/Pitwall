@@ -3,6 +3,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./style.css";
+import { bannerText } from "./publication.js";
 import "./insight-visuals.css";
 import "./participant-browser.css";
 import "./accuracy.css";
@@ -12,6 +13,7 @@ import {
   total,
   validateTeam,
   validateDataset,
+  CARRIED_MODES,
 } from "./optimizer.js";
 import { fetchDataset, verifyLive } from "./data.js";
 import { suggestionRequest } from "./team-suggestion.js";
@@ -184,10 +186,21 @@ function route({ scroll = false } = {}) {
     $("#image-credits").scrollIntoView({ block: "start" });
   }
 }
+function stateBanner(dataset) {
+  const element = document.createElement("div");
+  element.id = "state-banner";
+  element.className = "state-banner";
+  element.setAttribute("role", "status");
+  const text = bannerText(dataset);
+  element.hidden = !text;
+  element.textContent = text;
+  return element;
+}
+
 function shell() {
   $("#app").innerHTML =
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
-     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
+     <main id="main"><div id="state-banner" class="state-banner" role="status" hidden></div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#new-team").onclick = suggestTeam;
   $(".market-tools").insertAdjacentHTML(
     "beforeend",
@@ -245,6 +258,7 @@ function render() {
     cost = total(chosen.map((a) => a.price_tenths_m));
   $("#header-cap").innerHTML =
     `Cap <b>${money(cost)}</b> / ${money(t.budget)} <strong class="${cost > t.budget ? "negative" : "positive"}">${money(t.budget - cost)} free</strong>`;
+  $("#state-banner").replaceWith(stateBanner(dataset));
   $("#publication-status").textContent =
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
   $("#publication-window").textContent =
@@ -548,7 +562,9 @@ async function plan({ fill = false } = {}) {
       acceptDataset(fresh);
       if (!fill) validateTeam(fresh, team());
     }
-    const check = await verifyLive(fresh);
+    const check = CARRIED_MODES.includes(fresh.publication_state?.mode)
+      ? { verified: false, message: "Showing the last published forecasts." }
+      : await verifyLive(fresh);
     if (!busy || profile !== active || request !== revision) return;
     verificationText = check.verified
       ? "Live prices verified"

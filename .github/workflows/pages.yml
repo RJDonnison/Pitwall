@@ -45,6 +45,14 @@ jobs:
         run: |
           python -m pytest
           npm test --prefix web
+      - name: Fetch the last published forecast
+        # Kept on the site while predictions are paused or a refresh fails.
+        continue-on-error: true
+        run: |
+          mkdir -p .f1fantasy
+          curl -fsSL --retry 3 --max-time 60 \
+            "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/forecast.json" \
+            -o .f1fantasy/previous-forecast.json
       - name: Generate fresh public forecasts
         timeout-minutes: 5
         run: python -m f1fantasy.web_data

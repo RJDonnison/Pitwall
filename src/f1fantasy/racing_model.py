@@ -26,6 +26,54 @@ PARAMETERS = [
     )
 ]
 
+# Opt-in parameters for a forecast made after qualifying, when the starting grid
+# is known (``draw(..., grid=...)``). Chosen on the 50-race walk-forward in
+# docs/model-evaluation.md (python -m f1fantasy.model_compare): the plateau sits
+# at grid_weight 2-3.5; pre-weekend forecasts never use these.
+POST_QUALIFYING_PARAMETERS = {
+    "half_life": 2.0,
+    "temperature": 1.25,
+    "team_share": 0.7,
+    "grid_weight": 2.5,
+    "prior": 4.0,
+}
+
+
+# Share of the standardised car/driver pace spread taken from current-weekend
+# practice. These are priors: history.json has no practice archive yet, so the
+# value could not be fitted by walk-forward; ``practice_pace`` is recorded for new
+# rounds so model_compare can test it. Race pace gets less because practice
+# programmes mix fuel loads and tyre plans.
+PRACTICE_WEIGHT = {"Q": 0.25, "SQ": 0.25, "R": 0.15}
+
+
+def apply_practice(means, drivers, practice, kind):
+    """Shrink each driver's modelled pace toward their standardised practice pace.
+
+    Both signals are z-scored over the drivers that have practice laps, so the
+    spread of the form model is kept and only the ordering information moves.
+    Drivers without practice laps keep their form-model pace. Sprint races get no
+    practice adjustment (they follow qualifying/sprint-qualifying evidence).
+    """
+    weight = PRACTICE_WEIGHT.get(kind, 0.0)
+    if not practice or weight == 0.0:
+        return means
+    index = [i for i, d in enumerate(drivers) if d["tla"] in practice]
+    if len(index) < 5:
+        return means
+    modelled = np.asarray(means, dtype=float)[index]
+    observed = np.array([practice[drivers[i]["tla"]] for i in index], dtype=float)
+    spread, scale = float(np.std(modelled)), float(np.std(observed))
+    if spread <= 0 or scale <= 0:
+        return means
+    z_model = (modelled - modelled.mean()) / spread
+    z_practice = (observed - observed.mean()) / scale
+    adjusted = np.array(means, dtype=float)
+    adjusted[index] = modelled.mean() + spread * (
+        (1 - weight) * z_model + weight * z_practice
+    )
+    return adjusted
+
 
 def roster(record):
     return [
@@ -143,7 +191,56 @@ def _form(records, drivers, kind, params):
     return means, noise, teams
 
 
-def draw(records, drivers, simulations, rng, telemetry, params):
+# Retirement propensity used to decide *who* retires in a shared incident count.
+# Chosen on the 2025-2026 walk-forward in docs/racing-model.md (not-classified
+# section): a slower decay than the pace half-life and a pooling prior of 16
+# driver-races toward the field rate.
+RETIREMENT_HALF_LIFE = 6.0
+RETIREMENT_PRIOR = 16.0
+
+
+def _retirement_propensity(records, kind, team_ids, teams, drivers):
+    """Per-team not-classified rate, pooled toward the field, in event-decayed counts.
+
+    Counts every retirement that is not a disqualification, a did-not-start or an
+    identified mechanical failure (those have their own paths). Teams without
+    history take the field rate.
+    """
+    from .racing_data import cause
+
+    exposures = dict.fromkeys(team_ids, 0.0)
+    failures = dict.fromkeys(team_ids, 0.0)
+    by_name = {}
+    for team in team_ids:
+        original = next(d["team_id"] for d in drivers if str(d["team_id"]) == team)
+        by_name[teams[original]] = team
+    for age, rec in enumerate(reversed(records[-24:])):
+        weight = 2.0 ** (-age / RETIREMENT_HALF_LIFE)
+        for row in rec["sessions"].get(kind, []):
+            team = by_name.get(row.get("team_name"))
+            reason = cause(row.get("status", ""))
+            if team is None or reason in {"disqualified", "did_not_start"}:
+                continue
+            exposures[team] += weight
+            failures[team] += weight * (not row["classified"] and reason != "mechanical")
+    field = (sum(failures.values()) + 0.5) / (sum(exposures.values()) + 1.0)
+    return np.array(
+        [
+            (failures[t] + RETIREMENT_PRIOR * field) / (exposures[t] + RETIREMENT_PRIOR)
+            for t in team_ids
+        ]
+    )
+
+
+def draw(
+    records, drivers, simulations, rng, telemetry, params, grid=None, practice=None
+):
+    """Simulate the weekend. ``grid`` (driver code -> starting position) is an
+    opt-in post-qualifying condition: when given, the race uses the known grid
+    instead of a simulated qualifying result. It is never used pre-weekend.
+
+    ``practice`` (driver code -> field-centred pace gap, percent) is the current
+    weekend's completed practice evidence; see ``apply_practice``."""
     from .racing_data import cause
 
     n = len(drivers)
@@ -163,6 +260,7 @@ def draw(records, drivers, simulations, rng, telemetry, params):
     )
     for kind in kinds:
         means, noise, teams = _form(records, drivers, kind, params)
+        means = apply_practice(means, drivers, practice, kind)
         sigma = noise * params["temperature"]
         share = params["team_share"]
         shared = np.sqrt(share) * team_shock + np.sqrt((1 - share) / 2) * driver_shock
@@ -194,11 +292,13 @@ def draw(records, drivers, simulations, rng, telemetry, params):
             )
         if kind in {"R", "S"}:
             grid_kind = "SQ" if kind == "S" and "SQ" in output else "Q"
+            if grid is not None and kind == "R":
+                worst = max(n, max(grid.values()))
+                grid_ranks = np.array([grid.get(d["tla"], worst) for d in drivers])[None, :]
+            else:
+                grid_ranks = output[grid_kind]["ranks"]
             performance += (
-                params["grid_weight"]
-                * np.ptp(means)
-                * (output[grid_kind]["ranks"] - 1)
-                / max(1, n - 1)
+                params["grid_weight"] * np.ptp(means) * (grid_ranks - 1) / max(1, n - 1)
             )
         # Existing Fantasy telemetry corrections are bounded and converted from
         # point units to an empirically measured pace spread, never seconds.
@@ -261,7 +361,12 @@ def draw(records, drivers, simulations, rng, telemetry, params):
             counts = np.array(incident_counts)[sampled]
             # One sampled event count is shared by the field. Drivers are chosen
             # without replacement, so a multi-car incident remains a joint event.
-            order = np.argsort(rng.random((simulations, n)), axis=1)
+            # Selection is weighted by each team's recent retirement propensity
+            # (Gumbel top-k), because most retirements carry no usable cause and
+            # would otherwise be spread uniformly over the grid.
+            propensity = _retirement_propensity(records, kind, team_ids, teams, drivers)
+            keys = np.log(propensity)[ti][None, :] + rng.gumbel(size=(simulations, n))
+            order = np.argsort(-keys, axis=1)
             incident_rank = np.argsort(order, axis=1)
             classified &= incident_rank >= counts[:, None]
         performance += (~classified) * (
