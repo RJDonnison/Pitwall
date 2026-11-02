@@ -15,6 +15,7 @@ import pandas as pd
 from fastf1.exceptions import RateLimitExceededError
 
 from .data import DataError
+from .session_laps import loaded_laps
 
 SCHEMA = 1
 DEFAULT_CACHE = Path(".f1fantasy/cache")
@@ -102,7 +103,7 @@ def load_features(
 
 
 def _clean_laps(session: Any) -> Any:
-    laps = session.laps
+    laps = loaded_laps(session)
     if laps is None or laps.empty:
         raise DataError("Session has no completed laps")
     mask = laps["LapTime"].notna() & laps["IsAccurate"].fillna(False)

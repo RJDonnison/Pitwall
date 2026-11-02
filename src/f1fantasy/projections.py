@@ -178,16 +178,11 @@ def _estimate_legacy(
     *,
     use_telemetry: bool = True,
     use_risk: bool = True,
-    practice: dict[str, float] | None = None,
 ) -> dict[tuple[int, str], Estimate]:
     """Use completed rounds strictly before the first predicted weekend.
 
     Upcoming events share the same historical inputs; Sprint forecasts differ by
     event format. Future prices and future results are never used as evidence.
-
-    ``practice`` (driver code -> field-centred pace gap) is the weekend in
-    progress's completed practice evidence. It shifts only the first weekend's
-    driver qualifying and race estimates; constructors follow from their drivers.
     """
     if not weekends or lookback < 1:
         raise ValueError("Need upcoming weekends and at least one historical race")
@@ -336,26 +331,6 @@ def _estimate_legacy(
             )
             q, s, r = q + q_delta, s + s_delta, r + r_delta
             output[index, driver.id] = Estimate(q, s, r)
-        if practice and index == 0:
-            from .practice import POINTS_WEIGHT, shrink_scores
-
-            codes = {d.id: d.tla for d in drivers}
-            for field, weight in (
-                ("qualifying", POINTS_WEIGHT["qualifying"]),
-                ("race", POINTS_WEIGHT["race"]),
-            ):
-                shifted = shrink_scores(
-                    {
-                        codes[d.id]: getattr(output[index, d.id], field)
-                        for d in drivers
-                    },
-                    practice,
-                    weight,
-                )
-                for d in drivers:
-                    output[index, d.id] = replace(
-                        output[index, d.id], **{field: shifted[codes[d.id]]}
-                    )
         for constructor in (a for a in assets if a.kind == "CONSTRUCTOR"):
             members = [
                 output[index, d.id] for d in drivers if d.team_id == constructor.team_id
@@ -381,6 +356,45 @@ def _estimate_legacy(
     return output
 
 
+def apply_practice(
+    estimates: dict[tuple[int, str], Estimate],
+    assets: tuple[Asset, ...],
+    practice: dict[str, float] | None,
+) -> dict[tuple[int, str], Estimate]:
+    """Shift the first weekend's driver estimates toward completed practice pace.
+
+    Applied after the baseline-or-joint model choice so it holds whichever model
+    produced the numbers. Only qualifying and race points move (Sprint follows
+    its own sessions). A constructor moves by the sum of its two drivers' shifts,
+    which is how constructor points are built from their drivers.
+    """
+    if not practice:
+        return estimates
+    from .practice import POINTS_WEIGHT, shrink_scores
+
+    drivers = [a for a in assets if a.kind == "DRIVER"]
+    codes = {d.id: d.tla for d in drivers}
+    result = dict(estimates)
+    for field, weight in (
+        ("qualifying", POINTS_WEIGHT["qualifying"]),
+        ("race", POINTS_WEIGHT["race"]),
+    ):
+        before = {codes[d.id]: getattr(estimates[0, d.id], field) for d in drivers}
+        after = shrink_scores(before, practice, weight)
+        team_shift: dict[str, float] = {}
+        for d in drivers:
+            delta = after[codes[d.id]] - before[codes[d.id]]
+            result[0, d.id] = replace(result[0, d.id], **{field: getattr(result[0, d.id], field) + delta})
+            team_shift[d.team_id] = team_shift.get(d.team_id, 0.0) + delta
+        for a in assets:
+            if a.kind == "CONSTRUCTOR" and a.team_id in team_shift:
+                result[0, a.id] = replace(
+                    result[0, a.id],
+                    **{field: getattr(result[0, a.id], field) + team_shift[a.team_id]},
+                )
+    return result
+
+
 def estimate_assets(
     assets: tuple[Asset, ...],
     weekends: list[Weekend],
@@ -389,13 +403,20 @@ def estimate_assets(
     use_telemetry: bool = True,
     use_risk: bool = True,
     use_joint_model: bool = True,
+    practice: dict[str, float] | None = None,
 ) -> dict[tuple[int, str], Estimate]:
-    """Retain the established model wherever chronological evidence rejects a replacement."""
+    """Retain the established model wherever chronological evidence rejects a replacement.
+
+    ``practice`` (driver code -> field-centred pace gap) is the weekend in
+    progress's completed practice evidence; see ``apply_practice``.
+    """
     baseline = _estimate_legacy(
         assets, weekends, lookback, use_telemetry=use_telemetry, use_risk=use_risk
     )
     if not use_joint_model or not use_risk or lookback != 5:
-        return baseline
+        return apply_practice(baseline, assets, practice)
     from .fantasy_model import forecast
 
-    return forecast(assets, weekends, baseline, telemetry=use_telemetry)
+    return apply_practice(
+        forecast(assets, weekends, baseline, telemetry=use_telemetry), assets, practice
+    )

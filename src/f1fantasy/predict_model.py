@@ -16,6 +16,7 @@ import numpy as np
 
 from .data import Asset, DataError, Weekend
 from .history import configure_cache
+from .session_laps import loaded_laps
 from .telemetry_model import adjustments
 
 
@@ -144,12 +145,9 @@ def _history(season, cutoff):
             if results is None or results.empty:
                 raise DataError(f"Missing Predict history: {year}/{round_}/{kind}")
             # Scheduled completion alone is insufficient if a loaded race ran late.
-            if (
-                kind in {"R", "S"}
-                and session.laps is not None
-                and not session.laps.empty
-            ):
-                times = session.laps.get("LapStartDate")
+            session_laps = loaded_laps(session) if kind in {"R", "S"} else None
+            if session_laps is not None and not session_laps.empty:
+                times = session_laps.get("LapStartDate")
                 if times is not None and times.notna().any():
                     actual_end = _fastf1_utc(times.dropna().max()) + timedelta(hours=1)
                     if actual_end >= cutoff:
@@ -157,7 +155,7 @@ def _history(season, cutoff):
                             "Historical race/Sprint overlaps prediction cutoff"
                         )
                     record["end"] = max(_utc(record["end"]), actual_end).isoformat()
-                laps = session.laps
+                laps = session_laps
                 valid = laps["LapTime"].notna()
                 if "Deleted" in laps:
                     valid &= ~laps["Deleted"].fillna(False).astype(bool)

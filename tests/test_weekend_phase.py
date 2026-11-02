@@ -189,3 +189,60 @@ class _Null:
 
     def __exit__(self, *exc):
         return False
+
+
+class DataNotLoadedError(Exception):
+    """Same name as fastf1.exceptions.DataNotLoadedError (not an AttributeError)."""
+
+
+class NoLapTiming:
+    results = pd.DataFrame()
+
+    @property
+    def laps(self):
+        raise DataNotLoadedError("The data you are trying to access has not been loaded yet")
+
+
+def test_session_without_lap_timing_is_treated_as_no_laps_not_a_crash():
+    from f1fantasy import session_laps
+
+    assert session_laps.loaded_laps(NoLapTiming()) is None
+    assert practice.session_pace(NoLapTiming()) == {}
+    with pytest.raises(ZeroDivisionError):  # other errors are not swallowed
+
+        class Broken:
+            @property
+            def laps(self):
+                return 1 / 0
+
+        session_laps.loaded_laps(Broken())
+
+
+def test_estimate_assets_passes_practice_through_the_joint_model_wrapper(monkeypatch):
+    """Regression: the wrapper once rejected ``practice`` with a TypeError."""
+    from f1fantasy import projections
+    from f1fantasy.data import Asset
+    from f1fantasy.projections import Estimate
+
+    assets = tuple(
+        Asset(str(i), f"D{i}", "DRIVER", str(i // 2), 50, "ABCDEFGH"[i]) for i in range(8)
+    ) + tuple(Asset(f"c{i}", f"T{i}", "CONSTRUCTOR", str(i), 50) for i in range(4))
+    base = {(0, a.id): Estimate(10 - int(a.id) if a.kind == "DRIVER" else 5, 0, 20) for a in assets}
+    monkeypatch.setattr(projections, "_estimate_legacy", lambda *a, **k: dict(base))
+    flipped = {c: -g for c, g in PACE.items()}
+    for joint in (False, True):
+        if joint:
+            import f1fantasy.fantasy_model as fm
+
+            monkeypatch.setattr(fm, "forecast", lambda assets, weekends, baseline, **k: dict(baseline))
+        out = projections.estimate_assets(
+            assets, [None], use_joint_model=joint, practice=flipped
+        )
+        assert out[0, "7"].qualifying > base[0, "7"].qualifying  # slowest-by-model now helped
+        assert out[0, "0"].qualifying < base[0, "0"].qualifying
+        # constructor shifts by its drivers' combined change
+        shift = sum(out[0, str(i)].qualifying - base[0, str(i)].qualifying for i in (0, 1))
+        assert out[0, "c0"].qualifying == pytest.approx(base[0, "c0"].qualifying + shift)
+        assert out[0, "0"].sprint == base[0, "0"].sprint
+    untouched = projections.estimate_assets(assets, [None], use_joint_model=False)
+    assert untouched == base
