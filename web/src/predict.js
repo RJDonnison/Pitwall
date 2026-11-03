@@ -62,7 +62,7 @@ function questionMarkup(q, answer, unsupported) {
     .map((o) => {
       const p = answer.probabilities[o.id];
       const ev = podium
-        ? p.map((v) => (o.points / 2) * (p.reduce((a, b) => a + b, 0) + v))
+        ? p.map((v) => o.points * (p.reduce((a, b) => a + b, 0) + v))
         : o.points * p;
       return { ...o, p, ev };
     })
@@ -79,7 +79,7 @@ function questionMarkup(q, answer, unsupported) {
       })
       .join("")}</ol>
     <div class="predict-score"><span>Expected points${boost ? " · 2× included" : ""}</span><strong>${number(answer.expected_points)} <small>pts</small></strong></div>
-    <details class="predict-options"><summary>Probabilities & payout breakdown · ${options.length} options</summary><div class="predict-table"><table><caption>${podium ? "Full payout for the exact position; half payout for a podium finish in another position. Expected points = half payout × (any-podium probability + exact-position probability), before Boost. Each driver can occupy only one slot." : "Payout × model probability, before Boost. Ranked by expected points."}</caption><thead><tr><th>Legal answer</th><th>${podium ? "Exact-position payout" : "Payout"}</th>${podium ? "<th>P1 / P2 / P3 probability</th><th>P1 / P2 / P3 expected pts</th>" : "<th>Probability</th><th>Expected pts</th>"}</tr></thead><tbody>${options.map((o) => `<tr class="${selections.has(o.id) ? "predict-selected" : ""}"><th scope="row">${esc(o.name)}${selections.has(o.id) ? `<small>${podium ? `Selected P${selections.get(o.id) + 1}` : "Selected"}</small>` : ""}</th><td>${number(o.points)}</td><td>${podium ? o.p.map(percent).join(" / ") : percent(o.p)}</td><td>${podium ? o.ev.map(number).join(" / ") : number(o.ev)}</td></tr>`).join("")}</tbody></table></div></details></div></article>`;
+    <details class="predict-options"><summary>Payout breakdown · ${options.length} options</summary><div class="predict-table"><table aria-label="Payout breakdown"><thead><tr><th>Legal answer</th><th>Payout</th><th>Probability</th><th>Expected pts (base)</th></tr></thead><tbody>${options.map((o) => `<tr class="${selections.has(o.id) ? "predict-selected" : ""}"><th scope="row">${esc(o.name)}${selections.has(o.id) ? `<small>${podium ? `Selected P${selections.get(o.id) + 1}` : "Selected"}</small>` : ""}</th><td>${number(o.points)}</td><td>${podium ? o.p.map((v, i) => `<span class="predict-slot-value">P${i + 1} ${percent(v)}</span>`).join("") : percent(o.p)}</td><td>${podium ? o.ev.map((v, i) => `<span class="predict-slot-value">P${i + 1} ${number(v)}</span>`).join("") : number(o.ev)}</td></tr>`).join("")}</tbody></table></div></details></div></article>`;
 }
 
 export function predictMarkup(publication, now = Date.now()) {

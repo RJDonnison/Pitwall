@@ -135,7 +135,6 @@ def score(question, selected, actual, boosted=False):
     if question["template"] == 1:
         total = sum(
             points[i]
-            / 2
             * (int(i in actual) + int(slot < len(actual) and actual[slot] == i))
             for slot, i in enumerate(selected)
         )
@@ -176,10 +175,8 @@ def select(snapshot, forecasts, training=()):
         probabilities, calibration = _calibrate(q, forecast, training, cutoff)
         payouts = np.array([o["points"] for o in q["options"]])
         if q["template"] == 1:
-            expected = (
-                payouts[:, None]
-                / 2
-                * (probabilities.sum(axis=1)[:, None] + probabilities)
+            expected = payouts[:, None] * (
+                probabilities.sum(axis=1)[:, None] + probabilities
             )
             slots, indexes = linear_sum_assignment(-expected.T)
             picks = [int(indexes[list(slots).index(slot)]) for slot in range(3)]

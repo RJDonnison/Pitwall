@@ -488,8 +488,8 @@ when returning to the tab; snapshots expire after six hours or at event start.
 Each supported question shows its answer, model probability and expected points.
 Ordered podium picks show exact-position and any-podium probabilities alongside
 each driver's expected points, including the question Boost when selected.
-An exact-position pick earns the listed payout; a podium finish in another
-position earns half. The breakdown uses half payout × (any-podium probability +
+An exact-position pick earns double the listed payout; a podium finish in another
+position earns the listed payout. The model uses payout × (any-podium probability +
 exact-position probability).
 The optimizer chooses distinct drivers across all three slots and assigns the one
 2× question Boost to the largest expected gain. Expandable tables retain every

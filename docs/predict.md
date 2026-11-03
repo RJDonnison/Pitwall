@@ -34,10 +34,10 @@ never save answers to the website.
 Selecting the most likely answer is not always optimal: an option's expected
 points are its probability multiplied by its official payout. Ordered podium
 selection solves a distinct-driver assignment across P1/P2/P3. A selected driver
-earns their listed points for the exact position, half those points for a
-top-three finish in another position, and zero otherwise. Expected points for a
-slot are half the listed payout multiplied by the sum of the driver's any-podium
-and exact-position probabilities. The single question 2× Boost is assigned to the
+earns their listed points for any top-three finish, double those points for the
+exact position, and zero otherwise. Expected points for a slot are the listed
+payout multiplied by the sum of the driver's any-podium and exact-position
+probabilities. The single question 2× Boost is assigned to the
 largest expected unboosted question total.
 
 The deterministic simulation uses prior-smoothed historical qualifying and race
@@ -60,6 +60,9 @@ fastest-lap and supported title-deciding questions. Predicates needing additiona
 verified historical facts stay unsupported when those facts are unavailable.
 
 ## Calibration and chronological evaluation
+
+See the [2026 question coverage audit](predict-coverage.md) for supported counts,
+unsupported historical questions and archived feed validation failures.
 
 By default recommendations privately archive the **public point-in-time inputs
 and raw forecasts**, without login cookies, GUIDs or saved account answers, under

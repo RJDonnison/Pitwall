@@ -29,15 +29,15 @@ function fixture() {
     telemetry: true,
     recommendation: {
       complete: true,
-      expected_total_points: 75,
+      expected_total_points: 150,
       unsupported: [],
       answers: [
         {
           question_id: 1,
           selected_options: ["a", "b", "c"],
           booster_id: "1",
-          expected_points: 75,
-          expected_points_before_boost: 37.5,
+          expected_points: 150,
+          expected_points_before_boost: 75,
           probabilities: {
             a: [0.5, 0.2, 0.1],
             b: [0.2, 0.5, 0.1],
@@ -59,14 +59,20 @@ test("Predict preserves podium order and separates exact, any-podium, payout and
   const html = predictMarkup(fixture(), now);
   assert.match(html, /P1<\/span><strong>A &lt;driver&gt;/);
   assert.match(html, /50\.0% exact position · 80\.0% any podium/);
-  assert.match(html, /6\.5 \/ 5\.0 \/ 4\.5/);
-  assert.match(html, /half payout for a podium finish in another position/);
-  assert.match(html, /13\.0 expected pts · 2× included/);
   assert.match(html, /26\.0 expected pts · 2× included/);
-  assert.match(html, /36\.0 expected pts · 2× included/);
-  assert.match(html, /75\.0 <small>pts/);
+  assert.match(html, /52\.0 expected pts · 2× included/);
+  assert.match(html, /72\.0 expected pts · 2× included/);
+  assert.match(html, /150\.0 <small>pts/);
+  assert.match(
+    html,
+    /P1 13\.0<\/span><span class="predict-slot-value">P2 10\.0/,
+  );
   assert.equal((html.match(/<details /g) || []).length, 1);
-  assert.match(html, /<summary>Probabilities & payout breakdown/);
+  assert.match(html, /<summary>Payout breakdown/);
+  assert.doesNotMatch(
+    html,
+    /<caption>|Full payout|half payout|Probabilities &/,
+  );
   assert.doesNotMatch(html, /<driver>|<the>|NaN|undefined/);
 });
 
@@ -74,12 +80,12 @@ test("podium driver expected points exclude Boost when it is assigned elsewhere"
   const publication = fixture();
   Object.assign(publication.recommendation.answers[0], {
     booster_id: "0",
-    expected_points: 37.5,
+    expected_points: 75,
   });
   const html = predictMarkup(publication, now);
-  assert.match(html, /6\.5 expected pts<\/span>/);
   assert.match(html, /13\.0 expected pts<\/span>/);
-  assert.match(html, /18\.0 expected pts<\/span>/);
+  assert.match(html, /26\.0 expected pts<\/span>/);
+  assert.match(html, /36\.0 expected pts<\/span>/);
   assert.doesNotMatch(html, /2× included/);
 });
 
@@ -130,7 +136,7 @@ test("a single answer exposes probability-times-payout rather than podium scorin
   });
   const html = predictMarkup(publication, now);
   assert.match(html, /30\.0% model probability/);
-  assert.match(html, /Payout × model probability/);
+  assert.doesNotMatch(html, /<caption>|Payout × model probability/);
   assert.match(html, /<td>10\.0<\/td><td>60\.0%<\/td><td>6\.0<\/td>/);
   assert.match(html, /<td>20\.0<\/td><td>30\.0%<\/td><td>6\.0<\/td>/);
   assert.match(html, /<td>30\.0<\/td><td>10\.0%<\/td><td>3\.0<\/td>/);

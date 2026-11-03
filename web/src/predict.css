@@ -160,16 +160,23 @@ body[data-page="predict"] #state-banner {
   border-collapse: collapse;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+  table-layout: fixed;
+  white-space: normal;
 }
-.predict-table caption {
-  text-align: left;
-  color: var(--muted);
-  padding-bottom: 12px;
-  line-height: 1.6;
+.predict-table th:first-child {
+  width: 30%;
+}
+.predict-table th:nth-child(2) {
+  width: 16%;
+}
+.predict-slot-value {
+  display: block;
+  line-height: 1.7;
 }
 .predict-table th,
 .predict-table td {
-  padding: 12px 8px;
+  padding: 12px 4px;
+  overflow-wrap: anywhere;
   border-bottom: 1px solid var(--rule);
   text-align: right;
 }
