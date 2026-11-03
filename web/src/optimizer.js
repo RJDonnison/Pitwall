@@ -132,16 +132,6 @@ export function validateTeam(data, team) {
 
 function chipInputs(data, allowed) {
   data.rounds.forEach((round, t) => {
-    if (allowed[t].includes("no_negative"))
-      for (const a of data.assets) {
-        const delta = round.no_negative?.[a.id];
-        if (
-          !Array.isArray(delta) ||
-          delta.length !== 3 ||
-          delta.some((v) => !Number.isFinite(v) || v < 0)
-        )
-          fail(`No verified No Negative uplift for ${a.name}.`);
-      }
     if (allowed[t].includes("autopilot")) {
       if (!round.autopilot?.length)
         fail("No common Autopilot scenarios are available.");
@@ -274,7 +264,7 @@ export function buildModel(data, team) {
         }
       }
       if ("no_negative" in h) {
-        const uplift = total(round.no_negative[a.id]);
+        const uplift = total(round.forecasts[a.id].map((v) => Math.max(0, -v)));
         both(x[a.id], h.no_negative, -uplift);
         if (a.kind === "DRIVER") both(b[a.id], h.no_negative, -uplift);
       }
@@ -552,7 +542,7 @@ export function optimize(highs, data, team) {
       if (a.id === x3?.id) for (let k = 0; k < 3; k++) extra[k] += 2 * base[k];
       if (chip === "no_negative")
         for (let k = 0; k < 3; k++)
-          extra[k] += r.no_negative[a.id][k] * (a.id === boost.id ? 2 : 1);
+          extra[k] += Math.max(0, -base[k]) * (a.id === boost.id ? 2 : 1);
       return {
         id: a.id,
         base,

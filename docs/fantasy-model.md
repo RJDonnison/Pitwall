@@ -3,8 +3,8 @@
 The Fantasy model is distinct from real-F1 probabilities and championship
 points. `fantasy_model.py` learns **unboosted official Fantasy session totals**.
 The optimizer subsequently applies Boost, chips, budget and net-transfer rules.
-No Negative retains verified negative-category recovery with its target-session
-downside floor; Autopilot uses joint scenarios centred on published forecasts.
+No Negative floors each driver and constructor session forecast at zero without
+changing positive values; Autopilot uses joint scenarios centred on published forecasts.
 
 ## Inputs and cutoffs
 

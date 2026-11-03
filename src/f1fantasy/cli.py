@@ -145,9 +145,7 @@ def _plan(args, live, weekends, state):
         eligibility[index] = names
     if active:
         eligibility[0] = frozenset({active})
-    empirical = any(
-        names & {"autopilot", "no_negative"} for names in eligibility.values()
-    )
+    empirical = any("autopilot" in names for names in eligibility.values())
     values = load_chip_values(live.assets, horizon, forecasts) if empirical else None
     lineups = optimize(
         live.assets,
@@ -1327,7 +1325,7 @@ def main(argv: list[str] | None = None) -> int:
             print("Initial team: $100.0m budget, unlimited first-race changes")
         if reserves:
             warnings.append(
-                "Chip reserve points are explicit heuristic opportunity costs beyond the horizon; empirical Autopilot/No Negative forecasts are small-sample approximations."
+                "Chip reserve points are explicit heuristic opportunity costs beyond the horizon; empirical Autopilot forecasts are small-sample approximations."
             )
             if args.format == "text":
                 print(warnings[-1])

@@ -255,12 +255,21 @@ test("paid net transfers and carry match Python across a full horizon", () => {
   );
 });
 
-test("No Negative uses category uplift even when the original session is positive", () => {
+test("No Negative preserves positive scores and floors negative sessions before Boost", () => {
   const { data, team } = fixture();
   team.active = "no_negative";
+  data.rounds = [data.rounds[0]];
+  for (const a of data.assets) data.rounds[0].forecasts[a.id] = [5, -3, 8];
+  const original = structuredClone(data);
   const r = optimize(highs, data, team).rounds[0];
   assert.equal(r.chip, "no_negative");
-  for (const e of r.entries) assert.ok(e.extra[0] >= 1);
+  for (const e of r.entries)
+    assert.deepEqual(e.sessions, e.id === r.boost ? [10, 0, 16] : [5, 0, 8]);
+  assert.equal(r.points, 104 - r.penalty);
+  assert.deepEqual(data, original);
+  // The floor depends on forecasts, not obsolete published category uplifts.
+  delete data.rounds[0].no_negative;
+  assert.equal(optimize(highs, data, team).points, r.points);
 });
 
 test("active Autopilot and x3 persist without remaining inventory", () => {
@@ -312,11 +321,13 @@ test("Wildcard still respects budget and remaining chips rather than equating di
   const capped = optimize(highs, data, team);
   const richer = optimize(highs, data, { ...team, budget: 450 });
   assert.ok(richer.points > capped.points);
+  for (const a of data.assets) data.rounds[1].forecasts[a.id][0] = -20;
+  const withoutFloor = optimize(highs, data, team);
   const extraChip = optimize(highs, data, {
     ...team,
     chips: ["wildcard", "no_negative"],
   });
-  assert.ok(extraChip.points > capped.points);
+  assert.ok(extraChip.points > withoutFloor.points);
   assert.equal(extraChip.rounds[0].chip, "wildcard");
   assert.equal(extraChip.rounds[1].chip, "no_negative");
 });

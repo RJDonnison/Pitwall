@@ -139,10 +139,15 @@ def test_active_limitless_without_restoration_is_single_weekend_and_uncapped():
         )
 
 
-def test_nn_applies_per_asset_and_to_boost_without_clamping_forecast():
+@pytest.mark.parametrize(
+    "forecast", [Estimate(5, 0, 3), Estimate(-5, 0, 3), Estimate(5, 0, -3)]
+)
+def test_nn_floors_each_session_before_boost_without_inflating_positive_scores(
+    forecast,
+):
     assets, weekends, estimates, _ = fixture(1)
-    estimates = {key: Estimate(5, 0, 3) for key in estimates}
-    # Positive net sessions can still have negative scoring categories removed.
+    estimates = {key: forecast for key in estimates}
+    # Old category-uplift inputs must not inflate positive scores.
     uplift = {
         (0, a.id): Estimate(1, 0, 7 if a.kind == "CONSTRUCTOR" else 2) for a in assets
     }
@@ -155,8 +160,10 @@ def test_nn_applies_per_asset_and_to_boost_without_clamping_forecast():
         chip_values=ChipValues(no_negative=uplift),
         forced_chip="no_negative",
     )[0]
-    # Eight base copies, six driver uplift copies, two constructor copies.
-    assert lineup.session_points == Estimate(8 * 6, 0, 8 * 3 + 6 * 2 + 2 * 7)
+    # Seven selections plus one extra copy of the boosted driver.
+    assert lineup.session_points == Estimate(
+        *(8 * max(0, v) for v in chips.components(forecast))
+    )
     assert lineup.expected_points == lineup.session_points.total
 
 
@@ -217,7 +224,10 @@ def test_two_round_chip_and_net_transfers_match_exhaustive_search(chip, penaltie
         ds = [a for a in team if a.kind == "DRIVER"]
         scores = {a.id: estimates[t, a.id].total for a in team}
         if active == "no_negative":
-            scores = {a.id: scores[a.id] + nn[t, a.id].total for a in team}
+            scores = {
+                a.id: sum(max(0, v) for v in chips.components(estimates[t, a.id]))
+                for a in team
+            }
         base = sum(scores.values())
         if active == "autopilot":
             return base + sum(max(s[a.id].total for a in ds) for s in ap[t]) / len(
@@ -437,22 +447,21 @@ def test_custom_limitless_followup_expires_after_one_budget_capped_weekend():
     assert all(r.cost <= 70 for r in plan[1:])
 
 
-def test_sprint_forecast_and_nn_uplift_both_receive_boost():
+def test_no_negative_sprint_floor_and_positive_sessions_receive_regular_boost():
     assets, weekends, estimates, _ = fixture(1)
     weekends[0] = replace(weekends[0], sprint=True)
-    estimates = {key: Estimate(0, 1, 0) for key in estimates}
-    nn = {(0, a.id): Estimate(0, 3 if a.id == "5" else 0, 0) for a in assets}
+    estimates = {key: Estimate(2, -1, 3) for key in estimates}
+    estimates[0, "5"] = Estimate(8, -3, 5)
     result = optimize(
         assets,
         weekends,
         estimates,
         100,
         available_chips=frozenset({"no_negative"}),
-        chip_values=ChipValues(no_negative=nn),
         forced_chip="no_negative",
     )[0]
     assert result.boost.id == "5"
-    assert result.session_points == Estimate(0, 14, 0)
+    assert result.session_points == Estimate(28, 0, 28)
 
 
 def test_reserve_saves_chip_beyond_horizon_and_is_not_reported_as_score():
@@ -528,7 +537,7 @@ def test_first_round_allows_immediate_chips_but_not_unlocked_chips():
             )
 
 
-@pytest.mark.parametrize("chip", ["autopilot", "no_negative"])
+@pytest.mark.parametrize("chip", ["autopilot"])
 def test_missing_empirical_inputs_fail_closed_only_when_eligible(chip):
     assets, weekends, estimates, _ = fixture(1)
     with pytest.raises(DataError):
@@ -551,15 +560,15 @@ def test_invalid_values(value):
     assets, weekends, estimates, _ = fixture(1)
     with pytest.raises(DataError):
         optimize(assets, weekends, estimates, 100, chip_reserve={"x3": value})
-    nn = {(0, a.id): Estimate(value, 0, 0) for a in assets}
+    invalid_forecasts = dict(estimates)
+    invalid_forecasts[0, "0"] = Estimate(float("nan") if value == -1 else value, 0, 0)
     with pytest.raises(DataError):
         optimize(
             assets,
             weekends,
-            estimates,
+            invalid_forecasts,
             100,
             available_chips=frozenset({"no_negative"}),
-            chip_values=ChipValues(no_negative=nn),
         )
 
 
@@ -657,16 +666,16 @@ def history_fixture(monkeypatch):
     return assets, weekends, estimates, fetched, get
 
 
-def test_loader_strict_cutoff_last_five_same_type_and_official_category_uplift(
+def test_loader_strict_cutoff_last_five_same_type_and_zero_floor(
     monkeypatch,
 ):
     assets, weekends, estimates, fetched, _ = history_fixture(monkeypatch)
     values = load_chip_values(assets, weekends, estimates)
     assert set(fetched) == {5, 7, 9, 11, 13, 6, 8, 10, 12, 14}
     assert len(fetched) == 10
-    assert values.no_negative[0, "0"] == Estimate(1, 0, 5)
-    assert values.no_negative[0, "c0"] == Estimate(1, 0, 11)
-    assert values.no_negative[1, "c0"] == Estimate(1, 7, 11)
+    assert values.no_negative[0, "0"] == Estimate(0, 0, 0)
+    assert values.no_negative[0, "c0"] == Estimate(0, 0, 0)
+    assert values.no_negative[1, "c0"] == Estimate(0, 0, 0)
     for t in range(2):
         assert len(values.autopilot[t]) == 5
         for a in assets[:6]:
@@ -689,20 +698,13 @@ def test_loader_strict_cutoff_last_five_same_type_and_official_category_uplift(
                     sum(chips.components(s["scores"][a.id])[k] for s in values.joint[t])
                     / 5
                 )
-                adjusted_mean = (
-                    sum(
-                        chips.components(s["no_negative"][a.id])[k]
-                        for s in values.joint[t]
-                    )
-                    / 5
-                )
                 assert base_mean == pytest.approx(
                     chips.components(estimates[t, a.id])[k]
                 )
-                assert adjusted_mean == pytest.approx(
-                    chips.components(estimates[t, a.id])[k]
-                    + chips.components(values.no_negative[t, a.id])[k]
-                )
+                for s in values.joint[t]:
+                    assert chips.components(s["no_negative"][a.id])[k] == max(
+                        0, chips.components(s["scores"][a.id])[k]
+                    )
         # Constructor shocks belong to the very same weekend as driver shocks.
         for s in values.joint[t]:
             assert s["scores"]["c0"].race - estimates[t, "c0"].race == pytest.approx(
@@ -724,7 +726,7 @@ def test_no_negative_loader_covers_target_downside_and_scheduler_prefers_it(
         estimates[0, a.id] = Estimate(2, 0, 20)
         estimates[1, a.id] = Estimate(-4, 0, -30)
     values = load_chip_values(assets, weekends, estimates)
-    assert values.no_negative[0, "0"] == Estimate(1, 0, 5)
+    assert values.no_negative[0, "0"] == Estimate(0, 0, 0)
     assert values.no_negative[1, "0"] == Estimate(4, 0, 30)
     assert values.no_negative[1, "c0"] == Estimate(4, 0, 30)
     lineups = optimize(
@@ -744,7 +746,7 @@ def test_no_negative_downside_is_sessionwise_not_net_weekend(monkeypatch):
     assets, weekends, estimates, _, _ = history_fixture(monkeypatch)
     estimates[1, "0"] = Estimate(25, -18, -30)
     values = load_chip_values(assets, weekends, estimates)
-    assert values.no_negative[1, "0"] == Estimate(1, 18, 30)
+    assert values.no_negative[1, "0"] == Estimate(0, 18, 30)
 
 
 def test_loader_excludes_null_weekends_from_the_entire_joint_sample(monkeypatch):
@@ -763,7 +765,7 @@ def test_loader_excludes_null_weekends_from_the_entire_joint_sample(monkeypatch)
     assert len(values.autopilot[0]) == 4
     assert len(values.joint[0]) == 4
     assert len(values.autopilot[1]) == 5
-    assert values.no_negative[0, "c0"] == Estimate(1, 0, 11)
+    assert values.no_negative[0, "c0"] == Estimate(0, 0, 0)
     for a in assets[:6]:
         assert sum(s[a.id].total for s in values.autopilot[0]) / 4 == pytest.approx(
             estimates[0, a.id].total
@@ -775,7 +777,7 @@ def test_loader_fails_when_every_common_sample_has_null_points(monkeypatch):
 
     def unavailable(path):
         feed = get(path)
-        feed["Value"][0]["SessionWisePoints"][0]["nonegative_points"] = None
+        feed["Value"][0]["SessionWisePoints"][0]["points"] = None
         return feed
 
     monkeypatch.setattr(data, "_get_json", unavailable)
@@ -783,7 +785,7 @@ def test_loader_fails_when_every_common_sample_has_null_points(monkeypatch):
         load_chip_values(assets, weekends, estimates)
 
 
-@pytest.mark.parametrize("bad", ["missing_session", "nan", "negative_uplift", "total"])
+@pytest.mark.parametrize("bad", ["missing_session", "nan", "total"])
 def test_loader_rejects_incomplete_common_samples(monkeypatch, bad):
     assets, weekends, estimates, _, get = history_fixture(monkeypatch)
 
@@ -793,9 +795,7 @@ def test_loader_rejects_incomplete_common_samples(monkeypatch, bad):
         if bad == "missing_session":
             row["SessionWisePoints"].pop()
         elif bad == "nan":
-            row["SessionWisePoints"][0]["nonegative_points"] = float("nan")
-        elif bad == "negative_uplift":
-            row["SessionWisePoints"][0]["nonegative_points"] = -1
+            row["SessionWisePoints"][0]["points"] = float("nan")
         else:
             row["GamedayPoints"] = 999
         return feed

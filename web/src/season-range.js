@@ -4,8 +4,7 @@ const sum = (values) => values.reduce((a, b) => a + b, 0);
 const simulations = 2048;
 
 export function scenarioPoints(round, scenario, driverIds) {
-  const scores =
-    round.chip === "no_negative" ? scenario.no_negative : scenario.scores;
+  const scores = scenario.scores;
   const values = round.entries.map(({ id }) => scores?.[id]);
   if (
     values.some(
@@ -17,7 +16,14 @@ export function scenarioPoints(round, scenario, driverIds) {
   )
     return null;
   const totals = Object.fromEntries(
-    round.entries.map(({ id }, i) => [id, sum(values[i])]),
+    round.entries.map(({ id }, i) => [
+      id,
+      sum(
+        round.chip === "no_negative"
+          ? values[i].map((v) => Math.max(0, v))
+          : values[i],
+      ),
+    ]),
   );
   const boost =
     round.chip === "autopilot"

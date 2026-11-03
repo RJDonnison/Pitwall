@@ -10,7 +10,14 @@ from scipy.sparse import coo_matrix
 
 from .data import Asset, DataError, Weekend
 from .projections import Estimate
-from .chips import CHIPS, PREWEEK_CHIPS, ChipValues, components, valid_estimate
+from .chips import (
+    CHIPS,
+    PREWEEK_CHIPS,
+    ChipValues,
+    components,
+    no_negative_uplift,
+    valid_estimate,
+)
 
 
 @dataclass(frozen=True)
@@ -122,15 +129,6 @@ def optimize(
         )
     values = chip_values or ChipValues()
     for t, names in enumerate(allowed):
-        if "no_negative" in names:
-            for a in assets:
-                delta = values.no_negative.get((t, a.id))
-                if (
-                    delta is None
-                    or not valid_estimate(delta)
-                    or min(components(delta)) < 0
-                ):
-                    raise DataError(f"Missing finite No Negative uplift for {a.name}")
         if "autopilot" in names:
             scenarios = values.autopilot.get(t, ())
             if not scenarios or any(
@@ -221,7 +219,7 @@ def optimize(
                     row({triple[asset.id]: 1, x[asset.id]: -1}, high=0)
                     row({triple[asset.id]: 1, b[asset.id]: 1}, high=1)
             if "no_negative" in h:
-                uplift = values.no_negative[t, asset.id].total
+                uplift = no_negative_uplift(score).total
                 both(x[asset.id], h["no_negative"], -uplift)
                 if asset.kind == "DRIVER":
                     both(b[asset.id], h["no_negative"], -uplift)
@@ -375,8 +373,11 @@ def optimize(
         if chip == "no_negative":
             for k in range(3):
                 session[k] += (
-                    sum(components(values.no_negative[t, a.id])[k] for a in chosen)
-                    + components(values.no_negative[t, boost.id])[k]
+                    sum(
+                        components(no_negative_uplift(estimates[t, a.id]))[k]
+                        for a in chosen
+                    )
+                    + components(no_negative_uplift(estimates[t, boost.id]))[k]
                 )
         session_points = Estimate(*session)
         points = session_points.total - penalty

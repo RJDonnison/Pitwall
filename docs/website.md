@@ -50,9 +50,10 @@ objective, first-team unlimited changes,
 once-per-season/one-chip-per-round eligibility, capped Wildcard and uncapped
 temporary Limitless with restoration and carry reset. Autopilot values the best
 selected **whole-weekend** driver within correlated empirical scenarios. No
-Negative uses official category-adjusted uplifts for drivers, constructors and
-Boost, not a clamp on net session totals. Chips absent from historical evidence
-are disabled with an explanation rather than assigned invented values.
+Negative clamps driver and constructor session totals at zero before Boost,
+preserving positive forecasts and leaving transfer penalties separate. It does
+not require historical chip evidence. Autopilot is disabled with an explanation
+when its historical evidence is unavailable.
 
 Browser tests compare objectives with the existing Python solver for every
 pre-weekend chip, Sprint scoring, carry and paid transfers, plus chronological

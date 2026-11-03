@@ -91,7 +91,7 @@ def test_publication_includes_all_remaining_inputs_and_no_account_data(public):
     assert result["preview_only"] and result["status"] == "ready"
     assert len(result["rounds"]) == 2 and len(result["assets"]) == 9
     assert result["rounds"][0]["forecasts"]["0"] == (2, 0, 10)
-    assert result["rounds"][0]["no_negative"]["0"] == (1, 0, 2)
+    assert result["rounds"][0]["no_negative"]["0"] == (0, 0, 0)
     assert result["rounds"][0]["joint_scenarios"][0]["scores"]["6"] == (2, 0, 10)
     assert result["rounds"][0]["joint_scenarios"][0]["no_negative"]["0"] == (3, 0, 12)
     assert result["skipped_history_gamedays"] == (13,)
@@ -112,7 +112,8 @@ def test_missing_empirical_history_disables_chips_instead_of_zero_imputation(
     monkeypatch.setattr(web_data, "load_chip_values", missing)
     result = web_data.build(2026)
     assert not result["chip_support"]["autopilot"]["available"]
-    assert not result["chip_support"]["no_negative"]["available"]
+    assert result["chip_support"]["no_negative"]["available"]
+    assert result["rounds"][0]["no_negative"]["0"] == (0, 0, 0)
     assert result["chip_support"]["x3"]["available"]
     assert "autopilot" not in result["rounds"][0]
 

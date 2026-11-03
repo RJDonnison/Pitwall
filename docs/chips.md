@@ -51,11 +51,12 @@ lineups = optimize(
 ```
 
 `ChipValues.no_negative[(t, asset_id)]` is an `Estimate` of **uplifts** in
-qualifying, sprint and race points, not a replacement forecast.
+qualifying, sprint and race points, not a replacement forecast. It is retained
+for reporting; optimizers compute the zero floor from the forecast directly.
 `ChipValues.autopilot[t]` is a tuple of equally likely scenarios, each mapping
 every active driver ID to an `Estimate` of session outcomes. Each driver's
 per-session sample means must equal the supplied forecast. Missing eligible
-NN/AP inputs or nonfinite values fail closed. Inputs for ineligible chips are
+Autopilot inputs or nonfinite forecasts fail closed. Inputs for ineligible chips are
 not required. Custom callers can construct only the fields they need.
 
 The loader fetches official `drivers/{gameday_id}_en.json` feeds through
@@ -71,25 +72,20 @@ It fails if no complete sample remains or other data is inconsistent.
 `skipped_history_gamedays` records excluded null-score weekends. No future-horizon
 actual results or cumulative season totals are used.
 
-No Negative uplift starts with the mean official sessionwise
-`nonegative_points - points`, including constructor-specific category adjustments.
-For each target session it is at least the magnitude of that asset's negative
-forecast: `max(historical category uplift, -forecast session points)`. Removing
-negative categories cannot leave a negative expected session score. This floor
-lets a large predicted downside increase the chip's value for that weekend,
-instead of assigning identical uplifts to all same-format rounds. It is applied
-before the selected driver's 2× multiplier and excludes transfer penalties.
-A positive session can have a positive uplift: clamping net session scores is
-incorrect. Sprint uplifts come only from Sprint weekends. The 2× driver's
-uplift is counted twice.
+No Negative clamps each driver's and constructor's qualifying, Sprint and race
+forecast to `max(0, session points)`. Positive forecasts are unchanged. Its uplift
+is exactly `max(0, -session points)`, applied before the selected driver's 2×
+multiplier; transfer penalties remain separate. No historical chip inputs are
+required. The optimizers derive this floor from the forecast rather than trusting
+previously published category uplifts. Joint range scenarios use the same zero
+floor on each sampled session outcome.
 
 Autopilot scenarios center historical driver session outcomes on forecast means,
 retaining joint historical variation. Each scenario adds the maximum **total
 weekend** score among the five selected drivers, replacing the ordinary fixed
 Boost extra. It does not choose a separate winner per session. This is a small-
 sample empirical approximation, not a calibrated joint predictive distribution;
-one sample has no variation. NN uses empirical mean uplift with a forecast-negative
-floor rather than a full conditional category-outcome model. These approximations are
+one sample has no variation. These approximations are
 exactly optimized by the MILP; they are not claims of exact chip forecasts.
 
 ## Lineup output and transfers

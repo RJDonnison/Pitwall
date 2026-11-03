@@ -98,13 +98,21 @@ def test_chip_recommendation_reports_x3_sessions_and_terminal_reserve(game, caps
 
 def test_recommendation_reports_empirical_history_coverage(game, monkeypatch, capsys):
     live, state, path = game
-    state["available_chips"] = ["no_negative"]
+    state["available_chips"] = ["autopilot"]
     path.write_text(json.dumps(state))
     monkeypatch.setattr(
         cli,
         "load_chip_values",
         lambda *a: ChipValues(
-            no_negative={(0, a.id): Estimate(0, 0, 1) for a in live.assets},
+            autopilot={
+                0: (
+                    {
+                        asset.id: a[2][0, asset.id]
+                        for asset in live.assets
+                        if asset.kind == "DRIVER"
+                    },
+                )
+            },
             history_gamedays={0: (7, 8, 9)},
             skipped_history_gamedays=(5, 6),
         ),
@@ -116,6 +124,24 @@ def test_recommendation_reports_empirical_history_coverage(game, monkeypatch, ca
         "skipped_null_score_gamedays": [5, 6],
     }
     assert any("excluded official null-score" in w for w in output["warnings"])
+
+
+def test_no_negative_does_not_fetch_empirical_chip_history(game, monkeypatch, capsys):
+    _, state, path = game
+    state["available_chips"] = ["no_negative"]
+    path.write_text(json.dumps(state))
+    monkeypatch.setattr(
+        cli,
+        "load_chip_values",
+        lambda *a: pytest.fail("No Negative only needs forecasts"),
+    )
+    assert (
+        run(path, "recommend", "--no-account", "--chip", "no_negative", "--races", "1")
+        == 0
+    )
+    output = json.loads(capsys.readouterr().out)["data"]
+    assert output["chip_history"] is None
+    assert output["lineups"][0]["chip"] == "no_negative"
 
 
 def test_chip_inventory_and_reserve_failures_do_not_produce_recommendations(

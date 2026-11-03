@@ -28,20 +28,26 @@ def valid_estimate(value: Estimate) -> bool:
     return all(isfinite(n) for n in components(value)) and isfinite(value.total)
 
 
+def no_negative_uplift(value: Estimate) -> Estimate:
+    """Floor each session at zero without increasing positive forecasts."""
+    return Estimate(*(max(0.0, -n) for n in components(value)))
+
+
 @dataclass(frozen=True)
 class ChipValues:
     """Keys are zero-based horizon indices, not championship round numbers.
 
-    No Negative values are *uplifts*, not adjusted forecasts. Autopilot scenarios
+    No Negative values report zero-floor *uplifts*, not adjusted forecasts.
+    Optimizers derive the floor directly from forecasts. Autopilot scenarios
     contain correlated driver session outcomes, with means equal to forecasts.
-    Missing eligible inputs are an error, never a zero-value chip assumption.
+    Missing eligible Autopilot inputs are an error.
     """
 
     no_negative: dict[tuple[int, str], Estimate] = field(default_factory=dict)
     autopilot: dict[int, tuple[dict[str, Estimate], ...]] = field(default_factory=dict)
     history_gamedays: dict[int, tuple[int, ...]] = field(default_factory=dict)
     skipped_history_gamedays: tuple[int, ...] = ()
-    # Assets with no (same-format) history, valued neutrally: score = forecast, no uplift.
+    # Assets without same-format history have neutral Autopilot scenarios.
     imputed_assets: tuple[str, ...] = ()
     joint: dict[int, tuple[dict[str, dict[str, Estimate]], ...]] = field(
         default_factory=dict
@@ -63,10 +69,8 @@ def load_chip_values(
     """Use at most five completed same-format official current-season weekends.
 
     All samples precede the *first* forecast weekend, even for later horizons.
-    Require every active asset in the common sample. The official category-
-    adjusted nonegative_points is deliberately not max(0, session points).
-    Target-session uplift cannot be smaller than its forecast negative score;
-    removing negative categories must leave nonnegative expected session points.
+    No Negative floors each forecast/session scenario at zero. Historical
+    category-adjusted nonegative_points are not used to inflate positive scores.
     """
     if not weekends or any(w.season != weekends[0].season for w in weekends):
         raise DataError("Chip history requires one nonempty season horizon")
@@ -82,7 +86,7 @@ def load_chip_values(
         ),
         key=lambda w: w.first_session,
     )
-    samples: dict[bool, list[tuple[dict[str, Estimate], dict[str, Estimate]]]] = {}
+    samples: dict[bool, list[dict[str, Estimate]]] = {}
     sampled: dict[bool, list[int]] = {}
     skipped: list[int] = []
     for sprint in {w.sprint for w in weekends}:
@@ -93,7 +97,6 @@ def load_chip_values(
         sampled[sprint] = []
         for weekend in matching:
             scores: dict[str, Estimate] = {}
-            uplifts: dict[str, Estimate] = {}
             try:
                 from .public_history import fantasy_feed
 
@@ -104,7 +107,7 @@ def load_chip_values(
                 # An official null is unavailable history, never zero points.
                 # Exclude the entire joint sample so drivers stay correlated.
                 if any(
-                    session["points"] is None or session["nonegative_points"] is None
+                    session["points"] is None
                     for item in rows
                     if str(item["PlayerId"]) in active
                     for session in item["SessionWisePoints"]
@@ -118,7 +121,6 @@ def load_chip_values(
                     if key in scores or item["PositionName"] != active[key].kind:
                         raise DataError("Duplicate or mismatched chip-history asset")
                     points = [0.0, 0.0, 0.0]
-                    uplift = [0.0, 0.0, 0.0]
                     seen = set()
                     expected = {"Qualifying", "Race"} | (
                         {"Sprint"} if sprint else set()
@@ -134,29 +136,24 @@ def load_chip_values(
                         seen.add(kind)
                         index = {"Qualifying": 0, "Sprint": 1, "Race": 2}[kind]
                         points[index] = float(session["points"])
-                        uplift[index] = (
-                            float(session["nonegative_points"]) - points[index]
-                        )
-                    score, delta = Estimate(*points), Estimate(*uplift)
+                    score = Estimate(*points)
                     if (
                         seen != expected
                         or not valid_estimate(score)
-                        or not valid_estimate(delta)
-                        or min(uplift) < 0
                         or not isfinite(float(item["GamedayPoints"]))
                         or abs(score.total - float(item["GamedayPoints"])) > 1e-6
                     ):
                         raise DataError(
                             "Incomplete or inconsistent chip-history scores"
                         )
-                    scores[key], uplifts[key] = score, delta
+                    scores[key] = score
                 if not scores:
                     raise DataError("Chip history contains no active asset")
             except (KeyError, TypeError, ValueError) as exc:
                 raise DataError(
                     f"Unverifiable chip history for {weekend.name}: {exc}"
                 ) from exc
-            samples[sprint].append((scores, uplifts))
+            samples[sprint].append(scores)
             sampled[sprint].append(weekend.gameday_id)
         if not samples[sprint]:
             raise DataError(
@@ -169,13 +166,13 @@ def load_chip_values(
     # Chip expectations can use neutral imputation, but prediction ranges need
     # observed common history for every selected asset.
     common_ids = {
-        sprint: set.intersection(*(set(s) for s, _ in sample))
+        sprint: set.intersection(*(set(s) for s in sample))
         for sprint, sample in samples.items()
     }
     imputed: set[str] = set()
     for sample in samples.values():
         for asset_id in sorted(active_ids):
-            present = [(s, u) for s, u in sample if asset_id in s]
+            present = [s for s in sample if asset_id in s]
             if len(present) == len(sample):
                 continue
             imputed.add(asset_id)
@@ -184,20 +181,14 @@ def load_chip_values(
                     "Chip history lacks a common sample for all active assets"
                 )
             mean_s = [
-                sum(components(s[asset_id])[k] for s, _ in present) / len(present)
+                sum(components(s[asset_id])[k] for s in present) / len(present)
                 if present
                 else 0.0
                 for k in range(3)
             ]
-            mean_u = [
-                sum(components(u[asset_id])[k] for _, u in present) / len(present)
-                if present
-                else 0.0
-                for k in range(3)
-            ]
-            for s, u in sample:
+            for s in sample:
                 if asset_id not in s:
-                    s[asset_id], u[asset_id] = Estimate(*mean_s), Estimate(*mean_u)
+                    s[asset_id] = Estimate(*mean_s)
     nn: dict[tuple[int, str], Estimate] = {}
     ap: dict[int, tuple[dict[str, Estimate], ...]] = {}
     joint = {}
@@ -209,19 +200,10 @@ def load_chip_values(
             if forecast is None or not valid_estimate(forecast):
                 raise DataError(f"Missing finite chip forecast for {asset.name}")
             means[asset.id] = tuple(
-                sum(components(s[asset.id])[k] for s, _ in sample) / len(sample)
+                sum(components(s[asset.id])[k] for s in sample) / len(sample)
                 for k in range(3)
             )
-            nn[t, asset.id] = Estimate(
-                *(
-                    max(
-                        sum(components(u[asset.id])[k] for _, u in sample)
-                        / len(sample),
-                        -components(forecast)[k],
-                    )
-                    for k in range(3)
-                )
-            )
+            nn[t, asset.id] = no_negative_uplift(forecast)
         ap[t] = tuple(
             {
                 a.id: Estimate(
@@ -235,21 +217,10 @@ def load_chip_values(
                 for a in assets
                 if a.kind == "DRIVER"
             }
-            for scores, _ in sample
+            for scores in sample
         )
         # Keep each historical weekend intact across every driver, constructor
         # and session. Independent asset sampling would lose their covariance.
-        adjusted_means = {
-            a.id: tuple(
-                sum(
-                    components(scores[a.id])[k] + components(uplifts[a.id])[k]
-                    for scores, uplifts in sample
-                )
-                / len(sample)
-                for k in range(3)
-            )
-            for a in assets
-        }
         joint[t] = tuple(
             {
                 "scores": {
@@ -267,18 +238,12 @@ def load_chip_values(
                 "no_negative": {
                     a.id: Estimate(
                         *(
-                            (
+                            max(
+                                0.0,
                                 components(estimates[t, a.id])[k]
-                                + components(nn[t, a.id])[k]
+                                + components(scores[a.id])[k]
+                                - means[a.id][k],
                             )
-                            * (
-                                components(scores[a.id])[k]
-                                + components(uplifts[a.id])[k]
-                            )
-                            / adjusted_means[a.id][k]
-                            if adjusted_means[a.id][k] > 0
-                            else components(estimates[t, a.id])[k]
-                            + components(nn[t, a.id])[k]
                             for k in range(3)
                         )
                     )
@@ -286,7 +251,7 @@ def load_chip_values(
                     if a.id in common_ids[weekend.sprint]
                 },
             }
-            for scores, uplifts in sample
+            for scores in sample
         )
     return ChipValues(
         nn,

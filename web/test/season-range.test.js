@@ -40,7 +40,7 @@ test("joint scoring includes seven selections, boost, tripling and penalties", (
       scenario(10),
       drivers,
     ),
-    110,
+    70,
   );
 });
 
@@ -101,19 +101,26 @@ test("cumulative bands retain correlated team shocks and sample later weekends i
   );
 });
 
-test("missing constructor, chip, or complete joint history never invents a range", () => {
+test("missing constructor or complete joint history never invents a range", () => {
   for (const change of [
     (r) => delete r.joint_scenarios,
     (r) => r.joint_scenarios.pop(),
     (r) => delete r.joint_scenarios[0].scores["6"],
     (r) => (r.joint_scenarios[1].scores["1"][2] = NaN),
-    (r) => {
-      r.chip = "no_negative";
-      delete r.joint_scenarios[0].no_negative;
-    },
   ]) {
     const r = round();
     change(r);
     assert.equal(seasonRange({ assets }, [r]).status, "unavailable");
   }
+});
+
+test("No Negative clamps sampled sessions without using category uplifts or erasing penalties", () => {
+  const s = scenario(10);
+  s.scores["0"] = [-5, 7, -12];
+  s.scores["5"] = [2, -8, 4];
+  const r = { ...round(), chip: "no_negative", penalty: 10 };
+  // Five other assets score 50, the driver scores 7 twice, constructor scores 6.
+  assert.equal(scenarioPoints(r, s, drivers), 60);
+  delete s.no_negative;
+  assert.equal(scenarioPoints(r, s, drivers), 60);
 });

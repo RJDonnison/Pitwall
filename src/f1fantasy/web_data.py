@@ -20,7 +20,13 @@ from . import (
     practice as practice_model,
     weekend_phase,
 )
-from .chips import CHIPS, components, load_chip_values, valid_estimate
+from .chips import (
+    CHIPS,
+    components,
+    load_chip_values,
+    no_negative_uplift,
+    valid_estimate,
+)
 from .projections import Estimate, estimate_assets
 from .race_context import race_context
 
@@ -124,7 +130,12 @@ def price_history(live):
 
 
 def build(
-    season: int, *, telemetry: bool = True, archive=None, phase=None, practice_loader=None
+    season: int,
+    *,
+    telemetry: bool = True,
+    archive=None,
+    phase=None,
+    practice_loader=None,
 ) -> dict:
     phase = phase or weekend_phase.Phase(weekend_phase.OPEN, None)
     pace, practice_error = {}, None
@@ -184,8 +195,7 @@ def build(
         values = load_chip_values(live.assets, weekends, forecasts)
     except data.DataError as exc:
         values = None
-        for name in ("autopilot", "no_negative"):
-            support[name] = {"available": False, "reason": str(exc)}
+        support["autopilot"] = {"available": False, "reason": str(exc)}
     rounds = []
     for t, weekend in enumerate(weekends):
         row = output.event(weekend)
@@ -195,10 +205,11 @@ def build(
         row.update(contexts[t])
         row["forecasts"] = {a.id: components(forecasts[t, a.id]) for a in live.assets}
         row["weather_model"] = weather_models[t]
+        row["no_negative"] = {
+            a.id: components(no_negative_uplift(forecasts[t, a.id]))
+            for a in live.assets
+        }
         if values is not None:
-            row["no_negative"] = {
-                a.id: components(values.no_negative[t, a.id]) for a in live.assets
-            }
             row["autopilot"] = [
                 {key: components(score) for key, score in scenario.items()}
                 for scenario in values.autopilot[t]
@@ -341,7 +352,9 @@ def produce(season, *, now, previous, history, archive_path, telemetry=True):
         pass  # schedule unavailable: try a normal refresh, fall back below
     if phase.state == weekend_phase.PAUSED and previous:
         return carry_forward(
-            previous, phase, "Predictions are paused from qualifying until the race finishes."
+            previous,
+            phase,
+            "Predictions are paused from qualifying until the race finishes.",
         )
     try:
         with public_history.repository(history):

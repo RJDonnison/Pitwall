@@ -33,7 +33,7 @@ export const chipDescriptions = {
   autopilot: "2× goes to the best selected driver across the whole weekend.",
   x3: "Triple one driver, with a different driver on regular 2×.",
   no_negative:
-    "Removes negative scoring categories; transfer penalties still apply.",
+    "Floors each driver and constructor session score at zero; transfer penalties still apply.",
   wildcard: "Unlimited transfers within your budget.",
   limitless: "Unlimited budget and transfers, then your original team returns.",
   final_fix:
