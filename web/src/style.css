@@ -720,6 +720,10 @@ article {
   left: 0;
   right: 0;
 }
+body[data-page="predict"] .header-tools,
+body[data-page="insights"] .header-tools {
+  display: none;
+}
 .header-tools {
   margin-left: auto;
   display: flex;
@@ -4981,7 +4985,6 @@ footer > .hint {
 .state-banner[hidden] {
   display: none;
 }
-
 
 /* Every single-value select shares the navbar's custom picker. */
 select:not([multiple]) {

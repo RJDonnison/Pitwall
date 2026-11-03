@@ -1,5 +1,4 @@
-body[data-page="predict"] #state-banner,
-body[data-page="predict"] .header-tools {
+body[data-page="predict"] #state-banner {
   display: none;
 }
 .predict-page {
