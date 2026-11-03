@@ -138,9 +138,9 @@
 }
 .participant-prediction {
   position: sticky;
-  top: 24px;
+  top: calc(var(--masthead-height, 60px) + 24px);
   min-width: 0;
-  scroll-margin-top: 16px;
+  scroll-margin-top: calc(var(--masthead-height, 60px) + 24px);
 }
 .participant-prediction .detail-overview {
   display: block;
