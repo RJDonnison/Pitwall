@@ -194,7 +194,7 @@ function route({ scroll = false } = {}) {
   else if (scroll && name === "image-credits") {
     $("#image-credits").open = true;
     $("#image-credits").scrollIntoView({ block: "start" });
-  }
+  } else if (scroll) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 }
 function stateBanner(dataset) {
   const element = document.createElement("div");
