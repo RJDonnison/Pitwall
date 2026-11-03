@@ -1106,3 +1106,33 @@
     animation: none;
   }
 }
+
+/* Range bars sit over the horizontal bars as a whisker with end caps. */
+.range-bar {
+  position: relative;
+}
+.range-whisker {
+  position: absolute;
+  top: 50%;
+  height: 0;
+  border-top: 2px solid var(--ink);
+  pointer-events: auto;
+}
+.range-whisker::before,
+.range-whisker::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  height: 10px;
+  border-left: 2px solid var(--ink);
+}
+.range-whisker::before {
+  left: 0;
+}
+.range-whisker::after {
+  right: 0;
+}
+.chart-note {
+  font-size: 10px;
+  color: var(--muted);
+}
