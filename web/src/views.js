@@ -256,7 +256,7 @@ export function strategyMarkup(
       })),
     };
   if (!result)
-    return `${heroMarkup(dataset, team, result)}<section class="panel welcome" role="status"><h2>${busy ? "Updating strategy…" : error ? "Strategy unavailable" : team.selected.length === 7 ? "Preparing strategy…" : "Choose your starting seven"}</h2><p>${error ? esc(error) : busy ? "Optimizing the remaining season." : team.selected.length === 7 ? "Changes are calculated automatically." : "Five drivers and two constructors in the Garage."}</p></section>`;
+    return `${heroMarkup(dataset, team, result)}${busy || (!error && team.selected.length === 7) ? `<section class="panel loading-panel" role="status" aria-label="Updating strategy"><span class="loading-spinner" aria-hidden="true"></span></section>` : `<section class="panel welcome" role="status"><h2>${error ? "Strategy unavailable" : "Choose your starting seven"}</h2><p>${error ? esc(error) : "Five drivers and two constructors in the Garage."}</p></section>`}`;
   const first = result.rounds[0],
     round = result.rounds[selectedRound];
   const reference = referencePoints(dataset, team);

@@ -41,6 +41,15 @@ class ChipValues:
     autopilot: dict[int, tuple[dict[str, Estimate], ...]] = field(default_factory=dict)
     history_gamedays: dict[int, tuple[int, ...]] = field(default_factory=dict)
     skipped_history_gamedays: tuple[int, ...] = ()
+    # Assets with no (same-format) history, valued neutrally: score = forecast, no uplift.
+    imputed_assets: tuple[str, ...] = ()
+
+
+# The official feed names the Sprint scoring session "Sprint Qualifying".
+SESSION_ALIASES = {"Sprint Qualifying": "Sprint"}
+# At most this many assets may lack history (a new driver or team); more is a roster
+# or feed fault and still fails.
+MAX_IMPUTED = 2
 
 
 def load_chip_values(
@@ -112,7 +121,9 @@ def load_chip_values(
                         {"Sprint"} if sprint else set()
                     )
                     for session in item["SessionWisePoints"]:
-                        kind = session["sessiontype"]
+                        kind = SESSION_ALIASES.get(
+                            session["sessiontype"], session["sessiontype"]
+                        )
                         if kind not in expected or kind in seen:
                             raise DataError(
                                 "Unexpected or duplicate chip-history session"
@@ -136,10 +147,8 @@ def load_chip_values(
                             "Incomplete or inconsistent chip-history scores"
                         )
                     scores[key], uplifts[key] = score, delta
-                if scores.keys() != active.keys():
-                    raise DataError(
-                        "Chip history lacks a common sample for all active assets"
-                    )
+                if not scores:
+                    raise DataError("Chip history contains no active asset")
             except (KeyError, TypeError, ValueError) as exc:
                 raise DataError(
                     f"Unverifiable chip history for {weekend.name}: {exc}"
@@ -150,6 +159,36 @@ def load_chip_values(
             raise DataError(
                 "No complete common same-format chip history before forecast"
             )
+    # A new driver or team is absent from older gamedays. Give it its own mean over
+    # the samples that contain it, or a neutral value when it has none, so one new
+    # asset cannot disable the chips for everyone. Wider gaps are still an error.
+    active_ids = {a.id for a in assets}
+    imputed: set[str] = set()
+    for sample in samples.values():
+        for asset_id in sorted(active_ids):
+            present = [(s, u) for s, u in sample if asset_id in s]
+            if len(present) == len(sample):
+                continue
+            imputed.add(asset_id)
+            if len(imputed) > MAX_IMPUTED:
+                raise DataError(
+                    "Chip history lacks a common sample for all active assets"
+                )
+            mean_s = [
+                sum(components(s[asset_id])[k] for s, _ in present) / len(present)
+                if present
+                else 0.0
+                for k in range(3)
+            ]
+            mean_u = [
+                sum(components(u[asset_id])[k] for _, u in present) / len(present)
+                if present
+                else 0.0
+                for k in range(3)
+            ]
+            for s, u in sample:
+                if asset_id not in s:
+                    s[asset_id], u[asset_id] = Estimate(*mean_s), Estimate(*mean_u)
     nn: dict[tuple[int, str], Estimate] = {}
     ap: dict[int, tuple[dict[str, Estimate], ...]] = {}
     for t, weekend in enumerate(weekends):
@@ -193,6 +232,7 @@ def load_chip_values(
         ap,
         {t: tuple(sampled[w.sprint]) for t, w in enumerate(weekends)},
         tuple(sorted(skipped)),
+        tuple(sorted(imputed)),
     )
 
 

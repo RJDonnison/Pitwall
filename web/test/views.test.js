@@ -136,10 +136,11 @@ test("Race Insights reports missing publication evidence without fabricated scor
   assert.doesNotMatch(html, /-5\.0|Forecast round|<table/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });
-test("Strategy updates automatically without manual calculation controls", () => {
+test("Strategy shows only a spinner while it updates, with no manual calculation controls", () => {
   const { data, team } = fixture();
   const html = strategyMarkup(data, team, null, false, 0);
-  assert.match(html, /automatically/);
+  assert.match(html, /loading-spinner/);
+  assert.doesNotMatch(html, /automatically|Preparing|Updating strategy…|Optimizing/);
   assert.doesNotMatch(
     html,
     /id="replan"|Calculate changes|Recalculate|href="#garage"/,

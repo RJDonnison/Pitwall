@@ -4989,3 +4989,141 @@ footer > .hint {
   font-weight: 600;
   text-align: right;
 }
+
+/* Every single-value select shares the navbar's custom picker. */
+select:not([multiple]) {
+  appearance: none;
+  background-color: var(--paper);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='m1 1 5 5 5-5' fill='none' stroke='%2368635f' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+  cursor: pointer;
+  color-scheme: light;
+}
+select:not([multiple]) option {
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+@supports (appearance: base-select) {
+  select:not([multiple]),
+  select:not([multiple])::picker(select) {
+    appearance: base-select;
+  }
+  select:not([multiple])::picker-icon {
+    display: none;
+  }
+  select:not([multiple])::picker(select) {
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius);
+    padding: 6px;
+    font-family: Inter, sans-serif;
+    box-shadow: none;
+  }
+  select:not([multiple]) option {
+    padding: 9px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  select:not([multiple]) option:hover,
+  select:not([multiple]) option:focus-visible {
+    background: var(--inset);
+    outline: none;
+  }
+  select:not([multiple]) option:checked {
+    background: #fff1f0;
+    color: var(--red);
+  }
+  select:not([multiple]) option::checkmark {
+    color: var(--red);
+  }
+}
+.restore-picker {
+  border: 0;
+  margin: 12px 0 0;
+  padding: 0;
+  min-width: 0;
+}
+.restore-picker legend {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 0;
+  margin-bottom: 8px;
+}
+.restore-group > span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin: 8px 0 6px;
+}
+.restore-group > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.restore-chip {
+  display: inline-block;
+  cursor: pointer;
+}
+.restore-chip input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.restore-chip span {
+  display: inline-block;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  background: var(--paper);
+}
+.restore-chip:hover span {
+  background: var(--inset);
+}
+.restore-chip input:checked + span {
+  border-color: var(--red);
+  color: var(--red);
+  background: #fff1f0;
+}
+.restore-chip input:focus-visible + span {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.loading-spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: pitwall-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+.loading-spinner.small {
+  width: 14px;
+  height: 14px;
+}
+.loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+@keyframes pitwall-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation-duration: 2.4s;
+  }
+}
