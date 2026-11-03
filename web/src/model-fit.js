@@ -26,7 +26,16 @@ function params(values, keys) {
     .join("");
 }
 
-function family(title, part, keys) {
+const pctText = (v) => (Number.isFinite(v) ? `${v.toFixed(1)}%` : "n/a");
+
+function change(now, before) {
+  if (!Number.isFinite(now) || !Number.isFinite(before)) return "First score recorded";
+  const d = now - before;
+  if (Math.abs(d) < 0.05) return `No change from ${pctText(before)} last time`;
+  return `${d > 0 ? "Up" : "Down"} ${Math.abs(d).toFixed(1)} points from ${pctText(before)} last time`;
+}
+
+function family(title, blurb, part, keys) {
   if (!part) return "";
   const gain = part.gain_vs_defaults;
   const [low, high] = part.gain_vs_defaults_interval90 || [];
@@ -35,7 +44,7 @@ function family(title, part, keys) {
     Number.isFinite(gain) && gain > 0
       ? `Tuned settings score ${fixed(part.objective)} against ${fixed(part.defaults_objective)} for the original defaults (lower is better): ${signed(-gain)} overall (90% range ${signed(-high)} to ${signed(-low)}). Win-forecast error ${winner(part.default_metrics)} → ${winner(part.metrics)}.`
       : "The original defaults are still the best settings found.";
-  return `<section class="fit-family"><h3>${esc(title)}</h3><dl class="fit-params">${params(part.params, keys)}</dl><p>${verdict}</p><p class="insight-note">Latest check: ${esc(part.latest_decision?.reason || "no decision recorded")}.</p></section>`;
+  return `<section class="fit-family"><span class="fit-title">${esc(title)}</span><strong class="fit-accuracy">${pctText(part.accuracy)}</strong><p class="fit-change">${esc(change(part.accuracy, part.previous_accuracy))}</p><p class="insight-note">${esc(blurb)}</p><details class="fit-details"><summary>Technical details</summary><dl class="fit-params">${params(part.params, keys)}</dl><p>${verdict}</p><p class="insight-note">Latest check: ${esc(part.latest_decision?.reason || "no decision recorded")}.</p></details></section>`;
 }
 
 export function modelFitMarkup(dataset) {
@@ -46,13 +55,12 @@ export function modelFitMarkup(dataset) {
     ? `Q ${fixed(practice.weights.Q, 2)} · race ${fixed(practice.weights.R, 2)}`
     : "defaults";
   const last = Array.isArray(fit.last_race) ? `${fit.last_race[0]} round ${fit.last_race[1]}` : "";
-  return `<section class="panel model-fit" aria-label="Model tuning">
-    <div class="section-heading"><div><span class="insight-kicker">Backtested · refit after each race</span><h2>How the model tunes itself</h2><p>Last fitted ${esc(when(fit.fitted_at))} on ${esc(fit.evaluated_races)} races${last ? ` up to ${esc(last)}` : ""}.</p></div></div>
+  return `<section class="panel model-fit" aria-label="Model accuracy">
+    <div class="section-heading"><div><span class="insight-kicker">Refreshed after each race</span><h2>How accurate are the forecasts?</h2><p>Checked on ${esc(fit.evaluated_races)} past races${last ? ` up to ${esc(last)}` : ""}, each predicted using only the races before it. Updated ${esc(when(fit.fitted_at))}.</p></div></div>
     <div class="fit-grid">
-      ${family("Before the weekend", fit.pre_weekend, ["half_life", "temperature", "team_share"])}
-      ${family("After qualifying (known grid)", fit.post_qualifying, ["half_life", "temperature", "team_share", "grid_weight"])}
-      <section class="fit-family"><h3>Practice pace</h3><p>Weights: ${esc(weights)}.</p><p class="insight-note">${esc(practice.status || "No practice evidence yet")}.</p></section>
+      ${family("Before the weekend", "How well finishing order is predicted before practice starts.", fit.pre_weekend, ["half_life", "temperature", "team_share"])}
+      ${family("After qualifying", "How well finishing order is predicted once the starting grid is known.", fit.post_qualifying, ["half_life", "temperature", "team_share", "grid_weight"])}
     </div>
-    <p class="insight-note">Each finished race, the settings move at most one step, and only if races not used to choose the step confirm it is no worse and clearly better overall. Scores are Brier-type errors from walk-forward backtests: every race is predicted only from earlier races.</p>
+    <details class="fit-details"><summary>How is this calculated?</summary><p class="insight-note">Accuracy is 100% minus the average error in predicted finishing positions, so higher is better. Each finished race, the model may adjust its settings by one small step, but only if races it was not tuned on confirm the change helps. Practice pace: ${esc(practice.status || "no practice evidence yet")} (weights ${esc(weights)}).</p></details>
   </section>`;
 }

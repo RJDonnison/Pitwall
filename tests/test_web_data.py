@@ -243,6 +243,8 @@ def test_publication_reports_the_committed_model_fit(public):
     assert fit["pre_weekend"]["params"]["half_life"] > 0
     assert fit["gate"]["min_gain"] > 0
     assert set(fit["practice"]) >= {"status", "weights"}
+    assert 50 < fit["pre_weekend"]["accuracy"] < 100
+    assert "previous_accuracy" in fit["pre_weekend"]
     assert result["model"]["practice"]["validated"] is (
         fit["practice"]["status"] == "fitted"
     )

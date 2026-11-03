@@ -5127,3 +5127,40 @@ select:not([multiple]) option {
     animation-duration: 2.4s;
   }
 }
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+html {
+  scroll-padding-top: 76px;
+}
+.model-fit .fit-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.model-fit .fit-accuracy {
+  display: block;
+  font-size: 40px;
+  line-height: 1.1;
+  margin: 6px 0 2px;
+}
+.model-fit .fit-change {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.model-fit .fit-details {
+  margin-top: 10px;
+}
+.model-fit .fit-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}

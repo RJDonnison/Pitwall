@@ -34,8 +34,13 @@ def model_fit_summary():
         return None
     document = fit["document"]
 
+    log = document.get("log", [])
+
     def family(key):
+        from .model_fit import accuracy
+
         part = document[key]
+        before = log[-2].get(key, {}).get("accuracy") if len(log) >= 2 else None
         decision = part.get("decision", {})
         return {
             "params": part["params"],
@@ -48,6 +53,9 @@ def model_fit_summary():
                 "reason": decision.get("reason"),
                 "holdout_gain": decision.get("gain_holdout"),
             },
+            "accuracy": accuracy(part.get("metrics")),
+            "previous_accuracy": before,
+            "default_accuracy": accuracy(part.get("default_metrics")),
             "metrics": part.get("metrics"),
             "default_metrics": part.get("default_metrics"),
         }
