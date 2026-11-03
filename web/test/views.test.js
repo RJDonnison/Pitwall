@@ -94,6 +94,34 @@ test("local profile names are escaped and over-cap allocation is explicit", () =
   assert.match(html, /\$5\.0m over cap/);
 });
 
+test("season plan exposes its actual round range and a readable cumulative points scale", () => {
+  const { data, team, result } = fixture();
+  result.rounds.push({
+    ...structuredClone(result.rounds[0]),
+    round: 12,
+    points: -20,
+  });
+  result.points = 50;
+  const html = strategyMarkup(data, team, result);
+  assert.match(html, /R10–R12 · 2 rounds · cumulative points/);
+  assert.match(
+    html,
+    /Cumulative planned points; R10: 70.0 points, R12: 50.0 points/,
+  );
+  assert.match(html, /text-anchor="end">0.0<\/text>/);
+  assert.match(html, /text-anchor="end">70.0<\/text>/);
+  result.rounds = result.rounds.slice(0, 1);
+  assert.match(
+    strategyMarkup(data, team, result),
+    /R10 · 1 round · cumulative points/,
+  );
+  result.rounds[0].points = -10;
+  assert.match(
+    strategyMarkup(data, team, result),
+    /text-anchor="end">-10.0<\/text>/,
+  );
+});
+
 test("Autopilot displays scenario-dependent extra points without naming a fixed winner", () => {
   const { data, team, result } = fixture();
   result.rounds[0].chip = "autopilot";

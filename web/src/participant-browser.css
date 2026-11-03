@@ -9,16 +9,16 @@
 }
 .participant-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
 }
 .participant-tile {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr);
-  gap: 10px;
-  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   border: 1px solid var(--rule);
-  border-top: 3px solid var(--team-color);
+  border-top: 4px solid var(--team-color);
   border-radius: 6px;
   background: var(--paper);
   color: var(--ink);
@@ -31,14 +31,36 @@
   background: var(--inset);
 }
 .participant-tile[aria-pressed="true"] {
-  background: #fff7f5;
-  border-color: var(--red);
+  background: color-mix(in srgb, var(--team-color) 5%, var(--paper));
+  border-color: var(--team-color);
 }
-.participant-tile .asset-photo,
-.participant-tile > svg {
-  width: 48px;
-  height: 54px;
+.participant-tile .market-card-title {
+  grid-template-columns: 52px minmax(0, 1fr);
+  width: 100%;
+}
+.participant-tile .registry-photo > * {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+}
+.participant-tile .market-card-bottom {
+  width: 100%;
+  margin-top: auto;
+  gap: 12px;
+  padding: 8px 16px 12px;
+}
+.participant-select {
+  padding: 7px 10px;
+  border-radius: 4px;
+  background: var(--ink);
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.participant-tile[aria-pressed="true"] .participant-select {
+  background: var(--team-color);
 }
 .participant-tile-name {
   align-self: center;
@@ -56,11 +78,10 @@
   margin-top: 4px;
 }
 .participant-position {
-  grid-column: 1 / -1;
-  display: flex;
+  display: grid;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 2px;
 }
 .participant-position small {
   font-size: 10px;
@@ -72,7 +93,7 @@
   font-variant-numeric: tabular-nums;
   min-width: 0;
   overflow-wrap: anywhere;
-  text-align: right;
+  text-align: left;
 }
 .participant-tile-metric {
   grid-column: 1 / -1;
@@ -100,21 +121,18 @@
 .participant-prediction {
   position: sticky;
   top: 24px;
-  padding: 20px;
-  border: 1px solid var(--rule);
-  border-top: 3px solid var(--team-color);
-  border-radius: 6px;
-  background: var(--canvas);
   min-width: 0;
   scroll-margin-top: 16px;
 }
 .participant-prediction .detail-overview {
   display: block;
+  margin-bottom: 12px;
 }
-.participant-prediction .detail-overview dl {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 20px;
-  width: 100%;
+.participant-prediction .detail-featured > img,
+.participant-prediction .detail-featured > svg {
+  width: 64px;
+  height: 70px;
+  flex-basis: 64px;
 }
 .participant-prediction .detail-featured h3 {
   font-size: 22px;
@@ -124,13 +142,23 @@
 }
 .participant-prediction .placement-card {
   grid-template-columns: minmax(0, 1fr);
-  margin-top: 16px;
+  margin-top: 12px;
+  gap: 12px;
   padding: 0;
   border: 0;
   border-radius: 0;
 }
 .participant-prediction .placement-session {
   min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.participant-prediction .placement-average {
+  min-height: 0;
+  margin: 4px 0 0;
+}
+.participant-prediction .placement-curve {
+  margin: 6px 0 0;
 }
 .participant-tile-positions {
   grid-column: 1 / -1;
@@ -269,58 +297,28 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
 }
-.team-outlook-grid > article {
-  padding: 18px;
+.outlook-card {
+  padding: 16px;
   border: 1px solid var(--rule);
   border-top: 3px solid var(--team-color);
   border-radius: 6px;
+  background: var(--canvas);
 }
-.team-outlook-grid dl {
+.outlook-card .outlook-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
-  margin: 18px 0;
+  margin: 12px 0 0;
 }
-.team-outlook-grid dt {
-  font-size: 10px;
+.outlook-stats dt {
+  font-size: 11px;
   color: var(--muted);
 }
-.team-outlook-grid dd {
+.outlook-stats dd {
   margin: 4px 0 0;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
-}
-.team-member-placements {
-  display: grid;
-  gap: 12px;
-  border-top: 1px solid var(--rule);
-  padding-top: 14px;
-}
-.team-member-placements > div {
-  display: grid;
-  grid-template-columns: 36px 1fr 1fr;
-  gap: 6px 12px;
-  align-items: center;
-}
-.team-member-placements .asset-photo,
-.team-member-placements svg {
-  grid-row: span 2;
-  width: 36px;
-  height: 44px;
-  object-fit: contain;
-}
-.team-member-placements strong {
-  grid-column: span 2;
-  font-size: 12px;
-}
-.team-member-placements span {
-  font-size: 10px;
-  color: var(--muted);
-}
-.team-member-placements b {
-  display: block;
-  font-size: 20px;
-  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 @media (max-width: 1000px) {
   .participant-browser {
@@ -332,8 +330,7 @@
     gap: 8px;
   }
   .participant-tile {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 12px;
+    padding: 0;
   }
 }
 @media (max-width: 760px) {
@@ -344,13 +341,13 @@
     position: static;
     padding: 16px;
   }
-  .participant-tile {
-    grid-template-columns: 48px minmax(0, 1fr);
-  }
 }
 @media (max-width: 400px) {
-  .participant-tile {
+  .participant-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .outlook-card .outlook-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .participant-tile-name strong {
     font-size: 12px;

@@ -81,7 +81,6 @@ export function insightsMarkup(dataset, state = {}) {
       .join(
         "",
       )}</select></label></div>${probabilityMarkup(dataset, probabilities, population, metric)}</section><aside class="panel pitstop-panel"><div class="section-heading"><div><h2>Fastest pit stop</h2></div></div>${pitstopMarkup(dataset, insight.pitstops)}</aside></div>
-    ${participantDetail(dataset, round, probabilities, population, state.entity)}
-    ${teamOutlook(dataset, round, probabilities)}
+    ${population === "drivers" ? participantDetail(dataset, round, probabilities, population, state.entity) : teamOutlook(dataset, round, probabilities)}
   </div>`;
 }

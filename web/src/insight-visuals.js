@@ -119,6 +119,11 @@ export function championshipChart(dataset, insight, population) {
   const eligible = insight.championship[population].filter(
     (r) => r.title_eligible === true,
   );
+  if (eligible.length === 1) {
+    const winner = eligible[0];
+    const asset = dataset.assets.find((a) => a.id === winner.asset_id);
+    return `<section class="panel championship-winner" style="--team-color:${asset ? teamColor(dataset, asset) : "#68635f"}" aria-label="${population === "drivers" ? "Drivers'" : "Constructors'"} championship decided"><div class="championship-backdrop" aria-hidden="true">${asset ? portrait(asset, population === "drivers" ? helmet() : car()) : ""}</div><div class="section-heading"><div><span class="insight-kicker">${dataset.season} · Championship decided</span><h2>${population === "drivers" ? "Drivers'" : "Constructors'"} champion</h2></div></div><div class="championship-winner-name"><h3>${esc(winner.name)}</h3>${asset?.kind === "DRIVER" ? `<p>${esc(constructorName(dataset, asset))}</p>` : ""}</div><div class="championship-winner-score"><strong>${points(winner.observed)}</strong><span>championship points scored</span></div></section>`;
+  }
   const rows = eligible.slice(0, 5);
   const max = Math.max(1, ...rows.map((r) => r.interval80[1]));
   return `<section class="panel insight-champ-chart"><div class="section-heading"><div><span class="insight-kicker">End-of-season projection</span><h2>Championship horizon</h2></div></div><div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows

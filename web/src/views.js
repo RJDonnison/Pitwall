@@ -142,9 +142,14 @@ export function allocationMarkup(dataset, team) {
 function chart(values, labels, cls = "trajectory-chart") {
   const low = Math.min(0, ...values),
     high = Math.max(1, ...values);
-  const x = (i) => 40 + (i / Math.max(1, values.length - 1)) * 720;
+  const width = Math.max(800, 100 + values.length * 90);
+  const x = (i) =>
+    values.length === 1
+      ? width / 2
+      : 80 + (i / (values.length - 1)) * (width - 140);
   const y = (v) => 150 - ((v - low) / (high - low)) * 120;
-  return `<svg class="${cls}" viewBox="0 0 800 200" role="img" aria-label="${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}"><path class="chart-grid" d="M40 30H760M40 90H760M40 150H760"/><polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
+  const ticks = [low, (low + high) / 2, high];
+  return `<svg class="${cls}" style="min-width:${width}px" viewBox="0 0 ${width} 200" role="img" aria-label="Cumulative planned points; ${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}">${ticks.map((v) => `<path class="chart-grid" d="M80 ${y(v)}H${width - 60}"/><text class="chart-label" x="68" y="${y(v) + 4}" text-anchor="end">${points(v)}</text>`).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
 }
 export function heroMarkup(dataset) {
   const r = dataset.rounds[0];
@@ -288,7 +293,7 @@ export function strategyMarkup(
       "",
     )}</ul><div class="directive-footer">Next chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "None planned"}</span></div></section></div>
    <section class="panel score-panel"><div class="section-heading"><h2>Next race</h2></div><div class="score-comparison"><div class="projected-number"><strong>${points(first.points)}</strong><span>Estimated points</span></div><div><div class="comparison-label"><span>Current team · 2× only</span><strong>${points(reference[0])}</strong></div><div class="comparison-track"><i style="width:${(100 * Math.max(0, reference[0])) / denominator}%"></i></div><div class="comparison-label accent"><span>Suggested team</span><strong>${points(first.points)}</strong></div><div class="comparison-track recommended"><i style="width:${(100 * Math.max(0, first.points)) / denominator}%"></i></div><div class="score-components"><span>Drivers <b>${points(driverScore)}</b></span><span>Constructors <b>${points(constructorScore)}</b></span><span>Penalty <b>−${first.transfer_penalty}</b></span></div></div></div></section>
-   <section class="panel horizon"><div class="section-heading"><h2>Season plan</h2><div class="horizon-total"><strong>${points(result.points)} pts</strong></div></div><div class="chart-scroll">${chart(
+   <section class="panel horizon"><div class="section-heading"><div><h2>Season plan</h2><p class="season-plan-range">${result.rounds.length === 1 ? `R${first.round}` : `R${first.round}–R${result.rounds.at(-1).round}`} · ${result.rounds.length} ${result.rounds.length === 1 ? "round" : "rounds"} · cumulative points</p></div><div class="horizon-total"><strong>${points(result.points)} pts</strong></div></div><div class="chart-scroll">${chart(
      result.rounds.map((r) => (cumulative += r.points)),
      result.rounds.map((r) => `R${r.round}`),
    )}</div><div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="plan-chip ${r.chip ? `chip-${r.chip}` : "saved-chip"}">${r.chip ? chipIcon(r.chip) : icon("shield")}${r.chip ? chipNames[r.chip] : "Save"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>

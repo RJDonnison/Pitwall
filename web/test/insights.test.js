@@ -86,7 +86,10 @@ function publication(sprint = false) {
       ],
       championship: {
         status: "ready",
-        drivers: [participant],
+        drivers: [
+          participant,
+          { ...participant, key: "RIVAL", name: "Title rival", asset_id: null },
+        ],
         constructors: [],
       },
     },
@@ -214,9 +217,11 @@ test("driver and team deep dives show selected participants and classified posit
     population: "constructors",
     entity: "a",
   });
-  assert.match(team, /Team deep dive/);
+  assert.doesNotMatch(
+    team,
+    /Team deep dive|Driver deep dive|participant-detail|team-member-placements|Average qualifying|Average race/,
+  );
   assert.match(team, /Team championship outlook/);
-  assert.match(team, /Alpha &lt;Test&gt;/);
   assert.match(team, /detail-identity/);
   assert.doesNotMatch(team, /NaN|undefined/);
 });
@@ -292,10 +297,9 @@ test("racing-only deep dives and team outlook use post-round championship totals
   const html = insightsMarkup(data);
   const detail = html.slice(
     html.indexOf('<section class="panel participant-detail"'),
-    html.indexOf('<section class="panel team-outlook"'),
   );
   const sidebar = detail.slice(
-    detail.indexOf('<aside class="participant-prediction"'),
+    detail.indexOf('<aside class="participant-prediction outlook-card"'),
   );
   const catalogue = detail.slice(0, detail.indexOf("<aside"));
   assert.doesNotMatch(
@@ -304,11 +308,13 @@ test("racing-only deep dives and team outlook use post-round championship totals
   );
   assert.match(sidebar, /40.0 pts/);
   assert.match(sidebar, /Post-race championship position<\/dt><dd>P1.4/);
-  assert.match(html, /80.0 pts/);
-  assert.match(html, /Post-race championship position<\/dt><dd>P2.2/);
+  assert.doesNotMatch(html, /Team championship outlook/);
+  const teams = insightsMarkup(data, { population: "constructors" });
+  assert.match(teams, /80.0 pts/);
+  assert.match(teams, /Post-race championship position<\/dt><dd>P2.2/);
   assert.doesNotMatch(
     detail,
-    /Fantasy|View predictions|Selected|selected driver|detail-fantasy-sessions/,
+    /Fantasy|View predictions|selected driver|detail-fantasy-sessions/,
   );
   assert.equal(
     (sidebar.match(/<h3>Alpha &lt;Test&gt;<\/h3>/g) || []).length,
@@ -323,6 +329,29 @@ test("racing-only deep dives and team outlook use post-round championship totals
     insightsMarkup(data),
     /Post-race championship<\/dt><dd>Unavailable/,
   );
+});
+
+test("a decided championship replaces the entire chart with a champion portrait for either population", () => {
+  const data = publication();
+  data.assets[0].id = "131";
+  data.rounds[0].forecasts["131"] = data.rounds[0].forecasts["1"];
+  const winner = { ...data.insights.championship.drivers[0], asset_id: "131" };
+  data.insights.championship.drivers = [winner];
+  data.insights.championship.constructors = [
+    { ...winner, name: "Team A", asset_id: "a" },
+  ];
+  for (const population of ["drivers", "constructors"]) {
+    const html = insightsMarkup(data, { population });
+    assert.match(html, /Championship decided/);
+    assert.match(html, /class="championship-backdrop"/);
+    assert.doesNotMatch(
+      html,
+      /Championship horizon|champ-stacked-bar|champ-breakdown/,
+    );
+    if (population === "drivers") assert.match(html, /media\/131.webp/);
+  }
+  data.insights.championship.status = "unavailable";
+  assert.doesNotMatch(insightsMarkup(data), /Championship decided/);
 });
 
 test("participant cards show most likely race positions and keep selection without a search", () => {

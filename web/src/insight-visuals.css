@@ -130,6 +130,64 @@
   display: flex;
   flex-direction: column;
 }
+.championship-winner {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 380px;
+  background: #262925;
+  color: #fff;
+}
+.championship-backdrop {
+  position: absolute;
+  inset: 24px 0 0 10%;
+  z-index: -1;
+  opacity: 0.65;
+  pointer-events: none;
+}
+.championship-backdrop > * {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right bottom;
+}
+.championship-winner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(90deg, #20231fe8, #20231f20);
+}
+.championship-winner .insight-kicker,
+.championship-winner-name p {
+  color: #f0f0eb;
+}
+.championship-winner-name {
+  margin-top: auto;
+  padding-top: 100px;
+}
+.championship-winner-name h3 {
+  max-width: 12ch;
+  font-size: clamp(30px, 3vw, 44px);
+  line-height: 1.05;
+  margin: 0;
+}
+.championship-winner-score {
+  display: grid;
+  gap: 4px;
+  margin-top: 20px;
+  padding: 16px;
+  background: #20231fe8;
+  border-top: 1px solid #ffffff20;
+}
+.championship-winner-score strong {
+  font-size: 32px;
+}
+.championship-winner-score span {
+  font-size: 12px;
+}
 .insight-probability-grid .probability-list,
 .insight-probability-grid .pitstop-list {
   height: 640px;

@@ -132,11 +132,11 @@ export function participantDetail(
   return `<section class="panel participant-detail" style="--team-color:${teamColor(dataset, asset)}"><div class="section-heading"><div><span class="insight-kicker">Race breakdown · R${round.round}</span><h2>${population === "drivers" ? "Driver" : "Team"} deep dive</h2></div><span class="detail-round-tag">${assets.length} ${population === "drivers" ? "drivers" : "teams"} · R${round.round}</span></div><div class="participant-browser"><div class="participant-catalogue"><div class="participant-grid" id="insight-participant-grid" role="group" aria-label="Choose ${population === "drivers" ? "driver" : "team"}">${assets
     .map((a) => {
       const likely = mostLikelyResult(probabilities?.placements?.[a.id]?.R);
-      return `<button type="button" class="participant-tile" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}">${image(a)}<span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span>${a.kind === "DRIVER" ? `<span class="participant-position" title="Most likely race result: ${likely.label} · ${pct(likely.probability)}${likely.tied ? " each" : ""}"><small>Likely race</small><strong>${likely.label}</strong></span>` : ""}</button>`;
+      return `<button type="button" class="participant-tile market-card ${a.id === asset.id ? "selected" : ""}" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}"><span class="market-card-title"><span class="registry-photo">${image(a)}</span><span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span></span><span class="market-card-bottom"><span class="participant-position" title="Most likely race result: ${likely.label} · ${pct(likely.probability)}${likely.tied ? " each" : ""}"><small>Likely race</small><strong>${likely.label}</strong></span><span class="participant-select">${a.id === asset.id ? "Viewing" : "View"}</span></span></button>`;
     })
     .join(
       "",
-    )}</div></div><aside class="participant-prediction" aria-label="${esc(asset.name)} predictions"><div class="detail-overview"><div class="detail-identity detail-featured">${image(asset)}<div><h3>${esc(asset.name)}</h3>${asset.kind === "DRIVER" ? `<p>${esc(constructorName(dataset, asset))}</p>` : ""}</div></div><dl>${[
+    )}</div></div><aside class="participant-prediction outlook-card" aria-label="${esc(asset.name)} predictions"><div class="detail-overview"><div class="detail-identity detail-featured">${image(asset)}<div><h3>${esc(asset.name)}</h3>${asset.kind === "DRIVER" ? `<p>${esc(constructorName(dataset, asset))}</p>` : ""}</div></div><dl class="outlook-stats">${[
     ["Race win", pct(p.win)],
     ["Podium", pct(p.podium)],
     ["Top 10", pct(p.top10)],
@@ -161,16 +161,11 @@ export function teamOutlook(dataset, round, probabilities) {
     .map((team) => {
       const row =
         after?.status === "ready" ? after.constructors[team.id] : null;
-      const drivers = dataset.assets.filter(
-        (a) => a.kind === "DRIVER" && a.team_id === team.team_id,
-      );
-      return `<article style="--team-color:${teamColor(dataset, team)}"><div class="detail-identity">${image(team)}<h3>${esc(team.name)}</h3></div><dl>${championshipStats(
+      return `<article class="outlook-card" style="--team-color:${teamColor(dataset, team)}"><div class="detail-identity">${image(team)}<h3>${esc(team.name)}</h3></div><dl class="outlook-stats">${championshipStats(
         row,
       )
         .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`)
-        .join(
-          "",
-        )}</dl><div class="team-member-placements">${drivers.map((a) => `<div>${image(a)}<strong>${esc(a.name)}</strong><span>Average qualifying <b>${position(probabilities?.placements?.[a.id]?.Q?.mean)}</b></span><span>Average race <b>${position(probabilities?.placements?.[a.id]?.R?.mean)}</b></span></div>`).join("")}</div></article>`;
+        .join("")}</dl></article>`;
     })
     .join("")}</div></section>`;
 }

@@ -1519,7 +1519,12 @@ article {
 .trajectory-chart {
   width: 100%;
   min-width: 400px;
-  max-height: 240px;
+  display: block;
+}
+.season-plan-range {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 .chart-grid {
   stroke: #dadbd7;
@@ -4397,7 +4402,7 @@ footer > .hint {
     margin-bottom: 10px;
   }
   .chart-scroll {
-    display: none;
+    display: block;
   }
   .round-strip {
     grid-auto-columns: 155px;
