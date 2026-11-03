@@ -15,6 +15,7 @@ import pandas as pd
 from fastf1.exceptions import RateLimitExceededError
 
 from .data import DataError
+from .session_laps import loaded, loaded_laps
 
 SCHEMA = 1
 DEFAULT_CACHE = Path(".f1fantasy/cache")
@@ -102,7 +103,7 @@ def load_features(
 
 
 def _clean_laps(session: Any) -> Any:
-    laps = session.laps
+    laps = loaded_laps(session)
     if laps is None or laps.empty:
         raise DataError("Session has no completed laps")
     mask = laps["LapTime"].notna() & laps["IsAccurate"].fillna(False)
@@ -192,7 +193,7 @@ def extract_features(
         "full_throttle_fraction",
     )
     track = {key: float(median(row[key] for row in telemetry)) for key in names}
-    weather = getattr(session, "weather_data", None)
+    weather = loaded(session, "weather_data")
     if weather is not None and not weather.empty:
         if "TrackTemp" in weather:
             temperature = float(weather["TrackTemp"].median())

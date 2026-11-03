@@ -15,8 +15,11 @@ import requests
 
 from . import history, public_history
 from .data import DataError
+from .session_laps import loaded, loaded_laps
 
 VERSION = 2
+# How long after a race missing lap/weather data is waited for before archiving as is.
+TIMING_PATIENCE = timedelta(days=7)
 
 
 def finite(value):
@@ -73,7 +76,7 @@ def cause(status):
 
 def extract(session, kind):
     results = session.results
-    laps = getattr(session, "laps", None)
+    laps = loaded_laps(session)
     qualifying = kind in {"Q", "SQ"}
     phases = {}
     for phase in ("Q1", "Q2", "Q3"):
@@ -109,7 +112,7 @@ def extract(session, kind):
         clean["pace_gap_pct"] = np.where(
             count >= 3, 100 * (clean["seconds"] / reference - 1), np.nan
         )
-    weather = getattr(session, "weather_data", None)
+    weather = loaded(session, "weather_data")
     wet = None
     if weather is not None and not weather.empty and "Rainfall" in weather:
         wet = float(weather["Rainfall"].fillna(False).astype(bool).mean())
@@ -196,6 +199,24 @@ def extract(session, kind):
     return rows, summary
 
 
+def _practice_pace(year, number, fmt):
+    """{'FP1': {tla: gap %}, ...}; best effort, never blocks archiving a race."""
+    from . import practice
+
+    names = ["FP1"] if "sprint" in fmt else ["FP1", "FP2", "FP3"]
+    archived = {}
+    for name in names:
+        try:
+            session = fastf1.get_session(year, number, name)
+            session.load(laps=True, telemetry=False, weather=False, messages=False)
+            pace = practice.session_pace(session)
+        except Exception:
+            continue
+        if pace:
+            archived[name] = {k: round(v, 4) for k, v in pace.items()}
+    return archived
+
+
 def refresh(document, start_season, season, cutoff):
     history.configure_cache()
     for year in range(start_season, season + 1):
@@ -229,6 +250,7 @@ def refresh(document, start_season, season, cutoff):
             }
             fmt = str(event["EventFormat"])
             kinds = ["Q", "R"] + (["S", "SQ"] if "sprint" in fmt else [])
+            waiting = False
             for kind in kinds:
                 identifier = "SS" if kind == "SQ" and fmt == "sprint_shootout" else kind
                 session = fastf1.get_session(year, number, identifier)
@@ -237,7 +259,15 @@ def refresh(document, start_season, season, cutoff):
                     raise DataError(
                         f"Missing historical results {year}/{number}/{kind}"
                     )
-                laps = session.laps
+                laps = loaded_laps(session)
+                # Timing and weather can arrive after results. A recent race whose
+                # timing is still missing is retried on the next run instead of being
+                # archived with permanent holes; an old one is archived as it is.
+                if (
+                    laps is None or loaded(session, "weather_data") is None
+                ) and cutoff - end < TIMING_PATIENCE:
+                    waiting = True
+                    break
                 if (
                     laps is not None
                     and not laps.empty
@@ -263,6 +293,15 @@ def refresh(document, start_season, season, cutoff):
                         record[
                             "fastest_lap" if kind == "R" else "sprint_fastest_lap"
                         ] = str(laps.loc[laps.loc[valid, "LapTime"].idxmin(), "Driver"])
+            if waiting:
+                print(
+                    f"Timing for {year}/{number} is not available yet; will retry",
+                    flush=True,
+                )
+                continue
+            # Practice pace is archived for new rounds so the practice weights can
+            # be fitted by model_compare once enough rounds carry it.
+            record["practice_pace"] = _practice_pace(year, number, fmt)
             public_history.save_racing(record)
             print(f"Archived timing {year}/{number}", flush=True)
 

@@ -58,6 +58,8 @@ class Weekend:
     sprint: bool
     locked: bool
     last_session: datetime | None = None
+    # (official session name, start, end), chronological; empty when unknown.
+    sessions: tuple[tuple[str, datetime, datetime], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,19 @@ def season_weekends(season: int) -> list[Weekend]:
                     any("Sprint" in s["SessionName"] for s in sessions),
                     bool(int(first["GDIsLocked"])),
                     max(_timestamp(s["SessionEndDateISO8601"]) for s in sessions),
+                    tuple(
+                        sorted(
+                            (
+                                (
+                                    str(s["SessionName"]),
+                                    _timestamp(s["SessionStartDateISO8601"]),
+                                    _timestamp(s["SessionEndDateISO8601"]),
+                                )
+                                for s in sessions
+                            ),
+                            key=lambda row: row[1],
+                        )
+                    ),
                 )
             )
         return sorted(weekends, key=lambda w: w.first_session)

@@ -16,6 +16,7 @@ import numpy as np
 
 from .data import Asset, DataError, Weekend
 from .history import configure_cache
+from .session_laps import loaded_laps
 from .telemetry_model import adjustments
 
 
@@ -144,12 +145,9 @@ def _history(season, cutoff):
             if results is None or results.empty:
                 raise DataError(f"Missing Predict history: {year}/{round_}/{kind}")
             # Scheduled completion alone is insufficient if a loaded race ran late.
-            if (
-                kind in {"R", "S"}
-                and session.laps is not None
-                and not session.laps.empty
-            ):
-                times = session.laps.get("LapStartDate")
+            session_laps = loaded_laps(session) if kind in {"R", "S"} else None
+            if session_laps is not None and not session_laps.empty:
+                times = session_laps.get("LapStartDate")
                 if times is not None and times.notna().any():
                     actual_end = _fastf1_utc(times.dropna().max()) + timedelta(hours=1)
                     if actual_end >= cutoff:
@@ -157,7 +155,7 @@ def _history(season, cutoff):
                             "Historical race/Sprint overlaps prediction cutoff"
                         )
                     record["end"] = max(_utc(record["end"]), actual_end).isoformat()
-                laps = session.laps
+                laps = session_laps
                 valid = laps["LapTime"].notna()
                 if "Deleted" in laps:
                     valid &= ~laps["Deleted"].fillna(False).astype(bool)
@@ -215,13 +213,27 @@ def _target(snapshot, cutoff):
     )
 
 
-def _draw(records, drivers, simulations, rng, telemetry):
+def _draw(records, drivers, simulations, rng, telemetry, grid=None, practice=None):
+    """``grid`` (driver code -> starting position) is an explicit post-qualifying
+    opt-in; no pre-weekend forecast passes it."""
     from . import racing_model
 
     fitted = racing_model.selection(records)
     if fitted["selected"] == "margin_v2":
+        params = (
+            racing_model.POST_QUALIFYING_PARAMETERS
+            if grid is not None
+            else fitted["parameters"]
+        )
         return racing_model.draw(
-            records, drivers, simulations, rng, telemetry, fitted["parameters"]
+            records,
+            drivers,
+            simulations,
+            rng,
+            telemetry,
+            params,
+            grid=grid,
+            practice=practice,
         )
     return _rank_draw(records, drivers, simulations, rng, telemetry)
 
@@ -1136,6 +1148,57 @@ def _season_forecast(snapshot, drivers, cutoff, simulations, seed):
     return output
 
 
+
+def _starting_grid(snapshot, drivers):
+    """Optional verified post-qualifying grid (driver code -> position).
+
+    Supplying ``starting_grid`` switches the race forecast to the grid-conditioned
+    parameters, which the 50-race walk-forward (docs/model-evaluation.md) shows cut
+    winner Brier by about a third. Only the race is conditioned; qualifying
+    questions and pre-weekend forecasts are unchanged. A partial or invalid grid
+    is rejected rather than silently ignored.
+    """
+    grid = snapshot.get("starting_grid")
+    if grid is None:
+        return None
+    tlas = {d["tla"] for d in drivers}
+    if (
+        not isinstance(grid, dict)
+        or set(grid) != tlas
+        or any(
+            isinstance(v, bool) or not isinstance(v, int) or v < 1
+            for v in grid.values()
+        )
+    ):
+        raise DataError("starting_grid must give every driver a positive integer position")
+    return dict(grid)
+
+
+def _practice_pace(snapshot, drivers):
+    """Optional current-weekend practice pace (driver code -> field-centred gap, %).
+
+    Supplied by the publisher from completed practice sessions only; it is
+    pre-qualifying evidence, so it is allowed alongside the pre-weekend cutoff.
+    Invalid values are rejected, not ignored.
+    """
+    pace = snapshot.get("practice_pace")
+    if pace is None:
+        return None
+    tlas = {d["tla"] for d in drivers}
+    if (
+        not isinstance(pace, dict)
+        or not pace
+        or not set(pace) <= tlas
+        or any(
+            isinstance(v, bool)
+            or not isinstance(v, (int, float))
+            or not np.isfinite(v)
+            for v in pace.values()
+        )
+    ):
+        raise DataError("practice_pace must map known drivers to finite pace gaps")
+    return {k: float(v) for k, v in pace.items()}
+
 def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
     """Return supported question marginals; no payout-driven feature engineering.
 
@@ -1183,7 +1246,17 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
             for d in drivers
         )
         telemetry = adjustments(assets, [weekend])
-    draws = _draw(records, drivers, simulations, np.random.default_rng(seed), telemetry)
+    grid = _starting_grid(snapshot, drivers)
+    practice = _practice_pace(snapshot, drivers)
+    draws = _draw(
+        records,
+        drivers,
+        simulations,
+        np.random.default_rng(seed),
+        telemetry,
+        grid=grid,
+        practice=practice,
+    )
     from . import racing_model
 
     context = {**snapshot, "_sprint": weekend.sprint}
@@ -1198,6 +1271,8 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
         ],
         "form_lookback": min(8, len(records)),
         "telemetry_adjustments": bool(telemetry),
+        "starting_grid_used": grid is not None,
+        "practice_pace_used": practice is not None,
         "calibrated": False,
         "model_selection": racing_model.selection(records),
         "assumptions": [

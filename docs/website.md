@@ -513,3 +513,44 @@ The historical `model.fantasy.groups[*].mae` values are base-model chronological
 replays, not MAE for the newly selected weather adjustment. `model.historical_mae_scope`
 makes that distinction explicit. Weather-specific MAE remains unavailable until
 genuinely archived pre-weekend weather forecasts have finalized outcomes.
+
+## Weekend states and the last good forecast
+
+The site never goes blank. Each publication carries `publication_state`:
+
+| `state` | When | What the publisher does |
+|---|---|---|
+| `open` | Before the weekend, and after the race | Normal refresh every two hours |
+| `practice` | From first practice until Grand Prix qualifying starts | Refresh targets the weekend in progress and uses completed practice sessions |
+| `paused` | From qualifying start until the race has finished | Republishes the last forecast unchanged |
+
+`mode` says how the numbers got there: `live` (built this run), `carried_forward`
+(the previous forecast, kept because the weekend is paused or a refresh failed),
+`stale` / `cached` (set by the browser for a forecast older than six hours or one
+read from its own storage). `generated_at` is never changed when a forecast is
+carried forward, so the banner always shows when the numbers were really made. The
+Pages workflow downloads the live `forecast.json` before building so there is
+always a copy to carry forward; `unavailable` is published only if there has never
+been one.
+
+The browser drops rounds that have already started when it shows a carried-forward
+forecast, keeps a copy in local storage, and shows a banner for every non-live state.
+
+## Practice evidence
+
+During `practice`, `python -m f1fantasy.web_data` loads the laps of each finished
+practice session (FastF1), takes each driver's mean of their best three clean laps
+against the field median on the same lap and tyre, weights later sessions more, and
+centres the result on the field. The models use it as a shrinkage target, never as a
+lap-time forecast:
+
+* racing model (race probabilities, Predict): qualifying and sprint-qualifying pace
+  share 0.25, race pace 0.15 (`racing_model.PRACTICE_WEIGHT`);
+* Fantasy point estimates for the weekend in progress: 0.25 qualifying, 0.15 race
+  (`practice.POINTS_WEIGHT`); constructors follow from their drivers.
+
+These weights are priors. `history.json` has no practice archive yet, so they could not
+be fitted by walk-forward, and the publication reports `model.practice.validated:
+false`. New rounds now archive `practice_pace`; once enough rounds carry it, add it to
+`model_compare` and fit the weights. A session that cannot be loaded falls back to the
+plain forecast and the reason is published in `model.practice.error`.

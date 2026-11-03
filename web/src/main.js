@@ -3,6 +3,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./style.css";
+import { bannerText } from "./publication.js";
 import "./insight-visuals.css";
 import "./participant-browser.css";
 import "./accuracy.css";
@@ -12,6 +13,7 @@ import {
   total,
   validateTeam,
   validateDataset,
+  CARRIED_MODES,
 } from "./optimizer.js";
 import { fetchDataset, verifyLive } from "./data.js";
 import { suggestionRequest } from "./team-suggestion.js";
@@ -29,9 +31,11 @@ import {
   strategyMarkup,
   insightsMarkup,
 } from "./views.js";
+import { accuracyText } from "./model-fit.js";
 import { logo, chipIcon, footerMarkup } from "./visuals.js";
 import {
   rememberWeekend,
+  rollBudget,
   weekendReady,
   adoptWeekend,
 } from "./team-progress.js";
@@ -124,6 +128,10 @@ const insightState = {
 };
 const team = () => profiles[active];
 function save() {
+  // Re-measure each team's cash against the current prices on every change, so a
+  // manual budget or roster edit is what the next price update is applied to.
+  if (dataset)
+    profiles = profiles.map((t) => (t ? rollBudget(dataset, t).team : t));
   try {
     localStorage.setItem("pitwall-teams-v1", JSON.stringify(profiles));
   } catch {
@@ -184,10 +192,21 @@ function route({ scroll = false } = {}) {
     $("#image-credits").scrollIntoView({ block: "start" });
   }
 }
+function stateBanner(dataset) {
+  const element = document.createElement("div");
+  element.id = "state-banner";
+  element.className = "state-banner";
+  element.setAttribute("role", "status");
+  const text = bannerText(dataset);
+  element.hidden = !text;
+  element.textContent = text;
+  return element;
+}
+
 function shell() {
   $("#app").innerHTML =
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
-     <main id="main"><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
+     <main id="main"><div id="state-banner" class="state-banner" role="status" hidden></div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#new-team").onclick = suggestTeam;
   $(".market-tools").insertAdjacentHTML(
     "beforeend",
@@ -234,7 +253,9 @@ function render() {
     $("#allocation").innerHTML = "";
     $("#roster-board").innerHTML = "";
     $("#header-cap").textContent = "Awaiting verified inputs";
-    const message = `<div class="panel welcome"><h2>${error ? "Forecasts unavailable" : "Loading…"}</h2><p>${esc(error || "Fetching the latest publication.")}</p></div>`;
+    const message = error
+      ? `<div class="panel welcome"><h2>Forecasts unavailable</h2><p>${esc(error)}</p></div>`
+      : `<div class="panel loading-panel" role="status" aria-label="Loading"><span class="loading-spinner" aria-hidden="true"></span></div>`;
     $("#strategy").innerHTML = message;
     $("#insights").innerHTML = message;
     $("#settings").innerHTML = message;
@@ -245,18 +266,19 @@ function render() {
     cost = total(chosen.map((a) => a.price_tenths_m));
   $("#header-cap").innerHTML =
     `Cap <b>${money(cost)}</b> / ${money(t.budget)} <strong class="${cost > t.budget ? "negative" : "positive"}">${money(t.budget - cost)} free</strong>`;
+  $("#state-banner").replaceWith(stateBanner(dataset));
   $("#publication-status").textContent =
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
+  $("#model-accuracy").textContent = accuracyText(dataset);
   $("#publication-window").textContent =
     `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
-  $("#planning-status").textContent =
-    busy || result
+  $("#planning-status").innerHTML = busy
+    ? '<span class="loading-spinner small" role="status" aria-label="Updating"></span>'
+    : result || t.selected.length === 7 && !error
       ? ""
       : error
         ? "Check team settings"
-        : t.selected.length === 7
-          ? "Strategy updates automatically"
-          : "Choose five drivers and two constructors";
+        : "Choose five drivers and two constructors";
   $("#profile-cards").innerHTML = profilesMarkup(dataset, profiles, active);
   document
     .querySelectorAll("[data-team]")
@@ -272,23 +294,18 @@ function render() {
    }).join("")}</fieldset>
   <div class="garage-utilities"><details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
     t.active === "limitless"
-      ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
-          "DRIVER",
-          "CONSTRUCTOR",
-        ]
+      ? `<fieldset class="restore-picker" id="restore"><legend>Team restored after Limitless</legend>${["DRIVER", "CONSTRUCTOR"]
           .map(
             (kind) =>
-              `<optgroup label="${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}">${dataset.assets
+              `<div class="restore-group"><span>${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}</span><div>${dataset.assets
                 .filter((a) => a.kind === kind)
                 .map(
                   (a) =>
-                    `<option value="${esc(a.id)}" ${t.restore.includes(a.id) ? "selected" : ""}>${esc(a.name)}</option>`,
+                    `<label class="restore-chip"><input type="checkbox" value="${esc(a.id)}" ${t.restore.includes(a.id) ? "checked" : ""}/><span>${esc(a.name)}</span></label>`,
                 )
-                .join("")}</optgroup>`,
+                .join("")}</div></div>`,
           )
-          .join(
-            "",
-          )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. Required for full-season restoration.</p>`
+          .join("")}</fieldset><p class="hint">Select the original seven. Required for full-season restoration.</p>`
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
     <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
@@ -320,6 +337,18 @@ function render() {
       invalidate();
       render();
     };
+  if (t.budgetUpdate) {
+    const u = t.budgetUpdate;
+    $(".garage-utilities").insertAdjacentHTML(
+      "afterend",
+      `<section class="weekend-update budget-update" aria-label="Budget updated"><div><strong>Budget updated after the last weekend</strong><p>Team value ${u.valueFrom === null ? "" : `${money(u.valueFrom)} → `}${money(u.valueTo)} at the new prices, plus ${money(u.cash)} unspent cash: budget ${money(u.budgetFrom)} → <b>${money(u.budgetTo)}</b>. Check it against your official budget.</p></div><button id="dismiss-budget">Dismiss</button></section>`,
+    );
+    $("#dismiss-budget").onclick = () => {
+      delete team().budgetUpdate;
+      save();
+      render();
+    };
+  }
   if (t.weekendSuggestion) {
     const saved = t.weekendSuggestion;
     const ready = weekendReady(dataset, saved);
@@ -373,7 +402,10 @@ function render() {
   );
   if ($("#restore"))
     $("#restore").onchange = (e) => {
-      t.restore = Array.from(e.target.selectedOptions, (o) => o.value);
+      t.restore = Array.from(
+        $("#restore").querySelectorAll("input:checked"),
+        (o) => o.value,
+      );
       invalidate();
       render();
     };
@@ -484,7 +516,8 @@ function renderInsights() {
 }
 function acceptDataset(fresh) {
   dataset = fresh;
-  for (const t of profiles) {
+  for (const [index, current] of profiles.entries()) {
+    const t = current;
     if (t.season !== null && t.season !== dataset.season) {
       t.selected = [];
       t.chips = [...CHIPS];
@@ -497,6 +530,8 @@ function acceptDataset(fresh) {
     t.chips = t.chips.filter(
       (c) => dataset.chip_support[c]?.available !== false,
     );
+    // Prices move after a completed weekend: keep the team's excess cash.
+    profiles[index] = rollBudget(dataset, t).team;
   }
   save();
 }
@@ -548,7 +583,9 @@ async function plan({ fill = false } = {}) {
       acceptDataset(fresh);
       if (!fill) validateTeam(fresh, team());
     }
-    const check = await verifyLive(fresh);
+    const check = CARRIED_MODES.includes(fresh.publication_state?.mode)
+      ? { verified: false, message: "Showing the last published forecasts." }
+      : await verifyLive(fresh);
     if (!busy || profile !== active || request !== revision) return;
     verificationText = check.verified
       ? "Live prices verified"

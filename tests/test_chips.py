@@ -783,18 +783,14 @@ def test_loader_fails_when_every_common_sample_has_null_points(monkeypatch):
         load_chip_values(assets, weekends, estimates)
 
 
-@pytest.mark.parametrize(
-    "bad", ["missing_asset", "missing_session", "nan", "negative_uplift", "total"]
-)
+@pytest.mark.parametrize("bad", ["missing_session", "nan", "negative_uplift", "total"])
 def test_loader_rejects_incomplete_common_samples(monkeypatch, bad):
     assets, weekends, estimates, _, get = history_fixture(monkeypatch)
 
     def broken(path):
         feed = get(path)
         row = feed["Value"][0]
-        if bad == "missing_asset":
-            feed["Value"].pop()
-        elif bad == "missing_session":
+        if bad == "missing_session":
             row["SessionWisePoints"].pop()
         elif bad == "nan":
             row["SessionWisePoints"][0]["nonegative_points"] = float("nan")
@@ -926,3 +922,101 @@ def test_final_fix_requires_explicit_window_inventory_and_all_remaining_estimate
             eligible=True,
             accrued_points=0,
         )
+
+
+def test_loader_accepts_the_feeds_sprint_qualifying_name_for_the_sprint_session(
+    monkeypatch,
+):
+    """Regression: the official feed calls the Sprint scoring session 'Sprint Qualifying'."""
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def renamed(path):
+        feed = get(path)
+        for row in feed["Value"]:
+            for session in row["SessionWisePoints"]:
+                if session["sessiontype"] == "Sprint":
+                    session["sessiontype"] = "Sprint Qualifying"
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", renamed)
+    values = load_chip_values(assets, weekends, estimates)
+    assert values.autopilot[1] and values.no_negative[1, "0"].sprint >= 0
+
+    # A regular weekend must still reject a stray Sprint session.
+    def stray(path):
+        feed = renamed(path)
+        if int(path.split("/")[1].split("_")[0]) % 2 == 1:
+            feed["Value"][0]["SessionWisePoints"].append(
+                {
+                    "sessiontype": "Sprint Qualifying",
+                    "points": 1,
+                    "nonegative_points": 1,
+                }
+            )
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", stray)
+    with pytest.raises(DataError):
+        load_chip_values(assets, weekends, estimates)
+
+
+def test_a_new_asset_without_history_is_valued_neutrally_not_fatal(monkeypatch):
+    """Regression: one new driver (absent from every earlier gameday) disabled all chips."""
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def without_new(path):
+        feed = get(path)
+        feed["Value"] = [r for r in feed["Value"] if str(r["PlayerId"]) != "5"]
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", without_new)
+    values = load_chip_values(assets, weekends, estimates)
+    assert values.imputed_assets == ("5",)
+    for t in range(len(weekends)):
+        # Neutral chip expectations must not become invented joint observations.
+        assert all(
+            "5" not in s["scores"] and "5" not in s["no_negative"]
+            for s in values.joint[t]
+        )
+        # neutral: no uplift beyond the forecast floor, scenarios equal the forecast
+        assert (
+            values.no_negative[t, "5"].total <= -min(0, estimates[t, "5"].total) + 1e-9
+        )
+        assert all(
+            scenario["5"].total == pytest.approx(estimates[t, "5"].total)
+            for scenario in values.autopilot[t]
+        )
+
+
+def test_a_new_asset_with_partial_history_uses_its_own_mean(monkeypatch):
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def late_joiner(path):
+        feed = get(path)
+        if int(path.split("/")[1].split("_")[0]) < 12:
+            feed["Value"] = [r for r in feed["Value"] if str(r["PlayerId"]) != "5"]
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", late_joiner)
+    values = load_chip_values(assets, weekends, estimates)
+    assert "5" in values.imputed_assets
+    assert all("5" not in s["scores"] for s in values.joint[0])
+    spread = {s["5"].total for s in values.autopilot[0]}
+    assert len(spread) >= 1 and all(
+        abs(v - estimates[0, "5"].total) < 50 for v in spread
+    )
+
+
+def test_more_than_two_assets_without_history_is_still_an_error(monkeypatch):
+    assets, weekends, estimates, _, get = history_fixture(monkeypatch)
+
+    def many_missing(path):
+        feed = get(path)
+        feed["Value"] = [
+            r for r in feed["Value"] if str(r["PlayerId"]) not in {"3", "4", "5"}
+        ]
+        return feed
+
+    monkeypatch.setattr(data, "_get_json", many_missing)
+    with pytest.raises(DataError, match="common sample"):
+        load_chip_values(assets, weekends, estimates)

@@ -1002,3 +1002,87 @@ def test_award_ties_and_unknown_predicates_remain_explicit(
         "Unrecognized"
         in model.forecast(s, simulations=10, use_telemetry=False)[1]["unsupported"]
     )
+
+
+def test_verified_starting_grid_conditions_the_race_and_is_reported(snapshot):
+    options = snapshot["roster"]
+    snapshot["questions"] = [
+        question(1, "Predict the podium for the Mexico Grand Prix", options, 1)
+    ]
+    free = model.forecast(snapshot, simulations=800, use_telemetry=False)
+    # Last-placed car in form starts on pole.
+    gridded = {**snapshot, "starting_grid": {"BEA": 4, "OCO": 3, "PER": 2, "VER": 1}}
+    held = model.forecast(gridded, simulations=800, use_telemetry=False)
+    assert free[1]["evidence"]["starting_grid_used"] is False
+    assert held[1]["evidence"]["starting_grid_used"] is True
+    assert free != held
+
+
+@pytest.mark.parametrize(
+    "grid",
+    [
+        {"BEA": 1, "OCO": 2, "PER": 3},  # missing a driver
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 0},
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 4.0},
+        {"BEA": 1, "OCO": 2, "PER": 3, "VER": 4, "XXX": 5},
+    ],
+)
+def test_invalid_starting_grid_is_rejected_not_ignored(snapshot, grid):
+    snapshot["questions"] = [
+        question(1, "Predict the podium for the Mexico Grand Prix", snapshot["roster"], 1)
+    ]
+    with pytest.raises(model.DataError):
+        model.forecast({**snapshot, "starting_grid": grid}, simulations=200, use_telemetry=False)
+
+
+def test_history_survives_a_race_whose_lap_timing_never_loaded(monkeypatch):
+    """Regression for the daily refresh: results exist but ``session.laps`` raises."""
+
+    class DataNotLoadedError(Exception):
+        pass
+
+    class Event(dict):
+        def get_session_date(self, *_a, **_k):
+            return "2026-02-01T12:00:00Z"
+
+    class Schedule:
+        def __init__(self, events):
+            self.events = events
+
+        def iterrows(self):
+            return iter(enumerate(self.events))
+
+    class Session:
+        def __init__(self, kind):
+            self.results = pd.DataFrame(
+                [
+                    {
+                        "Abbreviation": "BEA",
+                        "Position": 1,
+                        "ClassifiedPosition": "1",
+                        "Points": 25,
+                        "Status": "Finished",
+                        "TeamName": "Haas",
+                    }
+                ]
+            )
+
+        @property
+        def laps(self):
+            raise DataNotLoadedError("The data you are trying to access has not been loaded")
+
+        def load(self, **_):
+            pass
+
+    monkeypatch.setattr(model, "configure_cache", lambda: None)
+    monkeypatch.setattr(
+        model.fastf1,
+        "get_event_schedule",
+        lambda season, **_: Schedule(
+            [Event(RoundNumber=1, EventFormat="conventional")] if season == 2026 else []
+        ),
+    )
+    monkeypatch.setattr(model.fastf1, "get_session", lambda *a: Session(a[2]))
+    (record,) = model._history(2026, datetime(2026, 10, 1, tzinfo=timezone.utc))
+    assert "fastest_lap" not in record
+    assert record["sessions"]["R"][0]["tla"] == "BEA"

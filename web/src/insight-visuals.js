@@ -107,10 +107,34 @@ export function fantasyChart(dataset, round, population) {
   );
   const positiveMax = Math.max(
     1,
-    ...rows.map(({ scores }) => total(scores.map((v) => Math.max(0, v)))),
+    ...rows.map(({ scores }) => total(scores.map((x) => Math.max(0, x)))),
   );
   const negativeShare = negativeMax / (negativeMax + positiveMax);
   return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative" style="flex:0 0 ${100 * negativeShare}%">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${negativeMax ? (100 * Math.max(0, -v)) / negativeMax : 0}%"></i>`).join("")}</span><span class="signed-positive" style="flex:1">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / positiveMax}%"></i>`).join("")}</span></div></li>`).join("")}</ol></section>`;
+}
+
+// A laurel wreath and trophy drawn from plain shapes; the champion's own portrait
+// sits in the middle, tinted by team colour through --team-color.
+const wreath = `<svg class="champion-wreath" viewBox="0 0 220 220" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M110 200C52 190 18 140 24 84"/><path d="M110 200c58-10 92-60 86-116"/></g><g fill="currentColor">${[
+  0, 1, 2, 3, 4, 5, 6,
+]
+  .map((i) => {
+    const t = i / 6,
+      y = 190 - i * 19,
+      x = 28 + 14 * Math.sin(t * 2.4);
+    return `<ellipse cx="${x.toFixed(1)}" cy="${y}" rx="11" ry="5" transform="rotate(${-62 + i * 7} ${x.toFixed(1)} ${y})"/><ellipse cx="${(220 - x).toFixed(1)}" cy="${y}" rx="11" ry="5" transform="rotate(${62 - i * 7} ${(220 - x).toFixed(1)} ${y})"/>`;
+  })
+  .join("")}</g></svg>`;
+const trophy = `<svg class="champion-trophy" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 6h20v10c0 7-4.5 12-10 12S14 23 14 16z" fill="currentColor"/><path d="M14 9H7c0 7 3 11 8 12M34 9h7c0 7-3 11-8 12" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M21 28h6v7h-6zM15 41h18l-2-6H17z" fill="currentColor"/></svg>`;
+
+export function championBanner(dataset, row, population) {
+  const asset = dataset.assets.find((a) => a.id === row.asset_id);
+  if (!asset) return "";
+  const scored = (r) =>
+    Number.isFinite(r?.observed) ? r.observed : r?.projected;
+  const title =
+    population === "drivers" ? "Drivers' Champion" : "Constructors' Champion";
+  return `<div class="champion-banner" style="--team-color:${teamColor(dataset, asset)}" role="img" aria-label="${esc(row.name)}, ${dataset.season} ${title}"><div class="champion-medal">${wreath}<div class="champion-portrait">${portrait(asset, asset.kind === "DRIVER" ? helmet() : car())}</div><span class="champion-spark s1"></span><span class="champion-spark s2"></span><span class="champion-spark s3"></span></div><div class="champion-copy"><span class="champion-label">${trophy}${dataset.season} ${title}</span><strong>${esc(row.name)}</strong><p>${points(scored(row))} pts</p></div></div>`;
 }
 
 export function championshipChart(dataset, insight, population) {

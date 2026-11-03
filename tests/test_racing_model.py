@@ -156,3 +156,196 @@ def test_stationary_minimum_uses_service_time_and_opportunity_counts():
     p = pitstop_model.simulate(events, ["A", "B"], str, simulations=3000, prior=1)
     assert p["A"] > 0.95
     assert sum(p.values()) == pytest.approx(1)
+
+
+def retiring_history(count=12):
+    """Team B's cars retire in most races with the generic status 'Retired'."""
+    records = history(count)
+    for rec in records:
+        for row in rec["sessions"]["R"]:
+            if row["team_name"] == "B":
+                row["classified"] = False
+                row["status"] = "Retired"
+    return records
+
+
+def test_retirement_propensity_follows_team_history_and_pools_toward_field():
+    records = retiring_history()
+    drivers = racing_model.roster(records[-1])
+    team_ids = sorted({str(d["team_id"]) for d in drivers})
+    teams = {d["team_id"]: d["team_name"] for d in drivers}
+    rates = racing_model._retirement_propensity(records, "R", team_ids, teams, drivers)
+    by_team = dict(zip(team_ids, rates))
+    # Pooling toward the field keeps both rates away from 0 and 1.
+    assert by_team["B"] > 2.5 * by_team["A"]
+    assert (rates > 0).all() and (rates < 1).all()
+    # Without any history every team takes the same (field) rate.
+    fresh = racing_model._retirement_propensity([], "R", team_ids, teams, drivers)
+    assert np.allclose(fresh, fresh[0])
+
+
+def test_incident_assignment_is_weighted_by_team_but_keeps_shared_count():
+    records = retiring_history()
+    drivers = racing_model.roster(records[-1])
+    draws = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, racing_model.PARAMETERS[0]
+    )
+    nc = ~draws["R"]["classified"]
+    team_b = [i for i, d in enumerate(drivers) if d["team_name"] == "B"]
+    team_a = [i for i, d in enumerate(drivers) if d["team_name"] == "A"]
+    assert nc[:, team_b].mean() > nc[:, team_a].mean() + 0.2
+    # The sampled event count is shared: two of four cars retired in every race.
+    assert abs(nc.sum(axis=1).mean() - 2.0) < 0.15
+
+
+def test_uniform_history_keeps_not_classified_flat_across_teams():
+    records = history()
+    for rec in records:
+        for i, row in enumerate(rec["sessions"]["R"]):
+            row["classified"] = (rec["round"] + i) % 4 != 0
+            row["status"] = "Finished" if row["classified"] else "Retired"
+    drivers = racing_model.roster(records[-1])
+    draws = racing_model.draw(
+        records, drivers, 6000, np.random.default_rng(5), {}, racing_model.PARAMETERS[0]
+    )
+    rates = (~draws["R"]["classified"]).mean(axis=0)
+    assert rates.max() - rates.min() < 0.08
+
+
+def test_known_grid_moves_race_win_probability_and_is_opt_in():
+    records = history()
+    drivers = racing_model.roster(records[-1])
+    params = {**racing_model.POST_QUALIFYING_PARAMETERS}
+    # Drivers "0" and "3" swap places on the grid; "0" is the faster car otherwise.
+    grid = {"0": 4, "1": 2, "2": 3, "3": 1}
+    free = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, params
+    )
+    held = racing_model.draw(
+        records, drivers, 4000, np.random.default_rng(3), {}, params, grid=grid
+    )
+
+    def win(draws, i):
+        return ((draws["R"]["ranks"][:, i] == 1) & draws["R"]["classified"][:, i]).mean()
+
+    assert win(held, 3) > win(free, 3) + 0.05
+    assert win(held, 0) < win(free, 0) - 0.05
+
+
+def test_pre_weekend_parameters_do_not_use_the_grid():
+    assert racing_model.PARAMETERS[0]["grid_weight"] in {0.0, 0.6}
+    assert racing_model.POST_QUALIFYING_PARAMETERS["grid_weight"] > 0
+
+
+class DataNotLoadedError(Exception):
+    """Same name as fastf1.exceptions.DataNotLoadedError (not an AttributeError)."""
+
+
+class UnloadedSession:
+    """Results loaded, but laps and weather never were (FastF1 raises on access)."""
+
+    def __init__(self, results):
+        self.results = results
+
+    @property
+    def laps(self):
+        raise DataNotLoadedError("not loaded")
+
+    @property
+    def weather_data(self):
+        raise DataNotLoadedError("not loaded")
+
+
+def test_extract_survives_a_session_whose_laps_and_weather_never_loaded():
+    results = pd.DataFrame(
+        [
+            dict(
+                Abbreviation=d,
+                Position=i + 1,
+                ClassifiedPosition=str(i + 1),
+                Points=0,
+                TeamName="Team",
+                Status="Finished",
+                Laps=5,
+            )
+            for i, d in enumerate("ABC")
+        ]
+    )
+    rows, context = racing_data.extract(UnloadedSession(results), "R")
+    assert [r["tla"] for r in rows] == ["A", "B", "C"]
+    assert context["regime"] == "unknown"
+    assert rows[0]["pace_gap_pct"] is None
+
+
+def test_other_session_errors_are_not_swallowed():
+    from f1fantasy.session_laps import loaded
+
+    class Broken:
+        @property
+        def weather_data(self):
+            raise RuntimeError("real failure")
+
+    with pytest.raises(RuntimeError):
+        loaded(Broken(), "weather_data")
+    assert loaded(UnloadedSession(None), "weather_data") is None
+
+
+def _refresh_setup(monkeypatch, race_start, sessions):
+    saved = []
+    schedule = pd.DataFrame(
+        [
+            {
+                "RoundNumber": 1,
+                "race_start": race_start.isoformat(),
+                "Location": "Austin",
+                "EventFormat": "conventional",
+            }
+        ]
+    )
+    monkeypatch.setattr(racing_data.history, "configure_cache", lambda: None)
+    monkeypatch.setattr(racing_data.public_history, "schedule", lambda year: schedule)
+    monkeypatch.setattr(racing_data.public_history, "racing_record", lambda *a: None)
+    monkeypatch.setattr(racing_data.public_history, "save_racing", saved.append)
+    monkeypatch.setattr(racing_data, "_practice_pace", lambda *a: {})
+
+    class Session:
+        def __init__(self, identifier):
+            self._inner = sessions
+
+        def load(self, **_):
+            pass
+
+        def __getattr__(self, name):
+            return getattr(self._inner, name)
+
+    monkeypatch.setattr(racing_data.fastf1, "get_session", lambda y, n, i: Session(i))
+    return saved
+
+
+def _results():
+    return pd.DataFrame(
+        [
+            dict(Abbreviation=d, Position=i + 1, ClassifiedPosition=str(i + 1),
+                 Points=0, TeamName="T", Status="Finished", Laps=5)
+            for i, d in enumerate("ABC")
+        ]
+    )
+
+
+def test_recent_race_with_missing_timing_is_retried_not_archived(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 11, 2, tzinfo=timezone.utc)
+    saved = _refresh_setup(monkeypatch, now - timedelta(days=2), UnloadedSession(_results()))
+    racing_data.refresh({}, 2026, 2026, now)
+    assert saved == []  # not archived with permanent holes; the next run retries
+
+
+def test_old_race_with_missing_timing_is_archived_as_it_is(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 11, 2, tzinfo=timezone.utc)
+    saved = _refresh_setup(monkeypatch, now - timedelta(days=30), UnloadedSession(_results()))
+    racing_data.refresh({}, 2026, 2026, now)
+    assert len(saved) == 1
+    assert saved[0]["session_context"]["R"]["regime"] == "unknown"

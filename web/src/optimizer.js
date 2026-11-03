@@ -15,6 +15,8 @@ const fail = (message) => {
   throw new Error(message);
 };
 
+export const CARRIED_MODES = ["carried_forward", "stale", "cached"];
+
 export function validateDataset(data, now = Date.now()) {
   if (data?.schema_version !== 1 || data.status !== "ready")
     fail(
@@ -22,10 +24,14 @@ export function validateDataset(data, now = Date.now()) {
         "Forecasts are unavailable. Refresh the published data first.",
     );
   const generated = Date.parse(data.generated_at);
+  // A forecast the publisher carried forward (paused weekend, failed refresh) or
+  // that this browser cached is deliberately older than six hours; it is shown
+  // with its true age instead of being rejected.
+  const carried = CARRIED_MODES.includes(data.publication_state?.mode);
   if (
     !Number.isFinite(generated) ||
     generated > now + 300000 ||
-    now - generated > 6 * 3600000
+    (!carried && now - generated > 6 * 3600000)
   )
     fail(
       "The published forecasts are more than six hours old. Wait for the next data refresh.",

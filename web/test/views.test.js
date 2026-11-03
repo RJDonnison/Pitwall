@@ -191,10 +191,14 @@ test("Race Insights reports missing publication evidence without fabricated scor
   assert.doesNotMatch(html, /-5\.0|Forecast round|<table/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });
-test("Strategy updates automatically without manual calculation controls", () => {
+test("Strategy shows only a spinner while it updates, with no manual calculation controls", () => {
   const { data, team } = fixture();
   const html = strategyMarkup(data, team, null, false, 0);
-  assert.match(html, /automatically/);
+  assert.match(html, /loading-spinner/);
+  assert.doesNotMatch(
+    html,
+    /automatically|Preparing|Updating strategy…|Optimizing/,
+  );
   assert.doesNotMatch(
     html,
     /id="replan"|Calculate changes|Recalculate|href="#garage"/,
@@ -363,4 +367,24 @@ test("registry shows unboosted next-round points and team colours for both kinds
   assert.match(html, /<strong>-2\.0<\/strong> est\. pts/);
   assert.match(html, /aria-label="Add Extra driver"/);
   assert.match(html, /disabled/);
+});
+
+test("individual prediction ranges cannot masquerade as a joint season range", () => {
+  const { data, team, result } = fixture();
+  const intervals = Object.fromEntries(
+    result.rounds[0].entries.map((e) => [
+      e.id,
+      { Q: { low: -1, high: 1 }, R: { low: -2, high: 2 } },
+    ]),
+  );
+  result.rounds[0].intervals = intervals;
+  const html = strategyMarkup(data, team, result, false, 0);
+  assert.match(html, /Prediction range unavailable/);
+  assert.doesNotMatch(html, /class="score-range"|class="season-range-total"/);
+  assert.doesNotMatch(html, /chart-whisker/);
+  const bare = fixture().result;
+  assert.doesNotMatch(
+    strategyMarkup(data, team, bare, false, 0),
+    /score-range/,
+  );
 });
