@@ -10,7 +10,7 @@ import re
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
-from . import account as storage, predict_data as data, predict_model
+from . import account as storage, predict_data as data, predict_model, predict_risk
 from .data import DataError
 
 
@@ -143,7 +143,9 @@ def score(question, selected, actual, boosted=False):
     return total * (2 if boosted else 1)
 
 
-def select(snapshot, forecasts, training=()):
+def select(snapshot, forecasts, training=(), *, risk_aversion=0):
+    if not math.isfinite(risk_aversion) or risk_aversion < 0:
+        raise DataError("Predict risk aversion must be finite and non-negative")
     answers, unsupported = [], []
     cutoff = min(
         data.utc(snapshot["first_session_utc"]), data.utc(snapshot["fetched_at"])
@@ -172,16 +174,38 @@ def select(snapshot, forecasts, training=()):
             continue
         probabilities, calibration = _calibrate(q, forecast, training, cutoff)
         payouts = np.array([o["points"] for o in q["options"]])
+        sd = None
         if q["template"] == 1:
+            if risk_aversion and not forecast.get("podium_outcomes"):
+                unsupported.append(
+                    {
+                        "question_id": q["id"],
+                        "text": q["text"],
+                        "reason": "Joint podium outcomes are required for risk-adjusted selection",
+                    }
+                )
+                continue
             expected = payouts[:, None] * (
                 probabilities.sum(axis=1)[:, None] + probabilities
             )
             slots, indexes = linear_sum_assignment(-expected.T)
             picks = [int(indexes[list(slots).index(slot)]) for slot in range(3)]
             points = float(sum(expected[i, slot] for slot, i in enumerate(picks)))
+            if forecast.get("podium_outcomes"):
+                moments = predict_risk.podium_moments(
+                    q, forecast, probabilities, calibration["raw_weight"]
+                )
+                if risk_aversion:
+                    picks, points, sd = predict_risk.podium_choice(
+                        payouts, moments, risk_aversion
+                    )
+                else:
+                    sd = predict_risk.podium_sd(picks, payouts, moments)
         else:
-            index = int(np.argmax(payouts * probabilities))
+            deviations = np.abs(payouts) * np.sqrt(probabilities * (1 - probabilities))
+            index = int(np.argmax(payouts * probabilities - risk_aversion * deviations))
             picks, points = [index], float((payouts * probabilities)[index])
+            sd = float(deviations[index])
         answers.append(
             {
                 "question_id": q["id"],
@@ -191,6 +215,8 @@ def select(snapshot, forecasts, training=()):
                 "booster_id": "0",
                 "expected_points_before_boost": points,
                 "expected_points": points,
+                "standard_deviation": sd,
+                "risk_score": points - risk_aversion * sd if sd is not None else None,
                 "probabilities": {
                     o["id"]: probabilities[i].tolist()
                     if probabilities.ndim == 2
@@ -203,9 +229,15 @@ def select(snapshot, forecasts, training=()):
             }
         )
     if answers:
-        boosted = max(answers, key=lambda r: r["expected_points"])
+        boosted = max(
+            answers,
+            key=lambda r: r["risk_score"] if risk_aversion else r["expected_points"],
+        )
         boosted["booster_id"] = "1"
         boosted["expected_points"] *= 2
+        if boosted["standard_deviation"] is not None:
+            boosted["standard_deviation"] *= 2
+            boosted["risk_score"] *= 2
     result = {
         k: snapshot[k]
         for k in (
@@ -226,6 +258,7 @@ def select(snapshot, forecasts, training=()):
         answers=answers,
         unsupported=unsupported,
         expected_total_points=sum(a["expected_points"] for a in answers),
+        risk_aversion=risk_aversion,
         warnings=[
             "Model forecasts are uncertain; payouts are used only for scoring. Raw probabilities stay explicitly uncalibrated until sufficient earlier settled pre-lock archives exist."
         ],
@@ -377,7 +410,13 @@ def archives(directory):
 
 
 def recommend(
-    snapshot, *, directory=None, simulations=4000, seed=2026, use_telemetry=True
+    snapshot,
+    *,
+    directory=None,
+    simulations=4000,
+    seed=2026,
+    use_telemetry=True,
+    risk_profiles=False,
 ):
     if snapshot["locked"] or datetime.now(timezone.utc) >= data.utc(
         snapshot["first_session_utc"]
@@ -394,6 +433,11 @@ def recommend(
     raw = {str(key): value for key, value in raw.items()}
     training = archives(directory) if directory is not None else []
     result = select(snapshot, raw, training)
+    if risk_profiles:
+        result["risk_profiles"] = {
+            name: select(snapshot, raw, training, risk_aversion=weight)
+            for name, weight in predict_risk.PROFILES.items()
+        }
     if directory is not None:
         # Persist public inputs and forecasts only; authenticated cookies/GUIDs and
         # saved selections are deliberately absent from research snapshots.

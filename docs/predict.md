@@ -47,6 +47,48 @@ an 80% podium chance and 30% exact-position chance yield **11 expected points**
 before Boost. Three selected drivers finishing on the podium in entirely the
 wrong order still earn their three listed payouts.
 
+### Website risk preference
+
+The Predict navbar has **Low (λ = 0.5)**, **Medium (0.25)** and **High (0.1)**
+risk levels. Medium is the default; the browser remembers the selection locally.
+Each question maximizes **Score = EV − λ × SD**, using points for both EV and SD.
+Low risk penalizes dispersion most strongly; High risk remains mildly risk-averse.
+Expected points remain visible separately from the risk score and standard deviation.
+
+Single-answer payouts use `SD = |payout| × sqrt(p × (1 − p))`, including the
+zero-point unsuccessful/no-award outcome. The ordered podium evaluates every legal
+distinct-driver assignment using its joint simulated payout distribution: listed
+points for any podium finish plus the same again for the exact slot. Its SD includes
+covariance between the three picks, not a sum of driver SDs. Chronological calibration
+mixes the joint raw and uniform distributions with the same weight as the marginals.
+Missing joint evidence leaves that risk-adjusted question unsupported.
+
+The question Boost doubles both EV and SD, so it goes to the highest unboosted
+question score. This is a **question-level** decision objective; it does not claim
+to minimize whole-sheet SD across correlated questions. All three profiles are
+published from the same forecast run, and changing the dropdown needs no network
+request. Older publications without these profiles await the next publication.
+CLI/account recommendations retain their existing EV objective.
+
+### Applicability elsewhere
+
+- **Fantasy season plans, team suggestions, transfers and chips:** applicable, but
+  must score the entire seven-selection team on shared weekend scenarios, including
+  Boost, Autopilot, No Negative, restoration and deterministic transfer penalties.
+  `web/src/season-range.js` already evaluates those joint outcomes. Individual SDs
+  cannot be added because drivers and constructors share race outcomes. Across
+  weekends, the existing range model assumes independent weekend blocks.
+- **Optimizer work required:** the existing HiGHS model has a linear expected-points
+  objective. The square root of joint portfolio variance requires a conic-capable
+  mixed-integer optimizer or a verified outer-approximation procedure to guarantee
+  an optimum. Simply subtracting per-driver SD would change the requested formula.
+  The Predict dropdown therefore does not alter Fantasy plans or team suggestions.
+- **Race Insights:** finishing probabilities and championship forecasts describe
+  outcomes, not user preferences. Keep those probabilities unchanged; risk belongs
+  in a points-based decision layer with an explicit payout and joint distribution.
+
+### Forecast inputs and coverage
+
 The deterministic simulation uses prior-smoothed historical qualifying and race
 ranks, classification rates and joint weekend variation, optionally adjusted by
 the existing cached telemetry model. Qualifying, Sprint qualifying, Sprint and

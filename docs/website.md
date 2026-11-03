@@ -477,6 +477,13 @@ official Fantasy totals and a completed racing record. A new archive starts
 empty: waiting for finalized outcomes is an honest unavailable state.
 ## Website F1 Predict
 
+The Predict navbar's locally saved risk setting defaults to Medium: Low uses
+λ = 0.5, Medium 0.25 and High 0.1. Published profiles select answers and the question
+Boost using `EV − λ × SD`; the cards keep expected points, risk score and payout SD
+distinct. Podium SD uses joint simulated outcomes. This preference applies to
+Predict decisions; see [risk preferences and broader applicability](predict.md#website-risk-preference)
+for the model and the separate work needed for Fantasy optimization.
+
 The **Predict** navigation item opens an independent F1 Predict answer sheet in
 the same Inter, paper and vermilion design as Strategy and Race Insights.
 

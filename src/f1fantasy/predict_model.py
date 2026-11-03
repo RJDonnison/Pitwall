@@ -460,14 +460,10 @@ def _question(question, snapshot, drivers, draws, records):
     semantic = None
     extra = {}
     if template == 1 and "podium" in text and all(i is not None for i in indices):
+        from .predict_risk import podium_distribution
+
         return {
-            "position_probabilities": {
-                str(option["id"]): [
-                    float(np.mean((ranks[:, i] == p) & classified[:, i]))
-                    for p in (1, 2, 3)
-                ]
-                for option, i in zip(options, indices)
-            },
+            **podium_distribution(options, indices, ranks, classified),
             "model_type": f"{model}:{kind.lower()}:podium",
         }
     if (
@@ -990,11 +986,12 @@ def _season_question(question, snapshot, drivers, events, world, cutoff):
                 return {
                     "unsupported": "Championship podium remains tied after FIA countback"
                 }
+            from .predict_risk import podium_distribution
+
             return {
-                "position_probabilities": {
-                    str(o["id"]): [float(np.mean(ranks[:, i] == p)) for p in (1, 2, 3)]
-                    for o, i in zip(options, indices)
-                },
+                **podium_distribution(
+                    options, indices, ranks, np.ones_like(ranks, dtype=bool)
+                ),
                 "model_type": "joint-season-racing-bootstrap-prior-v1:driver_championship_podium",
             }
         if template == 7 and len(indices) == 2:

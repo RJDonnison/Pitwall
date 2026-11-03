@@ -1,6 +1,28 @@
 body[data-page="predict"] #state-banner {
   display: none;
 }
+.predict-risk {
+  display: none;
+  margin-left: auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+body[data-page="predict"] .predict-risk {
+  display: flex;
+}
+.predict-risk select {
+  width: auto;
+  min-height: 40px;
+  margin: 0;
+  font-size: 12px;
+}
+.predict-risk-note,
+.predict-risk-metrics {
+  margin: 0;
+  font-size: 12px;
+}
 .predict-page {
   display: grid;
   gap: 24px;

@@ -42,7 +42,7 @@ def build(season, *, telemetry=True):
             )
         else:
             publication["recommendation"] = predict.recommend(
-                snapshot, use_telemetry=telemetry
+                snapshot, use_telemetry=telemetry, risk_profiles=True
             )
         return publication
     except (DataError, OSError, ValueError) as exc:

@@ -100,7 +100,18 @@ def test_web_predict_publishes_cli_scoring_and_public_contract(monkeypatch, game
     publication = web_predict.build(2099)
     assert publication["status"] == "ready"
     assert publication["questions"] == game["questions"]
-    assert publication["recommendation"] == predict.select(game, forecasts(game))
+    recommendation = dict(publication["recommendation"])
+    profiles = recommendation.pop("risk_profiles")
+    assert recommendation == predict.select(game, forecasts(game))
+    assert {name: result["risk_aversion"] for name, result in profiles.items()} == {
+        "low": 0.5,
+        "medium": 0.25,
+        "high": 0.1,
+    }
+    assert all(
+        "Joint podium outcomes" in result["unsupported"][0]["reason"]
+        for result in profiles.values()
+    )
     assert publication["question_fingerprint"] == data.fingerprint(game)
     assert publication["deadline_utc"] is None
     assert "roster" not in publication

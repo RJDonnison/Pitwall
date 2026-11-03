@@ -9,7 +9,7 @@ import "./participant-browser.css";
 import "./accuracy.css";
 import "./predict.css";
 import "./season-tooltip.css";
-import { predictMarkup } from "./predict.js";
+import { predictMarkup, riskPreference, riskControlMarkup } from "./predict.js";
 import {
   CHIPS,
   PREWEEK,
@@ -50,6 +50,10 @@ import {
 } from "./team-progress.js";
 
 const $ = (query) => document.querySelector(query);
+let predictRisk = "medium";
+try {
+  predictRisk = riskPreference(localStorage.getItem("pitwall-predict-risk"));
+} catch {}
 const blank = (i) => ({
   name: `Team ${i + 1}`,
   season: null,
@@ -218,6 +222,17 @@ function shell() {
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
      <main id="main"><div id="state-banner" class="state-banner" role="status" hidden></div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   const masthead = $(".masthead");
+  $(".header-tools").insertAdjacentHTML(
+    "beforebegin",
+    riskControlMarkup(predictRisk),
+  );
+  $("#predict-risk").onchange = (event) => {
+    predictRisk = riskPreference(event.target.value);
+    try {
+      localStorage.setItem("pitwall-predict-risk", predictRisk);
+    } catch {}
+    renderPredict();
+  };
   new ResizeObserver(() => {
     document.documentElement.style.setProperty(
       "--masthead-height",
@@ -778,10 +793,16 @@ async function importTeam(e) {
 }
 let predictPublication = null;
 let predictLoading = false;
+function renderPredict() {
+  const markup = predictMarkup(predictPublication, Date.now(), predictRisk);
+  if ($("#predict").dataset.markup !== markup) {
+    $("#predict").innerHTML = markup;
+    $("#predict").dataset.markup = markup;
+  }
+}
 async function loadPredict() {
   if (predictLoading) return;
   predictLoading = true;
-  let markup;
   try {
     const response = await fetch(`${import.meta.env.BASE_URL}predict.json`, {
       cache: "no-store",
@@ -789,21 +810,16 @@ async function loadPredict() {
     if (!response.ok)
       throw new Error("The public Predict publication is unavailable.");
     predictPublication = await response.json();
-    markup = predictMarkup(predictPublication);
   } catch (e) {
     predictPublication = {
       status: "unavailable",
       message:
         "Cannot load verified Predict recommendations. Please wait for the next publication.",
     };
-    markup = predictMarkup(predictPublication);
   } finally {
     predictLoading = false;
     // Preserve open option tables and keyboard focus on unchanged refreshes.
-    if ($("#predict").dataset.markup !== markup) {
-      $("#predict").innerHTML = markup;
-      $("#predict").dataset.markup = markup;
-    }
+    renderPredict();
   }
 }
 document.addEventListener(

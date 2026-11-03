@@ -1,8 +1,43 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { predictMarkup, predictState } from "../src/predict.js";
+import {
+  predictMarkup,
+  predictState,
+  riskPreference,
+  riskControlMarkup,
+} from "../src/predict.js";
 
 const now = Date.parse("2026-11-03T12:00:00Z");
+test("risk control exposes exact weights, defaults safely and renders the chosen recommendation", () => {
+  assert.equal(riskPreference(null), "medium");
+  assert.equal(riskPreference("unknown"), "medium");
+  assert.equal(riskPreference("high"), "high");
+  const control = riskControlMarkup("low");
+  assert.match(control, /aria-label="Predict risk level"/);
+  assert.match(control, /value="low" selected>Low \(0\.5\)/);
+  assert.match(control, /Medium \(0\.25\)/);
+  assert.match(control, /High \(0\.1\)/);
+  const publication = fixture();
+  assert.match(
+    predictMarkup(publication, now, "medium"),
+    /awaiting a refreshed publication/,
+  );
+  assert.doesNotMatch(
+    predictMarkup(publication, now, "medium"),
+    /predict-picks/,
+  );
+  const low = structuredClone(publication.recommendation);
+  low.answers[0].selected_options = ["c", "b", "a"];
+  low.answers[0].standard_deviation = 20;
+  low.answers[0].risk_score = 140;
+  publication.recommendation.risk_profiles = { low };
+  const html = predictMarkup(publication, now, "low");
+  assert.match(html, /P1<\/span><strong>C/);
+  assert.match(html, /Low risk · λ 0\.5/);
+  assert.match(html, /Score = EV − λ × SD/);
+  assert.match(html, /Score 140\.0 · SD 20\.0 · 2× included/);
+  assert.match(html, /Total expected points/);
+});
 function fixture() {
   const q = {
     id: 1,
