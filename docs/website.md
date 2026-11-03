@@ -107,7 +107,7 @@ the six-hour limit and readable official-feed conflicts still stop planning.
 
 ## Run and check locally
 
-Requires Python 3.11+, Node 24+ and network for data generation; the deployed
+Requires Python 3.11+, Node.js 20.19+ or 22.12+, and network access for data generation; the deployed
 website only needs a WebAssembly-capable browser.
 
 ```sh
@@ -431,7 +431,7 @@ Garage team. Missing Insights does not block valid Fantasy forecasts. Six-hour
 freshness and price verification still apply. Model, seed, samples, cutoff and
 sources are disclosed. V7 weather and V8 accuracy are implemented; V9 website
 question recommendations remain planned.
-# V7 — Selected weather adjustments and forward archive
+## V7 — Selected weather adjustments and forward archive
 
 The selected round exposes a timestamped Open-Meteo daily outlook (CC BY 4.0).
 Dry means a maximum daily precipitation probability below 30%, wet at least
@@ -468,7 +468,7 @@ archive includes generation/cutoff times, models, roster, weather, selected and
 weather-free session scores. Settlement requires matching season/round, completed
 official Fantasy totals and a completed racing record. A new archive starts
 empty: waiting for finalized outcomes is an honest unavailable state.
-# Website F1 Predict
+## Website F1 Predict
 
 The **Predict** navigation item opens an independent F1 Predict answer sheet in
 the same Inter, paper and vermilion design as Strategy and Race Insights.
@@ -496,7 +496,7 @@ latest official options, payouts and lock state before making their own picks.
 Website recommendations have no settled calibration archive and remain labelled
 uncalibrated. No login or authenticated submission is performed.
 
-# Season-plan band tooltips
+## Season-plan band tooltips
 
 Hover, keyboard-focus or tap a cumulative season-plan point to see expected
 points and the low (P10) and high (P90) bands. Escape dismisses the tooltip.
@@ -504,7 +504,7 @@ The bands use the existing joint-weekend bootstrap, include planned Boost/chips
 and transfer penalties, preserve negative scores, and are labelled a provisional,
 uncalibrated central 80% simulated range. Missing joint evidence is explicit.
 
-# V8 — Forward accuracy and visual uncertainty
+## V8 — Forward accuracy and visual uncertainty
 
 Race Insights follows the selected driver/team and regular/Sprint weekend
 format. Session cards show population MAE, the selected participant's forecast

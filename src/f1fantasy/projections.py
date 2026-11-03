@@ -50,6 +50,23 @@ def _position(value: Any) -> int | None:
     return None
 
 
+def _fantasy_result_score(
+    kind: str, position: int | None, classified: bool, grid: int | None
+) -> int:
+    if kind == "Q":
+        return QUALIFYING.get(position, 0) if position else -5
+
+    score = (
+        (RACE if kind == "R" else SPRINT).get(position, 0)
+        if classified
+        else (-20 if kind == "R" else -10)
+    )
+    if grid and classified and position:
+        positions_gained = grid - position
+        score += max(-10, positions_gained) if kind == "S" else positions_gained
+    return score
+
+
 def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]:
     from .public_history import current, scores
 
@@ -66,19 +83,12 @@ def _session_scores(year: int, round_number: int, kind: str) -> dict[str, float]
             output = {}
             for row in records[0]["sessions"][kind]:
                 position = _position(row.get("position"))
-                if kind == "Q":
-                    score = QUALIFYING.get(position, 0) if position else -5
-                else:
-                    classified = row["classified"]
-                    score = (
-                        (RACE if kind == "R" else SPRINT).get(position, 0)
-                        if classified
-                        else (-20 if kind == "R" else -10)
-                    )
-                    grid = _position(row.get("grid"))
-                    if grid and classified and position:
-                        change = grid - position
-                        score += max(-10, change) if kind == "S" else change
+                score = _fantasy_result_score(
+                    kind,
+                    position,
+                    row["classified"],
+                    _position(row.get("grid")),
+                )
                 output[row["tla"]] = float(score)
             return output
 
@@ -98,20 +108,12 @@ def _load_session_scores(year: int, round_number: int, kind: str) -> dict[str, f
         for _, row in results.iterrows():
             tla = str(row["Abbreviation"])
             position = _position(row["Position"])
-            if kind == "Q":
-                score = QUALIFYING.get(position, 0) if position else -5
-            else:
-                finish = RACE if kind == "R" else SPRINT
-                classified = _position(row.get("ClassifiedPosition"))
-                score = (
-                    finish.get(position, 0)
-                    if classified
-                    else (-20 if kind == "R" else -10)
-                )
-                grid = _position(row.get("GridPosition"))
-                if grid and classified and position:
-                    change = grid - position
-                    score += max(-10, change) if kind == "S" else change
+            score = _fantasy_result_score(
+                kind,
+                position,
+                bool(_position(row.get("ClassifiedPosition"))),
+                _position(row.get("GridPosition")),
+            )
             scores[tla] = float(score)
         return scores
     except DataError:
@@ -384,7 +386,9 @@ def apply_practice(
         team_shift: dict[str, float] = {}
         for d in drivers:
             delta = after[codes[d.id]] - before[codes[d.id]]
-            result[0, d.id] = replace(result[0, d.id], **{field: getattr(result[0, d.id], field) + delta})
+            result[0, d.id] = replace(
+                result[0, d.id], **{field: getattr(result[0, d.id], field) + delta}
+            )
             team_shift[d.team_id] = team_shift.get(d.team_id, 0.0) + delta
         for a in assets:
             if a.kind == "CONSTRUCTOR" and a.team_id in team_shift:

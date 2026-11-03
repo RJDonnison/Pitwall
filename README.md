@@ -2,7 +2,7 @@
 
 **Season-long strategy planning for F1 Fantasy.**
 
-Pitwall is a static website where you enter your F1 Fantasy teams and plan the rest of the season. It jointly optimises five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points under your budget.
+Pitwall is a static website for entering your F1 Fantasy teams and planning the rest of the season. It jointly optimises five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points within your budget.
 
 ## Features
 
@@ -18,7 +18,7 @@ Pitwall is a static website where you enter your F1 Fantasy teams and plan the r
 
 ## Quick start
 
-Requires Python 3.11+ and Node.js.
+Requires Python 3.11+ and Node.js 20.19+ or 22.12+.
 
 ```sh
 python -m venv .venv
@@ -44,7 +44,7 @@ See [website design and data boundaries](docs/website.md#design-and-accessibilit
 
 ## Data
 
-Completed-session inputs ship in [`data/history.json`](data/README.md), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates it daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics. Racing forecasts are compared with chronological baselines before adoption; see [model evidence and measured limitations](docs/racing-model.md).
+Completed-session inputs ship in the [public historical dataset](data/README.md), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates `data/history.json` daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics. Racing forecasts are compared with chronological baselines before adoption; see [model evidence and measured limitations](docs/racing-model.md).
 
 Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`. FastF1's optional live-feed authentication warning is not a request for your credentials.
 
