@@ -224,6 +224,12 @@ def load_records(path):
         return sorted(document["racing"], key=lambda r: public_history.date(r["end"]))
 
 
+def accuracy(metrics):
+    """Plain-language score: 100 minus the average finishing-order error, in percent."""
+    rps = (metrics or {}).get("position_rps")
+    return round(100 * (1 - rps), 1) if rps is not None else None
+
+
 def fit(records, previous=None, simulations=600, now=None):
     now = now or datetime.now(timezone.utc)
     previous = previous or {}
@@ -252,6 +258,7 @@ def fit(records, previous=None, simulations=600, now=None):
             "reason": decision["reason"],
             "params": document[family]["params"],
             "gain_vs_defaults": document[family]["gain_vs_defaults"],
+            "accuracy": accuracy(document[family].get("metrics")),
         }
     document["log"] = (log + [entry])[-LOG_LENGTH:]
     return document

@@ -8,6 +8,8 @@ const part = (gain) => ({
   defaults_objective: 2.035,
   gain_vs_defaults: gain,
   gain_vs_defaults_interval90: [0.0036, 0.0426],
+  accuracy: 86.6,
+  previous_accuracy: 85.9,
   metrics: { winner_brier: 0.78 },
   default_metrics: { winner_brier: 0.796 },
   latest_decision: { adopted: true, reason: "Adopted <b>x</b>", holdout_gain: 0.01 },
@@ -30,13 +32,23 @@ const dataset = (gain = 0.0231) => ({
 
 test("shows the fitted parameters, the backtest gain and its uncertainty", () => {
   const html = modelFitMarkup(dataset());
-  assert.match(html, /How the model tunes itself/);
+  assert.match(html, /How accurate are the forecasts\?/);
   assert.match(html, /Recency half-life \(races\)<\/dt><dd>1\.50/);
   assert.match(html, /2\.012 against 2\.035/);
   assert.match(html, /90% range -0\.043 to -0\.004/);
   assert.match(html, /0\.796 → 0\.780/);
-  assert.match(html, /50 races up to 2026 round 18/);
+  assert.match(html, /50 past races up to 2026 round 18/);
   assert.match(html, /waiting for data: 0 of 12/);
+});
+
+test("leads with a plain accuracy percentage and the previous score", () => {
+  const html = modelFitMarkup(dataset());
+  assert.match(html, /fit-accuracy">86\.6%/);
+  assert.match(html, /Up 0\.7 points from 85\.9% last time/);
+  assert.match(html, /<details class="fit-details"><summary>Technical details/);
+  const first = dataset();
+  first.model.fit.pre_weekend.previous_accuracy = null;
+  assert.match(modelFitMarkup(first), /First score recorded/);
 });
 
 test("says the defaults still win when nothing improved, and escapes text", () => {

@@ -129,9 +129,10 @@ export function championBanner(dataset, row, runnerUp, population) {
   const asset = dataset.assets.find((a) => a.id === row.asset_id);
   if (!asset) return "";
   const left = dataset.rounds.length;
-  const lead = runnerUp ? Math.round(row.points - runnerUp.points) : null;
+  const scored = (r) => (Number.isFinite(r?.observed) ? r.observed : r?.projected);
+  const lead = runnerUp ? Math.round(scored(row) - scored(runnerUp)) : null;
   const title = population === "drivers" ? "Drivers' Champion" : "Constructors' Champion";
-  return `<div class="champion-banner" style="--team-color:${teamColor(dataset, asset)}" role="img" aria-label="${esc(row.name)}, ${dataset.season} ${title}"><div class="champion-medal">${wreath}<div class="champion-portrait">${portrait(asset, asset.kind === "DRIVER" ? helmet() : car())}</div><span class="champion-spark s1"></span><span class="champion-spark s2"></span><span class="champion-spark s3"></span></div><div class="champion-copy"><span class="champion-label">${trophy}${dataset.season} ${title}</span><strong>${esc(row.name)}</strong><p>${points(row.points)} pts${lead !== null && lead > 0 ? ` · ${lead} clear of second` : ""} · ${left > 0 ? `title clinched with ${left} round${left === 1 ? "" : "s"} to spare` : "season complete"}</p></div></div>`;
+  return `<div class="champion-banner" style="--team-color:${teamColor(dataset, asset)}" role="img" aria-label="${esc(row.name)}, ${dataset.season} ${title}"><div class="champion-medal">${wreath}<div class="champion-portrait">${portrait(asset, asset.kind === "DRIVER" ? helmet() : car())}</div><span class="champion-spark s1"></span><span class="champion-spark s2"></span><span class="champion-spark s3"></span></div><div class="champion-copy"><span class="champion-label">${trophy}${dataset.season} ${title}</span><strong>${esc(row.name)}</strong><p>${points(scored(row))} pts${lead !== null && lead > 0 ? ` · ${lead} clear of second` : ""} · ${left > 0 ? `title clinched with ${left} round${left === 1 ? "" : "s"} to spare` : "season complete"}</p></div></div>`;
 }
 
 export function championshipChart(dataset, insight, population) {
