@@ -486,18 +486,21 @@ no picks. The browser checks publications on load, each foreground minute and
 when returning to the tab; snapshots expire after six hours or at event start.
 
 Each supported question shows its answer, model probability and expected points.
-Ordered podium picks show both exact-position and any-podium probabilities;
-the breakdown uses payout × (any-podium probability + exact-position probability).
+Ordered podium picks show exact-position and any-podium probabilities alongside
+each driver's expected points, including the question Boost when selected.
+An exact-position pick earns the listed payout; a podium finish in another
+position earns half. The breakdown uses half payout × (any-podium probability +
+exact-position probability).
 The optimizer chooses distinct drivers across all three slots and assigns the one
 2× question Boost to the largest expected gain. Expandable tables retain every
 legal option's payout, probability and pre-Boost expected points. Unsupported
 questions show their reason and make the total explicitly partial.
 
-The page displays publication time and official lock state at publication. It
-does not invent an exact deadline from the first session. Users must verify the
-latest official options, payouts and lock state before making their own picks.
-Website recommendations have no settled calibration archive and remain labelled
-uncalibrated. No login or authenticated submission is performed.
+The answer sheet keeps payout breakdowns as its only expandable sections.
+Publication metadata and model provenance remain in the published data rather
+than extra page panels. Users must verify the latest official options, payouts
+and lock state before making their own picks. Website recommendations have no
+settled calibration archive. No login or authenticated submission is performed.
 
 ## Season-plan band tooltips
 

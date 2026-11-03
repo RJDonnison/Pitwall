@@ -62,7 +62,7 @@ function questionMarkup(q, answer, unsupported) {
     .map((o) => {
       const p = answer.probabilities[o.id];
       const ev = podium
-        ? p.map((v) => o.points * (p.reduce((a, b) => a + b, 0) + v))
+        ? p.map((v) => (o.points / 2) * (p.reduce((a, b) => a + b, 0) + v))
         : o.points * p;
       return { ...o, p, ev };
     })
@@ -75,13 +75,11 @@ function questionMarkup(q, answer, unsupported) {
     <ol class="predict-picks ${podium ? "predict-podium" : ""}">${answer.selected_options
       .map((id, i) => {
         const o = options.find((o) => o.id === id);
-        return `<li>${podium ? `<span class="predict-place">P${i + 1}</span>` : '<span class="eyebrow">Recommended answer</span>'}<strong>${esc(o.name)}</strong><small>${podium ? `${percent(o.p[i])} exact position · ${percent(o.p.reduce((a, b) => a + b, 0))} any podium` : `${percent(o.p)} model probability`}</small></li>`;
+        return `<li>${podium ? `<span class="predict-place">P${i + 1}</span>` : ""}<strong>${esc(o.name)}</strong><small>${podium ? `${percent(o.p[i])} exact position · ${percent(o.p.reduce((a, b) => a + b, 0))} any podium` : `${percent(o.p)} model probability`}</small>${podium ? `<span class="predict-pick-points">${number(o.ev[i] * (boost ? 2 : 1))} expected pts${boost ? " · 2× included" : ""}</span>` : ""}</li>`;
       })
       .join("")}</ol>
     <div class="predict-score"><span>Expected points${boost ? " · 2× included" : ""}</span><strong>${number(answer.expected_points)} <small>pts</small></strong></div>
-    ${boost ? `<p class="predict-note">${number(answer.expected_points_before_boost)} base + ${number(answer.expected_points_before_boost)} Boost extra. Highest expected gain among supported questions.</p>` : ""}
-    <details class="predict-options"><summary>Probabilities & payout breakdown · ${options.length} options</summary><div class="predict-table"><table><caption>${podium ? "Payout × (any-podium probability + exact-position probability), before Boost. Each driver can occupy only one slot." : "Payout × model probability, before Boost. Ranked by expected points."}</caption><thead><tr><th>Legal answer</th><th>Payout</th>${podium ? "<th>P1 / P2 / P3 probability</th><th>P1 / P2 / P3 expected pts</th>" : "<th>Probability</th><th>Expected pts</th>"}</tr></thead><tbody>${options.map((o) => `<tr class="${selections.has(o.id) ? "predict-selected" : ""}"><th scope="row">${esc(o.name)}${selections.has(o.id) ? `<small>${podium ? `Selected P${selections.get(o.id) + 1}` : "Selected"}</small>` : ""}</th><td>${number(o.points)}</td><td>${podium ? o.p.map(percent).join(" / ") : percent(o.p)}</td><td>${podium ? o.ev.map(number).join(" / ") : number(o.ev)}</td></tr>`).join("")}</tbody></table></div></details>
-    <details class="predict-evidence"><summary>Model evidence</summary><p>${esc(answer.model_type)}</p><p>${answer.calibration.method === "uncalibrated_insufficient_prelock_archives" ? "Uncalibrated · insufficient earlier settled pre-lock archives" : "Chronological probability calibration"} · ${answer.calibration.training_outcomes} training outcomes.</p><p>Calibration cutoff: ${esc(stamp(answer.calibration.cutoff_utc))}</p></details></div></article>`;
+    <details class="predict-options"><summary>Probabilities & payout breakdown · ${options.length} options</summary><div class="predict-table"><table><caption>${podium ? "Full payout for the exact position; half payout for a podium finish in another position. Expected points = half payout × (any-podium probability + exact-position probability), before Boost. Each driver can occupy only one slot." : "Payout × model probability, before Boost. Ranked by expected points."}</caption><thead><tr><th>Legal answer</th><th>${podium ? "Exact-position payout" : "Payout"}</th>${podium ? "<th>P1 / P2 / P3 probability</th><th>P1 / P2 / P3 expected pts</th>" : "<th>Probability</th><th>Expected pts</th>"}</tr></thead><tbody>${options.map((o) => `<tr class="${selections.has(o.id) ? "predict-selected" : ""}"><th scope="row">${esc(o.name)}${selections.has(o.id) ? `<small>${podium ? `Selected P${selections.get(o.id) + 1}` : "Selected"}</small>` : ""}</th><td>${number(o.points)}</td><td>${podium ? o.p.map(percent).join(" / ") : percent(o.p)}</td><td>${podium ? o.ev.map(number).join(" / ") : number(o.ev)}</td></tr>`).join("")}</tbody></table></div></details></div></article>`;
 }
 
 export function predictMarkup(publication, now = Date.now()) {
@@ -95,7 +93,6 @@ export function predictMarkup(publication, now = Date.now()) {
   const boosted = result.answers.find((a) => a.booster_id === "1");
   return `<div class="predict-page">${heading}
     <section class="predict-summary panel" aria-label="Predict recommendation summary"><div><span class="eyebrow">${publication.season} · official round ${publication.gameday_id}</span><h2>${result.complete ? "Your recommended answer sheet" : "Partial answer sheet"}</h2><p>${result.answers.length} of ${publication.questions.length} questions supported${result.complete ? "" : " · unsupported questions need your own decision"}</p></div><div><span class="eyebrow">${result.complete ? "Total" : "Supported answers"} expected points</span><strong class="predict-total">${number(result.expected_total_points)} <small>pts</small></strong><p>${boosted ? `2× Boost on question ${publication.questions.find((q) => q.id === boosted.question_id).number}` : "No supported Boost"}</p></div></section>
-    <div class="predict-publication"><p><span class="tag">Published snapshot</span> Checked ${esc(stamp(publication.fetched_at))} · refreshed every two hours.</p><p>${publication.deadline_utc && publication.deadline_authority ? `Official deadline: ${esc(stamp(publication.deadline_utc))}` : "Exact lock deadline unavailable. Check the official game; session start is not a verified deadline."} Lock state at publication: open.</p></div>
     <div class="predict-question-grid">${publication.questions
       .map((q) =>
         questionMarkup(
@@ -104,6 +101,5 @@ export function predictMarkup(publication, now = Date.now()) {
           result.unsupported.find((a) => a.question_id === q.id),
         ),
       )
-      .join("")}</div>
-    <section class="panel predict-method"><span class="eyebrow">Behind the answer sheet</span><h2>Probability meets payout.</h2><p>The highest expected-scoring answer can differ from the most likely outcome. Ordered podium slots are optimized together without repeating a driver. One question receives a 2× Boost.</p><p>${publication.simulations.toLocaleString()} simulations · seed ${publication.seed} · ${publication.telemetry ? "telemetry enabled" : "telemetry disabled"}. Forecasts use earlier results only. Probabilities are uncertain; a larger expected score is not a guaranteed result. Public website forecasts have no settled Predict calibration archive.</p><p>Predict payouts are separate from Fantasy points. These recommendations do not submit answers. Verify the latest options, payouts and lock state on the official game before making your picks.</p><a href="https://f1predict.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Official Predict scoring rules ↗</a></section></div>`;
+      .join("")}</div></div>`;
 }

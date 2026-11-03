@@ -137,6 +137,7 @@ def test_podium_assignment_matches_exhaustive_ordered_scores(game):
     def expected(ids):
         return sum(
             next(o["points"] for o in q["options"] if o["id"] == i)
+            / 2
             * (sum(f[i]) + f[i][slot])
             for slot, i in enumerate(ids)
         )
@@ -144,8 +145,26 @@ def test_podium_assignment_matches_exhaustive_ordered_scores(game):
     assert result["expected_points_before_boost"] == pytest.approx(
         max(expected(ids) for ids in permutations(f, 3))
     )
-    assert predict.score(q, ["1", "2", "3"], ["1", "3", "2"]) == 10 + 10 + 15
-    assert predict.score(q, ["1", "2", "3"], ["1", "3", "2"], True) == 70
+    assert predict.score(q, ["1", "2", "3"], ["1", "3", "2"]) == 5 + 5 + 7.5
+    assert predict.score(q, ["1", "2", "3"], ["1", "3", "2"], True) == 35
+
+
+@pytest.mark.parametrize(
+    "actual,points",
+    [
+        (["1", "2", "3"], 10),
+        (["2", "1", "3"], 5),
+        (["2", "3", "1"], 5),
+        (["2", "3", "4"], 0),
+    ],
+)
+@pytest.mark.parametrize("boosted", [False, True])
+def test_podium_full_half_or_zero_payout(game, actual, points, boosted):
+    q = game["questions"][0]
+    for option in q["options"]:
+        option["points"] = 10 if option["id"] == "1" else 0
+    multiplier = 2 if boosted else 1
+    assert predict.score(q, ["1", "2", "3"], actual, boosted) == points * multiplier
 
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), -0.01, 1.1])

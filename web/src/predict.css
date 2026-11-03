@@ -54,14 +54,6 @@ body[data-page="predict"] #state-banner {
   letter-spacing: 0;
   color: var(--muted);
 }
-.predict-publication {
-  border-left: 2px solid var(--red);
-  padding-left: 16px;
-  font-size: 12px;
-}
-.predict-publication p {
-  margin: 4px 0;
-}
 .predict-question-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -119,6 +111,11 @@ body[data-page="predict"] #state-banner {
   font-size: 16px;
   overflow-wrap: anywhere;
 }
+.predict-pick-points {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.6;
+}
 .predict-place {
   width: fit-content;
   background: var(--ink);
@@ -145,12 +142,7 @@ body[data-page="predict"] #state-banner {
   font-size: 12px;
   color: var(--muted);
 }
-.predict-note {
-  font-size: 12px;
-  margin-top: 0;
-}
-.predict-options,
-.predict-evidence {
+.predict-options {
   border-top: 1px solid var(--rule);
   padding: 16px 0;
   font-size: 13px;
@@ -192,16 +184,8 @@ body[data-page="predict"] #state-banner {
 .predict-selected {
   background: var(--inset);
 }
-.predict-evidence {
-  padding-bottom: 0;
-  overflow-wrap: anywhere;
-}
-.predict-method,
 .predict-unavailable {
   padding: 28px;
-}
-.predict-method p {
-  max-width: 85ch;
 }
 @media (max-width: 760px) {
   .masthead nav {
@@ -233,7 +217,6 @@ body[data-page="predict"] #state-banner {
     gap: 16px;
   }
   .predict-question-body,
-  .predict-method,
   .predict-unavailable {
     padding: 20px;
   }

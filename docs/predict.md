@@ -34,9 +34,11 @@ never save answers to the website.
 Selecting the most likely answer is not always optimal: an option's expected
 points are its probability multiplied by its official payout. Ordered podium
 selection solves a distinct-driver assignment across P1/P2/P3. A selected driver
-earns their listed points for any top-three finish, plus the same points for the
-exact position. The single question 2× Boost is assigned to the largest expected
-unboosted question total.
+earns their listed points for the exact position, half those points for a
+top-three finish in another position, and zero otherwise. Expected points for a
+slot are half the listed payout multiplied by the sum of the driver's any-podium
+and exact-position probabilities. The single question 2× Boost is assigned to the
+largest expected unboosted question total.
 
 The deterministic simulation uses prior-smoothed historical qualifying and race
 ranks, classification rates and joint weekend variation, optionally adjusted by
