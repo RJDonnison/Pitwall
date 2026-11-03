@@ -1009,3 +1009,100 @@
     flex-wrap: wrap;
   }
 }
+
+.champion-banner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 8px 0 20px;
+  padding: 20px 24px;
+  border: 1px solid var(--team-color);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--team-color) 16%, transparent), transparent 55%),
+    var(--paper);
+}
+.champion-medal {
+  position: relative;
+  flex: none;
+  width: 132px;
+  height: 132px;
+  color: var(--team-color);
+}
+.champion-wreath {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.champion-portrait {
+  position: absolute;
+  inset: 22px;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 3px solid var(--team-color);
+  background: var(--inset);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+}
+.champion-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+}
+.champion-spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  animation: champion-twinkle 3.2s ease-in-out infinite;
+}
+.champion-spark.s1 { top: 4px; left: 28px; }
+.champion-spark.s2 { top: 18px; right: 6px; animation-delay: 1.1s; }
+.champion-spark.s3 { bottom: 20px; left: 4px; animation-delay: 2.1s; }
+@keyframes champion-twinkle {
+  0%, 70%, 100% { opacity: 0; transform: scale(0.4); }
+  85% { opacity: 1; transform: scale(1.3); }
+}
+.champion-copy {
+  min-width: 0;
+}
+.champion-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--team-color);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.champion-trophy {
+  width: 18px;
+  height: 18px;
+}
+.champion-copy strong {
+  display: block;
+  margin: 4px 0;
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+.champion-copy p {
+  margin: 0;
+  color: var(--muted);
+}
+@media (max-width: 560px) {
+  .champion-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .champion-spark {
+    animation: none;
+  }
+}

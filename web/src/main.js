@@ -34,6 +34,7 @@ import {
 import { logo, chipIcon, footerMarkup } from "./visuals.js";
 import {
   rememberWeekend,
+  rollBudget,
   weekendReady,
   adoptWeekend,
 } from "./team-progress.js";
@@ -126,6 +127,10 @@ const insightState = {
 };
 const team = () => profiles[active];
 function save() {
+  // Re-measure each team's cash against the current prices on every change, so a
+  // manual budget or roster edit is what the next price update is applied to.
+  if (dataset)
+    profiles = profiles.map((t) => (t ? rollBudget(dataset, t).team : t));
   try {
     localStorage.setItem("pitwall-teams-v1", JSON.stringify(profiles));
   } catch {
@@ -247,7 +252,9 @@ function render() {
     $("#allocation").innerHTML = "";
     $("#roster-board").innerHTML = "";
     $("#header-cap").textContent = "Awaiting verified inputs";
-    const message = `<div class="panel welcome"><h2>${error ? "Forecasts unavailable" : "Loading…"}</h2><p>${esc(error || "Fetching the latest publication.")}</p></div>`;
+    const message = error
+      ? `<div class="panel welcome"><h2>Forecasts unavailable</h2><p>${esc(error)}</p></div>`
+      : `<div class="panel loading-panel" role="status" aria-label="Loading"><span class="loading-spinner" aria-hidden="true"></span></div>`;
     $("#strategy").innerHTML = message;
     $("#insights").innerHTML = message;
     $("#settings").innerHTML = message;
@@ -263,14 +270,13 @@ function render() {
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
   $("#publication-window").textContent =
     `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
-  $("#planning-status").textContent =
-    busy || result
+  $("#planning-status").innerHTML = busy
+    ? '<span class="loading-spinner small" role="status" aria-label="Updating"></span>'
+    : result || t.selected.length === 7 && !error
       ? ""
       : error
         ? "Check team settings"
-        : t.selected.length === 7
-          ? "Strategy updates automatically"
-          : "Choose five drivers and two constructors";
+        : "Choose five drivers and two constructors";
   $("#profile-cards").innerHTML = profilesMarkup(dataset, profiles, active);
   document
     .querySelectorAll("[data-team]")
@@ -286,23 +292,18 @@ function render() {
    }).join("")}</fieldset>
   <div class="garage-utilities"><details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
     t.active === "limitless"
-      ? `<label>Team restored after Limitless<select id="restore" multiple size="7">${[
-          "DRIVER",
-          "CONSTRUCTOR",
-        ]
+      ? `<fieldset class="restore-picker" id="restore"><legend>Team restored after Limitless</legend>${["DRIVER", "CONSTRUCTOR"]
           .map(
             (kind) =>
-              `<optgroup label="${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}">${dataset.assets
+              `<div class="restore-group"><span>${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}</span><div>${dataset.assets
                 .filter((a) => a.kind === kind)
                 .map(
                   (a) =>
-                    `<option value="${esc(a.id)}" ${t.restore.includes(a.id) ? "selected" : ""}>${esc(a.name)}</option>`,
+                    `<label class="restore-chip"><input type="checkbox" value="${esc(a.id)}" ${t.restore.includes(a.id) ? "checked" : ""}/><span>${esc(a.name)}</span></label>`,
                 )
-                .join("")}</optgroup>`,
+                .join("")}</div></div>`,
           )
-          .join(
-            "",
-          )}</select></label><p class="hint">Select the original seven using Ctrl/Cmd. Required for full-season restoration.</p>`
+          .join("")}</fieldset><p class="hint">Select the original seven. Required for full-season restoration.</p>`
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
     <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
@@ -334,6 +335,18 @@ function render() {
       invalidate();
       render();
     };
+  if (t.budgetUpdate) {
+    const u = t.budgetUpdate;
+    $(".garage-utilities").insertAdjacentHTML(
+      "afterend",
+      `<section class="weekend-update budget-update" aria-label="Budget updated"><div><strong>Budget updated after the last weekend</strong><p>Team value ${u.valueFrom === null ? "" : `${money(u.valueFrom)} → `}${money(u.valueTo)} at the new prices, plus ${money(u.cash)} unspent cash: budget ${money(u.budgetFrom)} → <b>${money(u.budgetTo)}</b>. Check it against your official budget.</p></div><button id="dismiss-budget">Dismiss</button></section>`,
+    );
+    $("#dismiss-budget").onclick = () => {
+      delete team().budgetUpdate;
+      save();
+      render();
+    };
+  }
   if (t.weekendSuggestion) {
     const saved = t.weekendSuggestion;
     const ready = weekendReady(dataset, saved);
@@ -387,7 +400,10 @@ function render() {
   );
   if ($("#restore"))
     $("#restore").onchange = (e) => {
-      t.restore = Array.from(e.target.selectedOptions, (o) => o.value);
+      t.restore = Array.from(
+        $("#restore").querySelectorAll("input:checked"),
+        (o) => o.value,
+      );
       invalidate();
       render();
     };
@@ -498,7 +514,8 @@ function renderInsights() {
 }
 function acceptDataset(fresh) {
   dataset = fresh;
-  for (const t of profiles) {
+  for (const [index, current] of profiles.entries()) {
+    const t = current;
     if (t.season !== null && t.season !== dataset.season) {
       t.selected = [];
       t.chips = [...CHIPS];
@@ -511,6 +528,8 @@ function acceptDataset(fresh) {
     t.chips = t.chips.filter(
       (c) => dataset.chip_support[c]?.available !== false,
     );
+    // Prices move after a completed weekend: keep the team's excess cash.
+    profiles[index] = rollBudget(dataset, t).team;
   }
   save();
 }

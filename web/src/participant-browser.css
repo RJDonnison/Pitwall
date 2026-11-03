@@ -359,3 +359,7 @@
     flex-wrap: wrap;
   }
 }
+
+.curve-axis{fill:var(--muted);font-size:9px}
+.curve-nc-bar{fill:var(--red);opacity:.35}
+.curve-nc-value{fill:var(--ink);font-size:10px;font-weight:700}

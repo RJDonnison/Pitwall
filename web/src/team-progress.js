@@ -88,3 +88,57 @@ export function adoptWeekend(dataset, team, now = Date.now()) {
   validateTeam(dataset, next);
   return next;
 }
+
+const cost = (dataset, ids) =>
+  ids.reduce((sum, id) => {
+    const asset = dataset.assets.find((a) => a.id === id);
+    return asset ? sum + asset.price_tenths_m : NaN;
+  }, 0);
+
+// After a race weekend the official game re-prices every asset. The team keeps its
+// excess cash, so the budget becomes the new team value plus the unspent cash:
+//   budget' = value(new prices) + (budget - value(old prices)).
+// `team.valued` remembers the cash against the price gameday it was measured at.
+// Within a gameday it is re-measured on every load, so manual budget or roster
+// edits are never overwritten; it is only applied when prices move to a later gameday.
+export function rollBudget(dataset, team) {
+  const gameday = dataset.price_gameday_id;
+  const eligible =
+    Number.isInteger(gameday) &&
+    team.selected.length === 7 &&
+    team.active !== "limitless" &&
+    !team.initial;
+  const value = eligible ? cost(dataset, team.selected) : NaN;
+  if (!Number.isFinite(value)) return { team, change: null };
+  const prior = team.valued;
+  if (
+    prior &&
+    Number.isInteger(prior.gameday) &&
+    prior.gameday < gameday &&
+    Number.isInteger(prior.cash) &&
+    prior.cash >= 0
+  ) {
+    const budget = value + prior.cash;
+    return {
+      team: {
+        ...team,
+        budget,
+        valued: { gameday, cash: prior.cash },
+        budgetUpdate: {
+          gameday,
+          valueFrom: prior.value ?? null,
+          valueTo: value,
+          cash: prior.cash,
+          budgetFrom: team.budget,
+          budgetTo: budget,
+        },
+      },
+      change: true,
+    };
+  }
+  const cash = team.budget - value;
+  if (cash < 0) return { team, change: null };
+  if (prior && prior.gameday === gameday && prior.cash === cash && prior.value === value)
+    return { team, change: null };
+  return { team: { ...team, valued: { gameday, cash, value } }, change: null };
+}

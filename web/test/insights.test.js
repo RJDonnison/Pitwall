@@ -195,7 +195,7 @@ test("driver and team deep dives show selected participants and classified posit
   const driver = insightsMarkup(data, { entity: "1" });
   assert.match(driver, /Driver deep dive/);
   assert.match(driver, /position-estimate">P1 \/ P2/);
-  assert.match(driver, /Average classified position <strong>P1.5/);
+  assert.match(driver, /Expected classified position <strong>P1.5/);
   assert.match(driver, /40.0% each/);
   assert.match(driver, /NC: 20.0%/);
   assert.match(driver, /class="placement-curve"/);
@@ -221,7 +221,7 @@ test("driver and team deep dives show selected participants and classified posit
   assert.doesNotMatch(team, /NaN|undefined/);
 });
 
-test("most likely result and average classified position describe different quantities", () => {
+test("most likely finish and expected classified position describe different quantities", () => {
   const data = publication();
   data.insights.rounds[0].drivers["1"].win = 0.481;
   data.insights.rounds[0].placements = {
@@ -230,18 +230,20 @@ test("most likely result and average classified position describe different quan
   const html = insightsMarkup(data, { entity: "1" });
   assert.match(
     html,
-    /Most likely result<\/span><strong class="position-estimate">P1<\/strong><small>48.1%/,
+    /Most likely finish<\/span><strong class="position-estimate">P1<\/strong><small>48.1%/,
   );
-  assert.match(html, /Average classified position <strong>P2.0/);
+  assert.match(html, /Expected classified position <strong>P2.0/);
   data.insights.rounds[0].placements["1"].R = {
     mean: 1.667,
     positions: [0.1, 0.2],
     nc: 0.7,
   };
-  assert.match(
-    insightsMarkup(data),
-    /position-estimate">NC<\/strong><small>70.0%/,
-  );
+  const dominated = insightsMarkup(data);
+  // NC is the biggest single bucket but not the most likely finish: P2 is.
+  assert.match(dominated, /position-estimate">P2<\/strong><small>20.0%/);
+  assert.match(dominated, /Not classified <strong>70.0%/);
+  // The curve shares one absolute axis: the NC bar label equals the stated chance.
+  assert.match(dominated, /curve-nc-value"[^>]*>70.0%/);
 });
 
 test("Fantasy graphics preserve negative session components and keep F1 projections separate", () => {
@@ -303,9 +305,9 @@ test("racing-only deep dives and team outlook use post-round championship totals
     /participant-tile-positions|participant-tile-metric|40.0/,
   );
   assert.match(sidebar, /40.0 pts/);
-  assert.match(sidebar, /Post-race championship position<\/dt><dd>P1.4/);
+  assert.match(sidebar, /Expected championship position<\/dt><dd>P1.4/);
   assert.match(html, /80.0 pts/);
-  assert.match(html, /Post-race championship position<\/dt><dd>P2.2/);
+  assert.match(html, /Expected championship position<\/dt><dd>P2.2/);
   assert.doesNotMatch(
     detail,
     /Fantasy|View predictions|Selected|selected driver|detail-fantasy-sessions/,
@@ -358,4 +360,11 @@ test("participant cards show most likely race positions and keep selection witho
     /participant-position" title="Most likely race result: P2 · 70.0%"><small>Likely race<\/small><strong>P2/,
   );
   assert.match(html, /position-estimate">P2<\/strong><small>70.0%/);
+});
+
+test("championship horizon crowns a decided champion with a banner", () => {
+  const html = insightsMarkup(publication());
+  assert.match(html, /class="champion-banner"/);
+  assert.match(html, /Drivers' Champion/);
+  assert.match(html, /Title decided/);
 });
