@@ -1,4 +1,3 @@
-import { assetHalfWidth } from "./uncertainty.js";
 import guides from "./track-guides.json" with { type: "json" };
 import {
   esc,
@@ -106,21 +105,12 @@ export function fantasyChart(dataset, round, population) {
     0,
     ...rows.map(({ scores }) => total(scores.map((v) => Math.max(0, -v)))),
   );
-  const spread = (a) => assetHalfWidth(round, a.id);
   const positiveMax = Math.max(
     1,
-    ...rows.map(({ a, scores }) => Math.max(total(scores.map((v) => Math.max(0, v))), total(scores) + (spread(a) ?? 0))),
+    ...rows.map(({ scores }) => total(scores.map((x) => Math.max(0, x)))),
   );
-  const whisker = (a, scores) => {
-    const half = spread(a);
-    if (half === null) return "";
-    const centre = total(scores);
-    const at = (v) => Math.min(100, Math.max(0, 100 * negativeShare + (v >= 0 ? (100 * (1 - negativeShare) * v) / positiveMax : negativeMax ? (100 * negativeShare * v) / negativeMax : 0)));
-    const lo = at(centre - half), hi = at(centre + half);
-    return `<span class="range-whisker" style="left:${lo}%;width:${Math.max(0.5, hi - lo)}%" title="${esc(`Approximate 80% range ${points(centre - half)} to ${points(centre + half)} pts`)}"></span>`;
-  };
   const negativeShare = negativeMax / (negativeMax + positiveMax);
-  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="range-bar"><div class="signed-chart" aria-hidden="true"><span class="signed-negative" style="flex:0 0 ${100 * negativeShare}%">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${negativeMax ? (100 * Math.max(0, -v)) / negativeMax : 0}%"></i>`).join("")}</span><span class="signed-positive" style="flex:1">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / positiveMax}%"></i>`).join("")}</span></div>${whisker(a, scores)}</div></li>`).join("")}</ol><p class="insight-note chart-note">Whiskers show an approximate 80% range from how far past forecasts missed.</p></section>`;
+  return `<section class="panel insight-output"><div class="section-heading"><div><span class="insight-kicker">Weekend forecast</span><h2>${population === "drivers" ? "Driver" : "Constructor"} Fantasy output</h2><p>Top ${rows.length} by unboosted expected points · R${round.round}</p></div></div><div class="session-chart-key"><span><i class="session-q"></i>Qualifying</span>${round.sprint ? '<span><i class="session-s"></i>Sprint</span>' : ""}<span><i class="session-r"></i>Race</span></div><ol class="fantasy-chart">${rows.map(({ a, scores }) => `<li style="--team-color:${teamColor(dataset, a)}"><div class="fantasy-chart-label"><span><i></i>${esc(a.name)}</span><strong>${points(total(scores))} <small>pts</small></strong></div><div class="fantasy-session-values"><span>Q ${points(scores[0])}</span>${round.sprint ? `<span>S ${points(scores[1])}</span>` : ""}<span>R ${points(scores[2])}</span></div><div class="signed-chart" aria-hidden="true"><span class="signed-negative" style="flex:0 0 ${100 * negativeShare}%">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${negativeMax ? (100 * Math.max(0, -v)) / negativeMax : 0}%"></i>`).join("")}</span><span class="signed-positive" style="flex:1">${scores.map((v, i) => `<i class="session-${["q", "s", "r"][i]}" style="width:${(100 * Math.max(0, v)) / positiveMax}%"></i>`).join("")}</span></div></li>`).join("")}</ol></section>`;
 }
 
 // A laurel wreath and trophy drawn from plain shapes; the champion's own portrait
@@ -158,7 +148,7 @@ export function championshipChart(dataset, insight, population) {
   return `<section class="panel insight-champ-chart${champion ? " has-champion" : ""}"><div class="section-heading"><div><span class="insight-kicker">${champion ? "Title decided" : "End-of-season projection"}</span><h2>Championship horizon</h2></div></div>${champion}<div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows
     .map((r) => {
       const a = dataset.assets.find((a) => a.id === r.asset_id);
-      return `<li style="--team-color:${a ? teamColor(dataset, a) : "#68635f"}"><div><span>${esc(r.name)}</span><strong>${points(r.projected)} <small>pts</small></strong></div><div class="range-bar"><div class="champ-stacked-bar" aria-hidden="true"><i style="width:${(100 * r.observed) / max}%"></i><b style="width:${(100 * r.remaining) / max}%"></b></div><span class="range-whisker" style="left:${(100 * r.interval80[0]) / max}%;width:${Math.max(0.5, (100 * (r.interval80[1] - r.interval80[0])) / max)}%" title="${esc(`80% range ${points(r.interval80[0])} to ${points(r.interval80[1])} pts`)}"></span></div><dl class="champ-breakdown"><div><dt>Scored</dt><dd>${points(r.observed)}</dd></div><div><dt>Expected gain</dt><dd>+${points(r.remaining)}</dd></div><div><dt>80% range</dt><dd>${points(r.interval80[0])}–${points(r.interval80[1])}</dd></div><div><dt>Maximum</dt><dd>${points(r.max_final)}</dd></div></dl></li>`;
+      return `<li style="--team-color:${a ? teamColor(dataset, a) : "#68635f"}"><div><span>${esc(r.name)}</span><strong>${points(r.projected)} <small>pts</small></strong></div><div class="champ-stacked-bar" aria-hidden="true"><i style="width:${(100 * r.observed) / max}%"></i><b style="width:${(100 * r.remaining) / max}%"></b></div><dl class="champ-breakdown"><div><dt>Scored</dt><dd>${points(r.observed)}</dd></div><div><dt>Expected gain</dt><dd>+${points(r.remaining)}</dd></div><div><dt>80% range</dt><dd>${points(r.interval80[0])}–${points(r.interval80[1])}</dd></div><div><dt>Maximum</dt><dd>${points(r.max_final)}</dd></div></dl></li>`;
     })
     .join("")}</ol></section>`;
 }

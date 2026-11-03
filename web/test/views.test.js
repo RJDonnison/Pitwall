@@ -310,3 +310,19 @@ test("registry shows unboosted next-round points and team colours for both kinds
   assert.match(html, /aria-label="Add Extra driver"/);
   assert.match(html, /disabled/);
 });
+
+test("season plan shows a likely score range per round and for the season", () => {
+  const { data, team, result } = fixture();
+  const intervals = Object.fromEntries(
+    result.rounds[0].entries.map((e) => [
+      e.id,
+      { Q: { low: -1, high: 1 }, R: { low: -2, high: 2 } },
+    ]),
+  );
+  result.rounds[0].intervals = intervals;
+  const html = strategyMarkup(data, team, result, false, 0);
+  assert.equal((html.match(/class="score-range"/g) || []).length, 2);
+  assert.doesNotMatch(html, /chart-whisker/);
+  const bare = fixture().result;
+  assert.doesNotMatch(strategyMarkup(data, team, bare, false, 0), /score-range/);
+});

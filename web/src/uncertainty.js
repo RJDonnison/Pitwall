@@ -46,3 +46,9 @@ export function planBands(rounds) {
     return { low: sum - spread, high: sum + spread };
   });
 }
+
+// Likely range for one planned weekend: its points plus or minus the half-width.
+export function roundRange(planned) {
+  const half = roundHalfWidth(planned);
+  return half === null ? null : { low: planned.points - half, high: planned.points + half };
+}
