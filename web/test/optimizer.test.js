@@ -255,6 +255,42 @@ test("paid net transfers and carry match Python across a full horizon", () => {
   );
 });
 
+for (const sprint of [false, true])
+  for (const [gain, carry, allowPenalties, transfers, penalty, points] of [
+    [11, 0, true, 3, 10, 271],
+    [9, 0, true, 2, 0, 270],
+    [11, 0, false, 2, 0, 270],
+    [9, 1, true, 3, 0, 279],
+  ])
+    test(`paid transfers maximize net points: sprint=${sprint}, gain=${gain}, carry=${carry}, allowed=${allowPenalties}`, () => {
+      const { data, team } = fixture();
+      data.assets.push({ ...data.assets[5], id: "6", name: "Driver 6" });
+      data.rounds = [data.rounds[0]];
+      const round = data.rounds[0];
+      round.sprint = sprint;
+      const scores = { 0: 100, 5: 40, 6: 30, c2: gain };
+      round.forecasts = Object.fromEntries(
+        data.assets.map((asset) => [
+          asset.id,
+          sprint
+            ? [0, scores[asset.id] || 0, 0]
+            : [0, 0, scores[asset.id] || 0],
+        ]),
+      );
+      Object.assign(team, { carry, allowPenalties });
+
+      const result = optimize(highs, data, team);
+      const chosen = result.rounds[0];
+      assert.equal(chosen.transfers, transfers);
+      assert.equal(chosen.penalty, penalty);
+      assert.equal(chosen.points, points);
+      assert.equal(chosen.boost, "0");
+      assert.equal(chosen.entries.length, 7);
+      assert.ok(chosen.cost <= team.budget);
+      assert.equal(total(chosen.sessions) - chosen.penalty, chosen.points);
+      assert.ok(Math.abs(result.points - python(data, team).points) < 1e-5);
+    });
+
 test("No Negative preserves positive scores and floors negative sessions before Boost", () => {
   const { data, team } = fixture();
   team.active = "no_negative";
