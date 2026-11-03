@@ -40,6 +40,13 @@ payout multiplied by the sum of the driver's any-podium and exact-position
 probabilities. The single question 2× Boost is assigned to the
 largest expected unboosted question total.
 
+Podium probability is not just an ordering tie-breaker: a driver with a lower
+chance of the exact slot can still be the better pick because they are more
+likely to finish somewhere in the top three. For example, with a 10-point payout,
+an 80% podium chance and 30% exact-position chance yield **11 expected points**
+before Boost. Three selected drivers finishing on the podium in entirely the
+wrong order still earn their three listed payouts.
+
 The deterministic simulation uses prior-smoothed historical qualifying and race
 ranks, classification rates and joint weekend variation, optionally adjusted by
 the existing cached telemetry model. Qualifying, Sprint qualifying, Sprint and
@@ -50,12 +57,34 @@ the named teams. Championship questions accumulate earlier official Race/Sprint
 points and simulated future outcomes with countback, not a current standings
 endpoint that may contain future results.
 
+Regular-round questions also cover named teams reaching Q2/Q3, counts of teams
+reaching Q3 or scoring Sprint points, team weekend-points comparisons, British
+points scorers/winners, new winners at a particular Grand Prix, maximum positions
+gained, and championship leaders or weekend title-clinching. Explicit `Tied`
+options receive tie probability; comparisons without one award neither team points
+on a tie. Replaced drivers retain their earlier official points and countback,
+without being simulated as active entries in the target weekend.
+
+Safety Car/VSC deployment counts and early-lap windows, red flags and first-lap
+completion use archived FastF1 race-control messages and official completed laps.
+The seeded empirical model weights recent races with a 20-event half-life and a
+half-observation categorical prior. Missing messages do not become zero events,
+and unknown deployment laps are excluded from early-window estimates. This is an
+uncalibrated historical-frequency model, not a claim that interventions can be
+predicted from racing pace. Sporting nationality and past venue winners use
+complete, sourced Jolpica records; birthplaces are not nationalities.
+
 All historical sessions and telemetry precede the earlier of observation time and
 the target's first session. Current-weekend results, public `Answer`, option result
 `Position`, and the site's non-normalized `Chance` hints are excluded from features.
 Fastest stationary-pitstop probabilities use earlier finalized official Predict
 winners with publication-time checks; pit-lane transit time is not stationary-stop
-time. Season models share simulated remaining rounds for championship, qualifying,
+time. Before the season's first usable official winner label, at least four
+earlier measured OpenF1 stationary-stop events can ground the existing
+lognormal/opportunity-bootstrap model, explicitly marked uncalibrated.
+`python -m f1fantasy.refresh_history --season 2026` refreshes these compact race
+observations, sporting facts and timing inputs for subsequent read-only builds.
+Season models share simulated remaining rounds for championship, qualifying,
 fastest-lap and supported title-deciding questions. Predicates needing additional
 verified historical facts stay unsupported when those facts are unavailable.
 

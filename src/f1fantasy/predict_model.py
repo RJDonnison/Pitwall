@@ -371,6 +371,14 @@ def _mentioned(text, drivers):
 
 
 def _mentioned_teams(text, roster):
+    from .insights import _team_key
+
+    aliases = {
+        "redbullracing": ("red bull", "red bull racing"),
+        "haasf1team": ("haas",),
+        "astonmartin": ("aston martin", "aston martins"),
+        "racingbulls": ("racing bulls",),
+    }
     team_ids = set()
     for row in roster:
         name = row["name"] if int(row["kind"]) == 2 else row.get("team_name", "")
@@ -381,7 +389,7 @@ def _mentioned_teams(text, roster):
         )
         if any(
             alias and re.search(r"\b" + re.escape(alias) + r"\b", text)
-            for alias in {name, core}
+            for alias in {name, core, *aliases.get(_team_key(name), ())}
         ):
             team_ids.add(str(row["team_id"]))
     return team_ids
@@ -441,6 +449,11 @@ def _question(question, snapshot, drivers, draws, records):
             "unsupported": "Sprint fastest lap requires timed laps from completed pre-cutoff Sprint sessions"
         }
     ranks, classified = draws[kind]["ranks"], draws[kind]["classified"]
+    from . import predict_round
+
+    extended = predict_round.question(question, snapshot, drivers, draws, records)
+    if extended is not None:
+        return extended
     indices = [_driver(option, drivers) for option in options]
     masks = None
     model = "timing-team-regime-selector-v2"
@@ -497,48 +510,6 @@ def _question(question, snapshot, drivers, draws, records):
         )
         any_finished = classified[:, indices].any(axis=1)
         masks = [(subset == j) & any_finished for j in range(len(indices))]
-    elif (
-        "championship" in text
-        and ("second" in text or "2nd" in text)
-        and ("leave" in text or "after" in text)
-        and all(i is not None for i in indices)
-    ):
-        semantic = "champsecond"
-        # Full season-to-date official Points, including Sprints, never standings API.
-        totals = np.zeros(len(drivers))
-        for record in records:
-            if record["season"] != int(snapshot["season"]):
-                continue
-            for session in ("R", "S"):
-                for row in record["sessions"].get(session, []):
-                    if row.get("points") is None:
-                        return {
-                            "unsupported": "Official historical championship points incomplete"
-                        }
-                    for i, d in enumerate(drivers):
-                        if row["tla"] == d["tla"]:
-                            totals[i] += row["points"]
-        points = np.array([0, 25, 18, 15, 12, 10, 8, 6, 4, 2, 1] + [0] * len(drivers))
-        scores = totals + points[draws["R"]["ranks"]] * draws["R"]["classified"]
-        if snapshot.get("_sprint"):
-            scores += np.maximum(0, 9 - draws["S"]["ranks"]) * draws["S"]["classified"]
-        # FIA countback from recorded and simulated finishing classifications.
-        keys = []
-        for i, d in enumerate(drivers):
-            counts = [
-                sum(
-                    r["tla"] == d["tla"] and r.get("position") == p
-                    for rec in records
-                    if rec["season"] == int(snapshot["season"])
-                    for r in rec["sessions"].get("R", [])
-                )
-                + (draws["R"]["ranks"][:, i] == p)
-                for p in range(len(drivers), 0, -1)
-            ]
-            keys.append(counts)
-        countback = np.stack([np.stack(k) for k in keys], axis=1).transpose(0, 2, 1)
-        order = np.lexsort(tuple(countback) + (scores,), axis=1)[:, ::-1]
-        masks = [order[:, 1] == i for i in indices]
     elif (
         "classif" in text
         and ("how many" in text or "number" in text or "count" in text)
@@ -1148,7 +1119,6 @@ def _season_forecast(snapshot, drivers, cutoff, simulations, seed):
     return output
 
 
-
 def _starting_grid(snapshot, drivers):
     """Optional verified post-qualifying grid (driver code -> position).
 
@@ -1170,7 +1140,9 @@ def _starting_grid(snapshot, drivers):
             for v in grid.values()
         )
     ):
-        raise DataError("starting_grid must give every driver a positive integer position")
+        raise DataError(
+            "starting_grid must give every driver a positive integer position"
+        )
     return dict(grid)
 
 
@@ -1190,14 +1162,13 @@ def _practice_pace(snapshot, drivers):
         or not pace
         or not set(pace) <= tlas
         or any(
-            isinstance(v, bool)
-            or not isinstance(v, (int, float))
-            or not np.isfinite(v)
+            isinstance(v, bool) or not isinstance(v, (int, float)) or not np.isfinite(v)
             for v in pace.values()
         )
     ):
         raise DataError("practice_pace must map known drivers to finite pace gaps")
     return {k: float(v) for k, v in pace.items()}
+
 
 def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
     """Return supported question marginals; no payout-driven feature engineering.
@@ -1259,7 +1230,7 @@ def forecast(snapshot, *, simulations=4000, seed=2026, use_telemetry=True):
     )
     from . import racing_model
 
-    context = {**snapshot, "_sprint": weekend.sprint}
+    context = {**snapshot, "_sprint": weekend.sprint, "_seed": seed}
     evidence = {
         "cutoff_utc": cutoff.isoformat(),
         "target_first_session_utc": target_cutoff.isoformat(),

@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from itertools import permutations
 import json
 
-import numpy as np
 import pytest
 
 from f1fantasy import (
@@ -159,6 +158,33 @@ def test_podium_listed_payout_changes_optimal_boost_allocation(game):
     assert podium["expected_points"] == pytest.approx(104)
     assert all(answer["booster_id"] == "0" for answer in result["answers"][1:])
     assert result["expected_total_points"] == pytest.approx(374)
+
+
+def test_podium_chance_can_outweigh_a_higher_exact_position_chance(game):
+    for option in game["questions"][0]["options"]:
+        option["points"] = 10
+    probabilities = {
+        "1": [0.30, 0.05, 0.05],
+        "2": [0.25, 0.30, 0.30],
+        "3": [0.05, 0.35, 0.05],
+        "4": [0.05, 0.05, 0.35],
+    }
+    f = forecasts(game)
+    f[1]["position_probabilities"] = probabilities
+    # An exact-position-only optimizer would pick driver 1 for P1.
+    exact = max(
+        permutations(probabilities, 3),
+        key=lambda ids: sum(probabilities[i][slot] for slot, i in enumerate(ids)),
+    )
+    assert exact == ("1", "3", "4")
+    answer = predict.select(game, f)["answers"][0]
+    assert answer["selected_options"] == ["2", "3", "4"]
+    assert answer["expected_points_before_boost"] == pytest.approx(27)
+    # All three still score even when every selected slot is wrong.
+    assert (
+        predict.score(game["questions"][0], answer["selected_options"], ["3", "4", "2"])
+        == 30
+    )
 
 
 @pytest.mark.parametrize(
@@ -371,6 +397,12 @@ def test_recommend_archive_excludes_authenticated_identity(tmp_path, game, monke
 
 
 def test_official_stationary_pitstop_labels_have_publication_cutoff(game, monkeypatch):
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2099, 1, 2, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(predict, "datetime", Clock)
     game["questions"][1]["text"] = "Which team will set the fastest pitstop time?"
     game["season_fixtures"] = [
         {

@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 from datetime import datetime, timezone
-import json
 import math
 from pathlib import Path
 import re
@@ -259,7 +257,7 @@ def pitstop_forecasts(snapshot):
     ]
     if not qs or snapshot["scope"] != "round":
         return {}
-    cutoff = data.utc(snapshot["first_session_utc"])
+    cutoff = min(data.utc(snapshot["first_session_utc"]), datetime.now(timezone.utc))
     fixtures = [
         r
         for r in snapshot["season_fixtures"]
@@ -281,6 +279,43 @@ def pitstop_forecasts(snapshot):
                 winners.append(str(raw["Answer"][0]["Id"]))
                 contributing.append(day)
     if not winners:
+        from . import predict_evidence, pitstop_model
+        from .insights import _team_key
+
+        # Before a season's first official label, use measured stationary service
+        # times from completed prior races, never pit-lane transit or uniform picks.
+        events = sorted(
+            (
+                r
+                for r in predict_evidence.document().get("stationary_stops", [])
+                if data.utc(r["end"]) < cutoff
+                and r["season"] >= int(snapshot["season"]) - 2
+                and r["stops"]
+                and all(data.utc(s["date"]) < cutoff for s in r["stops"])
+            ),
+            key=lambda r: data.utc(r["end"]),
+        )
+        if len(events) >= 4:
+            results = {}
+            for q in qs:
+                if not all(int(o["kind"]) == 2 for o in q["options"]):
+                    continue
+                teams = [_team_key(o["name"]) for o in q["options"]]
+                probabilities = pitstop_model.simulate(events, teams, _team_key)
+                results[q["id"]] = {
+                    "probabilities": {
+                        o["id"]: probabilities[t] for o, t in zip(q["options"], teams)
+                    },
+                    "model_type": "stationary-lognormal-opportunity-bootstrap-v1",
+                    "evidence": {
+                        "source": "https://openf1.org/docs/#pit",
+                        "events": len(events),
+                        "cutoff": cutoff.isoformat(),
+                        "calibrated": False,
+                    },
+                }
+            if len(results) == len(qs):
+                return results
         return {
             q["id"]: {
                 "unsupported": "No finalized pre-cutoff official fastest stationary-stop labels"

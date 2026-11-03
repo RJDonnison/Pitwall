@@ -13,6 +13,7 @@ from . import (
     insights,
     racing_data,
     practice_archive,
+    predict_evidence,
 )
 
 
@@ -51,6 +52,8 @@ def main(argv=None):
         practice_archive.backfill(document, now)
         racing_data.refresh_stops(document, now)
         insights.refresh_pitstops(document, args.season, now)
+        predict_evidence.refresh_observations(document, now)
+        predict_evidence.refresh_facts(document, args.season, now)
         # This exercises the actual upcoming-venue/session/chip inputs, not an
         # unrelated bulk download. Existing completed racing rows are reused.
         result = web_data.build(args.season)
