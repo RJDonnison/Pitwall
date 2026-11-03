@@ -479,8 +479,9 @@ empty: waiting for finalized outcomes is an honest unavailable state.
 
 The Predict navbar's locally saved risk setting defaults to Medium: Low uses
 λ = 0.5, Medium 0.25 and High 0.1. Published profiles select answers and the question
-Boost using `EV − λ × SD`; the cards keep expected points, risk score and payout SD
-distinct. Podium SD uses joint simulated outcomes. This preference applies to
+Boost using `EV − λ × SD`; the cards and summary display expected points while
+risk scores and payout SD remain in the publication data. Podium SD uses joint
+simulated outcomes. This preference applies to
 Predict decisions; see [risk preferences and broader applicability](predict.md#website-risk-preference)
 for the model and the separate work needed for Fantasy optimization.
 
