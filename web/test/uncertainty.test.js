@@ -23,3 +23,11 @@ test("cumulative bands widen with each round and stop at a missing range", () =>
   assert.equal(bands[1].low + bands[1].high, 40);
   assert.equal(bands[2], null);
 });
+
+import { roundRange } from "../src/uncertainty.js";
+test("round range is the plan's points around its combined half-width", () => {
+  const r = roundRange(round(10, 3));
+  assert.ok(Math.abs(r.low - (10 - Math.sqrt(18))) < 1e-9);
+  assert.ok(Math.abs(r.high - (10 + Math.sqrt(18))) < 1e-9);
+  assert.equal(roundRange({ ...round(10, 3), intervals: {} }), null);
+});

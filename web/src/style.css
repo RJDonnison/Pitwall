@@ -5165,11 +5165,14 @@ html {
   color: var(--muted);
 }
 
-.chart-whisker {
-  stroke: var(--muted);
-  stroke-width: 1.5;
-  fill: none;
+.score-range {
+  display: block;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted);
 }
-.chart-note {
-  margin: 8px 0 0;
+.horizon-total .score-range {
+  font-size: 11px;
+  text-align: right;
 }
