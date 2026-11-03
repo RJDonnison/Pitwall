@@ -11,6 +11,7 @@ import {
 } from "../src/optimizer.js";
 import { verifyLive } from "../src/data.js";
 import { suggestionRequest } from "../src/team-suggestion.js";
+import { rememberWeekend, adoptWeekend } from "../src/team-progress.js";
 
 const highs = await loadHighs();
 test("Suggest team fills an empty slot with a capped optimized roster and normal 2× Boost", () => {
@@ -225,6 +226,76 @@ test("custom post-Limitless transfers match Python, exceed two swaps and retain 
     assert.equal(result.rounds[1].penalty, 0);
     assert.ok(result.rounds[1].cost <= team.budget);
   }
+});
+
+for (const [carry, transfers, expectedCarry] of [
+  [0, 0, 1],
+  [0, 1, 1],
+  [0, 2, 0],
+  [0, 3, 0],
+  [1, 0, 1],
+  [1, 1, 1],
+  [1, 2, 1],
+  [1, 3, 0],
+])
+  test(`unused allowance survives saving and adopting a one-round plan: carry=${carry}, transfers=${transfers}`, () => {
+    const { data, team } = fixture();
+    const now = Date.now();
+    const fresh = { ...data, rounds: [data.rounds[1]] };
+    data.rounds = [data.rounds[0]];
+    data.rounds[0].last_session_utc = new Date(now - 1000).toISOString();
+    data.assets.push({ ...data.assets[5], id: "6", name: "Driver 6" });
+    Object.assign(team, { carry, allowPenalties: true });
+    const scores = {
+      0: 200,
+      5: transfers >= 1 ? 100 : 0,
+      c2: transfers >= 2 ? 80 : 0,
+      6: transfers >= 3 ? 90 : 0,
+    };
+    data.rounds[0].forecasts = Object.fromEntries(
+      data.assets.map((a) => [
+        a.id,
+        [0, 0, scores[a.id] ?? (team.selected.includes(a.id) ? 10 : 0)],
+      ]),
+    );
+    fresh.rounds[0].forecasts["6"] = [0, 0, 0];
+
+    const result = optimize(highs, data, team);
+    assert.equal(result.rounds[0].transfers, transfers);
+    assert.equal(result.rounds[0].carry, expectedCarry);
+    assert.equal(result.rounds[0].penalty, transfers > 2 + carry ? 10 : 0);
+    team.weekendSuggestion = rememberWeekend(data, team, result);
+    const restored = JSON.parse(JSON.stringify(team));
+    const next = adoptWeekend(fresh, restored, now);
+    assert.equal(next.carry, expectedCarry);
+    assert.equal(next.weekendSuggestion, null);
+    assert.equal(optimize(highs, fresh, next).rounds[0].penalty, 0);
+  });
+
+test("season plan banks an unused transfer for three free changes next weekend", () => {
+  const { data, team } = fixture();
+  data.assets.push({ ...data.assets[5], id: "6", name: "Driver 6" });
+  for (const [t, round] of data.rounds.entries())
+    round.forecasts = Object.fromEntries(
+      data.assets.map((a) => [
+        a.id,
+        [0, 0, team.selected.includes(a.id) ? 100 : t ? 200 : 0],
+      ]),
+    );
+  const result = optimize(highs, data, team);
+  assert.deepEqual(
+    result.rounds.map((r) => r.transfers),
+    [0, 3],
+  );
+  assert.deepEqual(
+    result.rounds.map((r) => r.carry),
+    [1, 0],
+  );
+  assert.deepEqual(
+    result.rounds.map((r) => r.penalty),
+    [0, 0],
+  );
+  assert.ok(Math.abs(result.points - python(data, team).points) < 1e-5);
 });
 
 test("saves x3 for a valuable late round and selects distinct multipliers", () => {

@@ -212,7 +212,10 @@ and new publications. Once its scheduled final session has ended **and** the nex
 round is published, Garage offers **Update local team** or **Discard suggestion**.
 Update is an explicit confirmation that you followed that lineup: it copies the
 seven selections, removes that round's spent chip, advances carried transfers,
-clears the completed active chip and replans. Limitless copies its restored roster,
+clears the completed active chip and replans. Any unused free allowance carries
+one transfer into the next round, for at most three free transfers. This is saved
+even when the plan covers only one round or the later plan does not need it.
+Limitless copies its restored roster,
 not the temporary uncapped picks, and clears carry. Stored cash is retained while
 current roster prices determine the updated total budget. Check the budget and
 transfer allowance against your official account, especially if your actual trades,

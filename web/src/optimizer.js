@@ -514,6 +514,7 @@ export function optimize(highs, data, team) {
     );
   const value = (i) => (i == null ? 0 : (solved.Columns[`v${i}`]?.Primal ?? 0));
   let prior = [...team.selected];
+  let carry = team.carry;
   const rounds = data.rounds.map((r, t) => {
     const chosen = data.assets.filter(
       (a) => value(model.selected[t][a.id]) > 0.5,
@@ -553,6 +554,15 @@ export function optimize(highs, data, team) {
     });
     const ids = chosen.map((a) => a.id);
     const penalty = 10 * Math.round(value(model.extra[t]));
+    const transfers = Math.round(
+      total(Object.values(model.incoming[t]).map(value)),
+    );
+    // Solver carry is optional when no later transfer needs it. Persist the
+    // actual unused allowance, including at the end of the planning horizon.
+    carry =
+      (team.initial && t === 0) || chip === "limitless"
+        ? 0
+        : Math.min(1, Math.max(0, 2 + carry - transfers));
     const result = {
       ...r,
       entries,
@@ -561,8 +571,8 @@ export function optimize(highs, data, team) {
       chip,
       cost: total(chosen.map((a) => a.price_tenths_m)),
       penalty,
-      transfers: Math.round(total(Object.values(model.incoming[t]).map(value))),
-      carry: Math.round(value(model.carried[t])),
+      transfers,
+      carry,
       in:
         team.initial && t === 0 ? [] : ids.filter((id) => !prior.includes(id)),
       out:
