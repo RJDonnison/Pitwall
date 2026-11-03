@@ -31,6 +31,7 @@ import {
   strategyMarkup,
   insightsMarkup,
 } from "./views.js";
+import { accuracyText } from "./model-fit.js";
 import { logo, chipIcon, footerMarkup } from "./visuals.js";
 import {
   rememberWeekend,
@@ -268,6 +269,7 @@ function render() {
   $("#state-banner").replaceWith(stateBanner(dataset));
   $("#publication-status").textContent =
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
+  $("#model-accuracy").textContent = accuracyText(dataset);
   $("#publication-window").textContent =
     `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
   $("#planning-status").innerHTML = busy
