@@ -54,6 +54,17 @@ risk levels. Medium is the default; the browser remembers the selection locally.
 Each question maximizes **Score = EV − λ × SD**, using points for both EV and SD.
 Low risk penalizes dispersion most strongly; High risk remains mildly risk-averse.
 Expected points remain visible separately from the risk score and standard deviation.
+The total summary uses the chosen profile's expected points and separately shows
+the sum of its question-level risk scores, with Boost already included. Partial
+sheets label this an adjusted subtotal; missing scores are unavailable rather than
+estimated from independent question SDs. This sum is a decision score, not a
+whole-sheet confidence bound or a lower guaranteed payout.
+
+The summary also reports published probability-calibration status. Historical
+calibration is not held-out prediction accuracy: risk-level accuracy is explicitly
+unvalidated until pre-lock, settled forecasts have been evaluated separately for
+each profile. Changing risk preference does not multiply EV by an invented
+accuracy percentage.
 
 Single-answer payouts use `SD = |payout| × sqrt(p × (1 − p))`, including the
 zero-point unsuccessful/no-award outcome. The ordered podium evaluates every legal

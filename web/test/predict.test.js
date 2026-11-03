@@ -90,6 +90,87 @@ function fixture() {
   };
 }
 
+test("total summary follows risk-specific EV and boosted question scores without inventing accuracy", () => {
+  const publication = fixture();
+  const values = { low: [100, 85], medium: [120, 100], high: [150, 140] };
+  publication.recommendation.risk_profiles = {};
+  for (const [name, [ev, score]] of Object.entries(values)) {
+    const profile = structuredClone(publication.recommendation);
+    profile.expected_total_points = ev;
+    profile.answers[0].expected_points = ev;
+    profile.answers[0].risk_score = score;
+    publication.recommendation.risk_profiles[name] = profile;
+    const html = predictMarkup(publication, now, name);
+    const summary = html.match(
+      /<section class="predict-summary[\s\S]*?<\/section>/,
+    )[0];
+    assert.match(
+      summary,
+      new RegExp(`predict-total">${ev.toFixed(1)} <small>pts`),
+    );
+    assert.match(
+      summary,
+      new RegExp(`risk-adjusted score<\\/span><strong>${score.toFixed(1)}`),
+    );
+    assert.match(summary, /Sum of question scores · Boost included/);
+    assert.match(summary, /Uncalibrated probabilities/);
+    assert.match(summary, /Risk-level accuracy not yet validated/);
+    assert.doesNotMatch(summary, /%|λ|NaN|undefined/);
+  }
+});
+
+test("adjusted subtotal sums supported scores once and does not fill missing scores", () => {
+  const publication = fixture();
+  const low = structuredClone(publication.recommendation);
+  low.complete = false;
+  low.answers[0].risk_score = 50;
+  low.answers.push({
+    ...structuredClone(low.answers[0]),
+    question_id: 2,
+    booster_id: "0",
+    risk_score: 20,
+  });
+  publication.questions.push({
+    ...structuredClone(publication.questions[0]),
+    id: 2,
+    number: 2,
+  });
+  publication.recommendation.risk_profiles = { low };
+  let html = predictMarkup(publication, now, "low");
+  assert.match(html, /Low risk-adjusted subtotal<\/span><strong>70\.0/);
+  assert.match(html, /Supported answers expected points/);
+  delete low.answers[1].risk_score;
+  html = predictMarkup(publication, now, "low");
+  assert.match(html, /Low risk-adjusted subtotal<\/span><strong>Unavailable/);
+});
+
+test("calibration status distinguishes calibrated, mixed and missing evidence from risk accuracy", () => {
+  const publication = fixture();
+  const answer = publication.recommendation.answers[0];
+  answer.calibration = {
+    method: "chronological_uniform_mixture",
+    training_outcomes: 25,
+  };
+  assert.match(
+    predictMarkup(publication, now),
+    /Historically calibrated probabilities/,
+  );
+  const second = { ...structuredClone(answer), question_id: 2 };
+  delete second.calibration;
+  publication.questions.push({
+    ...structuredClone(publication.questions[0]),
+    id: 2,
+    number: 2,
+  });
+  publication.recommendation.answers.push(second);
+  assert.match(predictMarkup(publication, now), /1 of 2 questions calibrated/);
+  delete answer.calibration;
+  const html = predictMarkup(publication, now);
+  assert.match(html, /Calibration evidence unavailable/);
+  assert.match(html, /Risk-level accuracy not yet validated/);
+  assert.doesNotMatch(html, /Historically calibrated probabilities/);
+});
+
 test("Predict preserves podium order and separates exact, any-podium, payout and Boost values", () => {
   const html = predictMarkup(fixture(), now);
   assert.match(html, /P1<\/span><strong>A &lt;driver&gt;/);

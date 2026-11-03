@@ -96,6 +96,37 @@ function questionMarkup(q, answer, unsupported) {
     <details class="predict-options"><summary>Payout breakdown · ${options.length} options</summary><div class="predict-table"><table aria-label="Payout breakdown"><thead><tr><th>Legal answer</th><th>Payout</th><th>Probability</th><th>Expected pts (base)</th></tr></thead><tbody>${options.map((o) => `<tr class="${selections.has(o.id) ? "predict-selected" : ""}"><th scope="row">${esc(o.name)}${selections.has(o.id) ? `<small>${podium ? `Selected P${selections.get(o.id) + 1}` : "Selected"}</small>` : ""}</th><td>${number(o.points)}</td><td>${podium ? o.p.map((v, i) => `<span class="predict-slot-value">P${i + 1} ${percent(v)}</span>`).join("") : percent(o.p)}</td><td>${podium ? o.ev.map((v, i) => `<span class="predict-slot-value">P${i + 1} ${number(v)}</span>`).join("") : number(o.ev)}</td></tr>`).join("")}</tbody></table></div></details></div></article>`;
 }
 
+function calibrationStatus(answers) {
+  const calibrated = answers.filter(
+    (answer) => answer.calibration?.method === "chronological_uniform_mixture",
+  ).length;
+  if (answers.length && calibrated === answers.length)
+    return "Historically calibrated probabilities";
+  if (calibrated)
+    return `${calibrated} of ${answers.length} questions calibrated`;
+  if (
+    answers.length &&
+    answers.every(
+      (answer) =>
+        answer.calibration?.method ===
+        "uncalibrated_insufficient_prelock_archives",
+    )
+  )
+    return "Uncalibrated probabilities";
+  return "Calibration evidence unavailable";
+}
+
+function riskTotalMarkup(result, preference) {
+  if (!preference) return "";
+  const label = `${preference[0].toUpperCase() + preference.slice(1)} risk-adjusted ${result.complete ? "score" : "subtotal"}`;
+  const total =
+    result.answers.length &&
+    result.answers.every((answer) => Number.isFinite(answer.risk_score))
+      ? result.answers.reduce((sum, answer) => sum + answer.risk_score, 0)
+      : null;
+  return `<div class="predict-adjusted"><span>${label}</span><strong>${total === null ? "Unavailable" : `${number(total)} <small>pts</small>`}</strong><small>Sum of question scores · Boost included</small></div>`;
+}
+
 export function predictMarkup(publication, now = Date.now(), risk = null) {
   const state = predictState(publication, now);
   const heading = `<div class="page-heading predict-heading"><div><h1>Make every answer count.</h1><p>Official questions. Model probabilities.</p></div><a class="predict-official" href="https://f1predict.formula1.com/" target="_blank" rel="noopener noreferrer">Open F1 Predict ↗</a></div>`;
@@ -109,7 +140,7 @@ export function predictMarkup(publication, now = Date.now(), risk = null) {
     return `<div class="predict-page">${heading}<section class="panel predict-unavailable" role="status">${preference ? "Risk-adjusted recommendations are awaiting a refreshed publication." : "No verified recommendation in this publication."}</section></div>`;
   const boosted = result.answers.find((a) => a.booster_id === "1");
   return `<div class="predict-page">${heading}
-    <section class="predict-summary panel" aria-label="Predict recommendation summary"><div><span class="eyebrow">${publication.season} · official round ${publication.gameday_id}</span><h2>${result.complete ? "Your recommended answer sheet" : "Partial answer sheet"}</h2><p>${result.answers.length} of ${publication.questions.length} questions supported${result.complete ? "" : " · unsupported questions need your own decision"}</p></div><div><span class="eyebrow">${result.complete ? "Total" : "Supported answers"} expected points</span><strong class="predict-total">${number(result.expected_total_points)} <small>pts</small></strong><p>${boosted ? `2× Boost on question ${publication.questions.find((q) => q.id === boosted.question_id).number}` : "No supported Boost"}</p></div></section>
+    <section class="predict-summary panel" aria-label="Predict recommendation summary"><div><span class="eyebrow">${publication.season} · official round ${publication.gameday_id}</span><h2>${result.complete ? "Your recommended answer sheet" : "Partial answer sheet"}</h2><p>${result.answers.length} of ${publication.questions.length} questions supported${result.complete ? "" : " · unsupported questions need your own decision"}</p><p class="predict-calibration">${calibrationStatus(result.answers)}<br>Risk-level accuracy not yet validated</p></div><div><span class="eyebrow">${result.complete ? "Total" : "Supported answers"} expected points</span><strong class="predict-total">${number(result.expected_total_points)} <small>pts</small></strong>${riskTotalMarkup(result, preference)}<p>${boosted ? `2× Boost on question ${publication.questions.find((q) => q.id === boosted.question_id).number}` : "No supported Boost"}</p></div></section>
     <div class="predict-question-grid">${publication.questions
       .map((q) =>
         questionMarkup(
