@@ -125,14 +125,12 @@ const wreath = `<svg class="champion-wreath" viewBox="0 0 220 220" aria-hidden="
   .join("")}</g></svg>`;
 const trophy = `<svg class="champion-trophy" viewBox="0 0 48 48" aria-hidden="true"><path d="M14 6h20v10c0 7-4.5 12-10 12S14 23 14 16z" fill="currentColor"/><path d="M14 9H7c0 7 3 11 8 12M34 9h7c0 7-3 11-8 12" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M21 28h6v7h-6zM15 41h18l-2-6H17z" fill="currentColor"/></svg>`;
 
-export function championBanner(dataset, row, runnerUp, population) {
+export function championBanner(dataset, row, population) {
   const asset = dataset.assets.find((a) => a.id === row.asset_id);
   if (!asset) return "";
-  const left = dataset.rounds.length;
   const scored = (r) => (Number.isFinite(r?.observed) ? r.observed : r?.projected);
-  const lead = runnerUp ? Math.round(scored(row) - scored(runnerUp)) : null;
   const title = population === "drivers" ? "Drivers' Champion" : "Constructors' Champion";
-  return `<div class="champion-banner" style="--team-color:${teamColor(dataset, asset)}" role="img" aria-label="${esc(row.name)}, ${dataset.season} ${title}"><div class="champion-medal">${wreath}<div class="champion-portrait">${portrait(asset, asset.kind === "DRIVER" ? helmet() : car())}</div><span class="champion-spark s1"></span><span class="champion-spark s2"></span><span class="champion-spark s3"></span></div><div class="champion-copy"><span class="champion-label">${trophy}${dataset.season} ${title}</span><strong>${esc(row.name)}</strong><p>${points(scored(row))} pts${lead !== null && lead > 0 ? ` · ${lead} clear of second` : ""} · ${left > 0 ? `title clinched with ${left} round${left === 1 ? "" : "s"} to spare` : "season complete"}</p></div></div>`;
+  return `<div class="champion-banner" style="--team-color:${teamColor(dataset, asset)}" role="img" aria-label="${esc(row.name)}, ${dataset.season} ${title}"><div class="champion-medal">${wreath}<div class="champion-portrait">${portrait(asset, asset.kind === "DRIVER" ? helmet() : car())}</div><span class="champion-spark s1"></span><span class="champion-spark s2"></span><span class="champion-spark s3"></span></div><div class="champion-copy"><span class="champion-label">${trophy}${dataset.season} ${title}</span><strong>${esc(row.name)}</strong><p>${points(scored(row))} pts</p></div></div>`;
 }
 
 export function championshipChart(dataset, insight, population) {
@@ -144,7 +142,7 @@ export function championshipChart(dataset, insight, population) {
   const rows = eligible.slice(0, 5);
   const max = Math.max(1, ...rows.map((r) => r.interval80[1]));
   // Exactly one contender left that can still be champion: the title is decided.
-  const champion = eligible.length === 1 ? championBanner(dataset, eligible[0], insight.championship[population][1], population) : "";
+  const champion = eligible.length === 1 ? championBanner(dataset, eligible[0], population) : "";
   return `<section class="panel insight-champ-chart${champion ? " has-champion" : ""}"><div class="section-heading"><div><span class="insight-kicker">${champion ? "Title decided" : "End-of-season projection"}</span><h2>Championship horizon</h2></div></div>${champion}<div class="champ-chart-key"><span><i></i>Observed</span><span><i></i>Expected remaining</span></div><ol>${rows
     .map((r) => {
       const a = dataset.assets.find((a) => a.id === r.asset_id);
