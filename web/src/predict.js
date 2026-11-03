@@ -13,9 +13,9 @@ export function predictState(publication, now = Date.now()) {
   if (!publication || publication.status === "unavailable")
     return {
       available: false,
-      message:
-        publication?.message ||
-        "Fetching official questions and model recommendations…",
+      message: publication
+        ? "Predictions are temporarily unavailable. Please check again after the next update."
+        : "Fetching official questions and model recommendations…",
     };
   const fetched = Date.parse(publication.fetched_at);
   if (
@@ -86,7 +86,7 @@ function questionMarkup(q, answer, unsupported) {
 
 export function predictMarkup(publication, now = Date.now()) {
   const state = predictState(publication, now);
-  const heading = `<div class="page-heading predict-heading"><div><span class="eyebrow">F1 Predict · expected-points desk</span><h1>Make every answer count.</h1><p>Official questions. Model probabilities. One points-maximizing answer sheet.</p></div><a class="predict-official" href="https://f1predict.formula1.com/" target="_blank" rel="noopener noreferrer">Open F1 Predict ↗</a></div>`;
+  const heading = `<div class="page-heading predict-heading"><div><h1>Make every answer count.</h1><p>Official questions. Model probabilities.</p></div><a class="predict-official" href="https://f1predict.formula1.com/" target="_blank" rel="noopener noreferrer">Open F1 Predict ↗</a></div>`;
   if (!state.available)
     return `<div class="predict-page">${heading}<section class="panel predict-unavailable" role="status"><span class="eyebrow">${publication ? "Recommendations unavailable" : "Checking publication"}</span><h2>${publication?.locked || publication?.status === "locked" ? "Round closed" : "Awaiting verified inputs"}</h2><p>${esc(state.message)}</p>${publication?.fetched_at ? `<p>Last checked ${esc(stamp(publication.fetched_at))}</p>` : ""}</section></div>`;
   const result = publication.recommendation;

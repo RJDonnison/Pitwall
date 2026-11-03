@@ -114,5 +114,25 @@ test("a single answer exposes probability-times-payout rather than podium scorin
   const html = predictMarkup(publication, now);
   assert.match(html, /30\.0% model probability/);
   assert.match(html, /Payout × model probability/);
+  assert.match(html, /<td>10\.0<\/td><td>60\.0%<\/td><td>6\.0<\/td>/);
+  assert.match(html, /<td>20\.0<\/td><td>30\.0%<\/td><td>6\.0<\/td>/);
+  assert.match(html, /<td>30\.0<\/td><td>10\.0%<\/td><td>3\.0<\/td>/);
   assert.doesNotMatch(html, /exact position|any podium/);
+});
+
+test("Predict omits removed headings and raw feed failure details", () => {
+  const ready = predictMarkup(fixture(), now);
+  const unavailable = predictMarkup(
+    {
+      status: "unavailable",
+      message:
+        "Cannot verify fresh official Predict feed: questions/questions_20_en.json",
+    },
+    now,
+  );
+  assert.doesNotMatch(
+    ready + unavailable,
+    /F1 Predict · expected-points desk|One points-maximizing answer sheet|Cannot verify fresh official Predict feed|questions_20_en\.json/,
+  );
+  assert.match(unavailable, /temporarily unavailable/);
 });
