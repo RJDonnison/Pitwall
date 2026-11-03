@@ -85,19 +85,6 @@
   gap: 12px;
   padding: 8px 16px 12px;
 }
-.participant-select {
-  padding: 7px 10px;
-  border-radius: 4px;
-  background: var(--ink);
-  color: white;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.participant-tile[aria-pressed="true"] .participant-select {
-  background: var(--team-color);
-}
 .participant-tile-name {
   align-self: center;
   min-width: 0;
@@ -229,7 +216,7 @@
 }
 .placement-curve text {
   fill: var(--muted);
-  font-size: 14px;
+  font-size: 10px;
 }
 .curve-grid {
   stroke: var(--rule);
@@ -273,7 +260,7 @@
 }
 .placement-curve .curve-tooltip text {
   fill: white;
-  font-size: 14px;
+  font-size: 11px;
 }
 .curve-point:hover .curve-tooltip,
 .curve-point:focus .curve-tooltip {
@@ -363,7 +350,7 @@
   }
 }
 
-.curve-axis {
+.placement-curve .curve-axis {
   fill: var(--muted);
   font-size: 9px;
 }

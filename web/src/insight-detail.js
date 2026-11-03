@@ -39,7 +39,7 @@ function curve(asset, p, label) {
   const scale = Math.max(0.01, ...p.positions, p.nc);
   const y = (v) => 126 - (98 * v) / scale;
   const coords = p.positions.map((v, i) => [
-    30 + (i * 380) / Math.max(1, n - 1),
+    48 + (i * 368) / Math.max(1, n - 1),
     y(v),
   ]);
   const secants = coords
@@ -66,10 +66,10 @@ function curve(asset, p, label) {
   const axis = [0, 0.5, 1]
     .map(
       (f) =>
-        `<text class="curve-axis" x="24" y="${126 - 98 * f + 3}" text-anchor="end">${pct(scale * f)}</text>`,
+        `<text class="curve-axis" x="40" y="${126 - 98 * f + 3}" text-anchor="end">${Math.round(scale * f * 100)}%</text>`,
     )
     .join("");
-  return `<svg class="placement-curve" viewBox="0 0 440 160" role="group" aria-label="${esc(asset.name)} ${label} finishing position probabilities"><path class="curve-grid" d="M30 28H410 M30 77H410 M30 126H410"/>${axis}<path class="curve-area" d="${line} L${coords[n - 1][0]},126 L30,126Z"/><path class="curve-line" d="${line}"/>${coords
+  return `<svg class="placement-curve" viewBox="0 0 440 160" role="group" aria-label="${esc(asset.name)} ${label} finishing position probabilities"><path class="curve-grid" d="M48 28H416 M48 77H416 M48 126H416"/>${axis}<path class="curve-area" d="${line} L${coords[n - 1][0]},126 L48,126Z"/><path class="curve-line" d="${line}"/>${coords
     .map(([x, yy], i) => {
       const text = `P${i + 1} · ${pct(p.positions[i])}`;
       return `<g class="curve-point" tabindex="0" role="img" aria-label="${text}"><circle class="curve-hit" cx="${x}" cy="${yy}" r="8"/><circle cx="${x}" cy="${yy}" r="2"/><g class="curve-tooltip" transform="translate(${Math.min(330, Math.max(0, x - 40))},${Math.max(0, yy - 28)})"><rect width="80" height="20" rx="3"/><text x="40" y="14" text-anchor="middle">${text}</text></g></g>`;
@@ -111,7 +111,7 @@ const forecastTotal = (round, a) =>
 
 function tile(dataset, probabilities, a, asset, byTeam) {
   const likely = mostLikelyResult(probabilities?.placements?.[a.id]?.R);
-  return `<button type="button" class="participant-tile market-card ${a.id === asset.id ? "selected" : ""}" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}"><span class="market-card-title"><span class="registry-photo">${image(a)}</span><span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" && !byTeam ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span></span><span class="market-card-bottom">${a.kind === "DRIVER" ? `<span class="participant-position"><small>Likely race</small><strong>${likely.label}</strong></span>` : ""}<span class="participant-select">${a.id === asset.id ? "Viewing" : "View"}</span></span></button>`;
+  return `<button type="button" class="participant-tile market-card ${a.id === asset.id ? "selected" : ""}" id="insight-participant-${esc(a.id)}" data-insight-entity="${esc(a.id)}" aria-pressed="${a.id === asset.id}" style="--team-color:${teamColor(dataset, a)}"><span class="market-card-title"><span class="registry-photo">${image(a)}</span><span class="participant-tile-name"><strong>${esc(a.name)}</strong>${a.kind === "DRIVER" && !byTeam ? `<small>${esc(constructorName(dataset, a))}</small>` : ""}</span></span><span class="market-card-bottom">${a.kind === "DRIVER" ? `<span class="participant-position"><small>Likely race</small><strong>${likely.label}</strong></span>` : ""}</span></button>`;
 }
 
 // Drivers are grouped by team (strongest forecast first) so teammates sit together;

@@ -135,7 +135,10 @@ test("season plan draws a shaded joint range, numeric bounds and accessible per-
   assert.match(html, /class="chart-range-whisker"/);
   assert.match(html, /80% simulated range 30.0 to 110.0/);
   assert.match(html, /season-range-total">60.0–220.0 pts/);
-  assert.match(html, /provisional/);
+  assert.doesNotMatch(
+    html,
+    /Line: expected points|Shading \/ whiskers|Historical weekends per round|season-range-note/,
+  );
   result.rounds.pop();
   const single = strategyMarkup(data, team, result);
   assert.match(single, /class="chart-range-whisker"/);
