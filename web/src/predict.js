@@ -7,12 +7,12 @@ export const riskPreference = (value) =>
   Object.hasOwn(predictRisks, value) ? value : "medium";
 export function riskControlMarkup(value) {
   const risk = riskPreference(value);
-  return `<label class="predict-risk"><span>Risk</span><select id="predict-risk" aria-label="Predict risk level">${Object.entries(
+  return `<label class="predict-risk"><span>Risk</span><select id="predict-risk" aria-label="Predict risk level">${Object.keys(
     predictRisks,
   )
     .map(
-      ([name, weight]) =>
-        `<option value="${name}" ${name === risk ? "selected" : ""}>${name[0].toUpperCase() + name.slice(1)} (${weight})</option>`,
+      (name) =>
+        `<option value="${name}" ${name === risk ? "selected" : ""}>${name[0].toUpperCase() + name.slice(1)}</option>`,
     )
     .join("")}</select></label>`;
 }
@@ -108,7 +108,7 @@ export function predictMarkup(publication, now = Date.now(), risk = null) {
   if (!result)
     return `<div class="predict-page">${heading}<section class="panel predict-unavailable" role="status">${preference ? "Risk-adjusted recommendations are awaiting a refreshed publication." : "No verified recommendation in this publication."}</section></div>`;
   const boosted = result.answers.find((a) => a.booster_id === "1");
-  return `<div class="predict-page">${heading}${preference ? `<p class="predict-risk-note">${preference[0].toUpperCase() + preference.slice(1)} risk · λ ${predictRisks[preference]} · Each question: Score = EV − λ × SD. Boost follows the highest question score.</p>` : ""}
+  return `<div class="predict-page">${heading}
     <section class="predict-summary panel" aria-label="Predict recommendation summary"><div><span class="eyebrow">${publication.season} · official round ${publication.gameday_id}</span><h2>${result.complete ? "Your recommended answer sheet" : "Partial answer sheet"}</h2><p>${result.answers.length} of ${publication.questions.length} questions supported${result.complete ? "" : " · unsupported questions need your own decision"}</p></div><div><span class="eyebrow">${result.complete ? "Total" : "Supported answers"} expected points</span><strong class="predict-total">${number(result.expected_total_points)} <small>pts</small></strong><p>${boosted ? `2× Boost on question ${publication.questions.find((q) => q.id === boosted.question_id).number}` : "No supported Boost"}</p></div></section>
     <div class="predict-question-grid">${publication.questions
       .map((q) =>

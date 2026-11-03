@@ -8,15 +8,16 @@ import {
 } from "../src/predict.js";
 
 const now = Date.parse("2026-11-03T12:00:00Z");
-test("risk control exposes exact weights, defaults safely and renders the chosen recommendation", () => {
+test("risk control uses simple labels, defaults safely and renders the chosen recommendation", () => {
   assert.equal(riskPreference(null), "medium");
   assert.equal(riskPreference("unknown"), "medium");
   assert.equal(riskPreference("high"), "high");
   const control = riskControlMarkup("low");
   assert.match(control, /aria-label="Predict risk level"/);
-  assert.match(control, /value="low" selected>Low \(0\.5\)/);
-  assert.match(control, /Medium \(0\.25\)/);
-  assert.match(control, /High \(0\.1\)/);
+  assert.match(control, /value="low" selected>Low<\/option>/);
+  assert.match(control, />Medium<\/option>/);
+  assert.match(control, />High<\/option>/);
+  assert.doesNotMatch(control, /0\.5|0\.25|0\.1/);
   const publication = fixture();
   assert.match(
     predictMarkup(publication, now, "medium"),
@@ -33,8 +34,7 @@ test("risk control exposes exact weights, defaults safely and renders the chosen
   publication.recommendation.risk_profiles = { low };
   const html = predictMarkup(publication, now, "low");
   assert.match(html, /P1<\/span><strong>C/);
-  assert.match(html, /Low risk · λ 0\.5/);
-  assert.match(html, /Score = EV − λ × SD/);
+  assert.doesNotMatch(html, /predict-risk-note|Each question:|Boost follows|λ/);
   assert.match(html, /Score 140\.0 · SD 20\.0 · 2× included/);
   assert.match(html, /Total expected points/);
 });
