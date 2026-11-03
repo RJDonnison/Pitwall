@@ -35,7 +35,13 @@ import {
   insightsMarkup,
 } from "./views.js";
 import { accuracyText } from "./model-fit.js";
-import { logo, chipIcon, footerMarkup } from "./visuals.js";
+import {
+  logo,
+  chipIcon,
+  footerMarkup,
+  creditsMarkup,
+  loadParticipantMedia,
+} from "./visuals.js";
 import {
   rememberWeekend,
   rollBudget,
@@ -557,6 +563,13 @@ function renderInsights() {
 }
 function acceptDataset(fresh) {
   dataset = fresh;
+  loadParticipantMedia(fresh).then((changed) => {
+    if (!changed || dataset !== fresh) return;
+    render();
+    const open = $("#image-credits").open;
+    $("#image-credits").outerHTML = creditsMarkup();
+    $("#image-credits").open = open;
+  });
   for (const [index, current] of profiles.entries()) {
     const t = current;
     if (t.season !== null && t.season !== dataset.season) {
@@ -793,6 +806,15 @@ async function loadPredict() {
     }
   }
 }
+document.addEventListener(
+  "error",
+  (event) => {
+    const image = event.target;
+    if (image.matches?.("img[data-portrait-fallback]"))
+      image.outerHTML = image.dataset.portraitFallback;
+  },
+  true,
+);
 shell();
 render();
 load();

@@ -4532,6 +4532,10 @@ footer > .hint {
   object-fit: contain;
   object-position: center;
 }
+.asset-photo.driver-cutout {
+  object-fit: cover;
+  object-position: top;
+}
 .circuit-hero:has(.race-photo) .race-kicker {
   background: transparent;
   border: 0;

@@ -243,13 +243,17 @@ Headshots are preferred; a missing headshot uses the matching upper-body cutout.
 Transparent car sideviews are retained. The upstream repository uses Apache-2.0
 and identifies Formula 1 as the image source; these images are not labelled
 Creative Commons. The exact commit, original CDN URL and transformations are
-recorded in the footer and `web/public/media/ATTRIBUTION.json`. The five remaining
-venue photographs have separate Commons licences and archival dates. Current circuit
+recorded in the footer and `web/public/media/ATTRIBUTION.json`.
+New drivers, changed constructor affiliations and newly identified team IDs are
+resolved dynamically from the same upstream manifest, with live source links
+added to the footer. Missing or failed matches retain a helmet/car placeholder.
+The five remaining venue photographs have separate Commons licences and archival
+dates. Current circuit
 sector maps use the official guide geometry; other outlines use the MIT-licensed
 `bacinger/f1-circuits` coordinates. Portrait and car-image backplates are transparent.
 Both venue photo and circuit always describe the next race, even while a future round's plan is
 selected below; unknown circuits are unavailable.
-See [media replacement and provenance](media.md) for both importers and crops.
+See [image discovery and provenance](media.md) for matching, local copies and crops.
 
 Sparklines use the latest four available official round-price observations in
 `data/history.json`, followed by the freshly verified current price. These are

@@ -8,22 +8,127 @@ import { esc } from "./text.js";
 export const logo = () =>
   '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
 
+const collection =
+  "https://raw.githubusercontent.com/TracingInsights/2026/main/images/";
+const repository = "https://github.com/TracingInsights/2026/blob/main/";
+const identity = (value) => normalize(value || "").replace(/[^a-z0-9]/g, "");
+const teamIdentity = (value) => identity(value).replace(/f1team$/, "");
+const imageFile = (file) => file.split("/").map(encodeURIComponent).join("/");
+let participantPhotos = photos;
+let mediaAssets = null;
+
+export async function loadParticipantMedia(dataset, fetcher = fetch) {
+  const assets = dataset.assets;
+  const before = JSON.stringify(participantPhotos);
+  mediaAssets = assets;
+  const changed = () =>
+    mediaAssets === assets && JSON.stringify(participantPhotos) !== before;
+  const teamName = (asset) =>
+    asset.kind === "CONSTRUCTOR"
+      ? asset.name
+      : assets.find(
+          (a) => a.kind === "CONSTRUCTOR" && a.team_id === asset.team_id,
+        )?.name || asset.team_name;
+  // Bind bundled images to the current identity, not just an ID that may be reused.
+  participantPhotos = Object.fromEntries(
+    assets.map((asset) => {
+      const local = photos[asset.id];
+      const path = decodeURIComponent(local?.repository || "");
+      const team =
+        asset.kind === "DRIVER"
+          ? path.match(/images\/(?:headshots|drivers)\/([^/]+)\//)?.[1]
+          : path.match(/images\/cars\/([^/]+)\.[^.]+$/)?.[1];
+      return [
+        asset.id,
+        local &&
+        identity(local.name) === identity(asset.name) &&
+        (!local.repository ||
+          teamIdentity(team) === teamIdentity(teamName(asset)))
+          ? local
+          : null,
+      ];
+    }),
+  );
+  try {
+    const response = await fetcher(`${collection}manifest.json`, {
+      cache: "no-cache",
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) return changed();
+    const manifest = await response.json();
+    if (
+      !["headshots", "drivers", "cars"].every((key) =>
+        Array.isArray(manifest[key]),
+      )
+    )
+      return changed();
+    if (mediaAssets !== assets) return false;
+    const next = { ...participantPhotos };
+    for (const asset of assets) {
+      const driver = asset.kind === "DRIVER";
+      const matches = (rows) =>
+        rows.filter(
+          (row) =>
+            teamIdentity(row.team) === teamIdentity(teamName(asset)) &&
+            (!driver || row.driver === asset.tla),
+        );
+      let candidates = matches(driver ? manifest.headshots : manifest.cars);
+      if (driver && candidates.length === 0)
+        candidates = matches(manifest.drivers);
+      if (candidates.length !== 1) continue;
+      const row = candidates[0];
+      if (
+        typeof row.file !== "string" ||
+        !/^(?:headshots|drivers|cars)\//.test(row.file) ||
+        row.file.split("/").some((part) => part === ".." || !part) ||
+        !row.source?.startsWith("https://media.formula1.com/")
+      )
+        continue;
+      const file = imageFile(row.file);
+      const local = next[asset.id];
+      if (
+        local?.source === row.source &&
+        local.repository?.endsWith(`/images/${file}`)
+      )
+        continue;
+      next[asset.id] = {
+        path: collection + file,
+        name: asset.name,
+        subject: `${asset.name} · 2026 ${driver ? "portrait" : "car"}`,
+        author: "Formula 1 · distributed by TracingInsights",
+        license: "Upstream repository: Apache-2.0; source imagery: Formula 1",
+        license_url: repository + "LICENSE",
+        source: row.source,
+        repository: repository + "images/" + file,
+        cutout: driver && row.height > row.width,
+        changes:
+          "Displayed from the upstream collection; tall driver cutouts cropped to the upper square. Not Creative Commons.",
+      };
+    }
+    participantPhotos = next;
+    return changed();
+  } catch {
+    return changed(); // Image discovery must not interrupt verified forecasts or planning.
+  }
+}
+
 export function footerMarkup() {
   return `<footer class="site-footer"><div class="footer-principle"><h2>Think in seasons.</h2></div><div class="footer-columns"><section><div class="footer-column-heading"><h3>One joint plan</h3><span>Optimizer</span></div><p>Your team, Boost and chips, planned across the season.</p><a href="https://fantasy.formula1.com/en/game-rules" target="_blank" rel="noopener noreferrer">Fantasy rules ↗</a></section><section><div class="footer-column-heading"><h3>Forecasts</h3><span>Model</span></div><p>Past results inform estimates. Future prices use today's values. Weather is display-only.</p><a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo · CC BY 4.0 ↗</a></section><section><div class="footer-column-heading"><h3>Your teams stay here</h3><span>Privacy</span></div><p>Independent teams, stored in your browser.</p></section></div><div class="footer-status"><span class="footer-brand">${logo()}<b>Pitwall</b></span><div class="data-status"><span id="publication-status" role="status">Loading data…</span><p id="model-accuracy" class="model-accuracy"></p><p id="publication-window" class="sr-only"></p></div></div><p class="footer-disclaimer">Not affiliated with Formula 1.</p>${creditsMarkup()}</footer>`;
 }
 export function portrait(asset, fallback = "") {
-  const photo = photos[asset.id];
+  const photo = participantPhotos[asset.id];
   return photo
-    ? `<img class="asset-photo ${asset.kind === "CONSTRUCTOR" ? "car-photo" : ""} ${photo.repository ? "official-photo" : ""}" src="${esc(photo.path)}${photo.revision ? `?v=${esc(photo.revision.slice(0, 12))}` : ""}" alt="${esc(photo.subject)}${photo.repository ? "" : " (archive photograph)"}" title="${esc(photo.author)} · ${esc(photo.license)} · full attribution in footer" loading="lazy" width="480" height="480"/>`
+    ? `<img class="asset-photo ${asset.kind === "CONSTRUCTOR" ? "car-photo" : ""} ${photo.repository ? "official-photo" : ""} ${photo.cutout ? "driver-cutout" : ""}" src="${esc(photo.path)}${photo.revision ? `?v=${esc(photo.revision.slice(0, 12))}` : ""}" alt="${esc(photo.subject)}${photo.repository ? "" : " (archive photograph)"}" title="${esc(photo.author)} · ${esc(photo.license)} · full attribution in footer" data-portrait-fallback="${esc(fallback)}" loading="lazy" width="480" height="480"/>`
     : fallback;
 }
 export function creditsMarkup() {
   return `<details id="image-credits"><summary>Image & circuit credits</summary><p>Driver and car images: Formula 1, via the requested TracingInsights 2026 repository (Apache-2.0 repository licence). Source imagery is not labelled Creative Commons. Venue photographs retain their individual Commons licences. No endorsement is implied.</p><ul>${Object.values(
-    { ...photos, ...racePhotos },
+    { ...participantPhotos, ...racePhotos },
   )
+    .filter(Boolean)
     .map(
       (p) =>
-        `<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} · ${esc(p.subject)}</a> — ${esc(p.author)} · <a href="${esc(p.license_url)}" target="_blank" rel="noopener noreferrer">${esc(p.license)}</a>${p.repository ? ` · <a href="${esc(p.repository)}" target="_blank" rel="noopener noreferrer">Pinned source</a>` : ""}. ${esc(p.changes)}</li>`,
+        `<li><a href="${esc(p.source)}" target="_blank" rel="noopener noreferrer">${esc(p.name)} · ${esc(p.subject)}</a> — ${esc(p.author)} · <a href="${esc(p.license_url)}" target="_blank" rel="noopener noreferrer">${esc(p.license)}</a>${p.repository ? ` · <a href="${esc(p.repository)}" target="_blank" rel="noopener noreferrer">${p.revision ? "Pinned source" : "Source collection"}</a>` : ""}. ${esc(p.changes)}</li>`,
     )
     .join(
       "",
