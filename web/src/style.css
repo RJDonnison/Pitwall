@@ -5164,3 +5164,12 @@ html {
   font-weight: 600;
   color: var(--muted);
 }
+
+.chart-whisker {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+.chart-note {
+  margin: 8px 0 0;
+}

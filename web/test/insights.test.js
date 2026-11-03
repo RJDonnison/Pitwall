@@ -368,5 +368,6 @@ test("championship horizon crowns a decided champion with a banner", () => {
   assert.match(html, /Drivers' Champion/);
   assert.match(html, /Title decided/);
   assert.doesNotMatch(html, /NaN/);
+  assert.match(html, /range-whisker/);
   assert.match(html, /champion-copy">.*?25\.0 pts/s);
 });

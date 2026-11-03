@@ -1,3 +1,4 @@
+import { planBands } from "./uncertainty.js";
 import { total } from "./optimizer.js";
 import { esc } from "./text.js";
 import {
@@ -139,12 +140,13 @@ export function allocationMarkup(dataset, team) {
   const width = (n) => (100 * n) / Math.max(cost, team.budget);
   return `<section class="panel allocation"><div class="section-heading"><h2>Budget allocation</h2><strong>${money(cost)} / ${money(team.budget)}</strong></div><div class="allocation-bar" role="img" aria-label="Drivers ${money(drivers)}, constructors ${money(constructors)}, ${free >= 0 ? "free" : "over cap"} ${money(Math.abs(free))}"><span style="width:${width(drivers)}%"></span><span style="width:${width(constructors)}%"></span><span style="width:${width(Math.max(0, free))}%"></span></div><div class="allocation-key"><span><i></i>Drivers<strong>${money(drivers)}</strong></span><span><i></i>Constructors<strong>${money(constructors)}</strong></span><span><i></i>Available<strong class="${free < 0 ? "negative" : ""}">${money(free)}</strong></span></div>${free < 0 ? `<p class="negative">Above the entered budget: ${money(-free)} over cap${team.active === "limitless" ? " · Limitless active" : " · adjust the roster or budget"}</p>` : ""}</section>`;
 }
-function chart(values, labels, cls = "trajectory-chart") {
-  const low = Math.min(0, ...values),
-    high = Math.max(1, ...values);
+function chart(values, labels, cls = "trajectory-chart", bands = []) {
+  const ranged = bands.filter(Boolean);
+  const low = Math.min(0, ...values, ...ranged.map((b) => b.low)),
+    high = Math.max(1, ...values, ...ranged.map((b) => b.high));
   const x = (i) => 40 + (i / Math.max(1, values.length - 1)) * 720;
   const y = (v) => 150 - ((v - low) / (high - low)) * 120;
-  return `<svg class="${cls}" viewBox="0 0 800 200" role="img" aria-label="${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}"><path class="chart-grid" d="M40 30H760M40 90H760M40 150H760"/><polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
+  return `<svg class="${cls}" viewBox="0 0 800 200" role="img" aria-label="${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}"><path class="chart-grid" d="M40 30H760M40 90H760M40 150H760"/>${bands.map((b, i) => (b ? `<path class="chart-whisker" d="M${x(i)} ${y(b.low)}V${y(b.high)}M${x(i) - 6} ${y(b.low)}h12M${x(i) - 6} ${y(b.high)}h12"><title>${esc(`${labels[i]}: ${points(b.low)} to ${points(b.high)} points`)}</title></path>` : "")).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
 }
 export function heroMarkup(dataset) {
   const r = dataset.rounds[0];
@@ -291,7 +293,9 @@ export function strategyMarkup(
    <section class="panel horizon"><div class="section-heading"><h2>Season plan</h2><div class="horizon-total"><strong>${points(result.points)} pts</strong></div></div><div class="chart-scroll">${chart(
      result.rounds.map((r) => (cumulative += r.points)),
      result.rounds.map((r) => `R${r.round}`),
-   )}</div><div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="plan-chip ${r.chip ? `chip-${r.chip}` : "saved-chip"}">${r.chip ? chipIcon(r.chip) : icon("shield")}${r.chip ? chipNames[r.chip] : "Save"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>
+     "trajectory-chart",
+     planBands(result.rounds),
+   )}</div>${planBands(result.rounds).some(Boolean) ? '<p class="insight-note chart-note">Bars show an approximate 80% range around the running total, from how far past forecasts missed.</p>' : ""}<div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="plan-chip ${r.chip ? `chip-${r.chip}` : "saved-chip"}">${r.chip ? chipIcon(r.chip) : icon("shield")}${r.chip ? chipNames[r.chip] : "Save"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>
     ${round.chip === "autopilot" ? `<section class="panel autopilot-summary" aria-label="Autopilot points breakdown"><div class="section-heading"><h2>R${round.round} · Autopilot 2× included</h2></div><p><strong>${points(total(round.entries.map((e) => total(e.base))))}</strong> unboosted team + <strong>${points(total(round.entries.map((e) => total(e.extra))))}</strong> expected 2× extra − <strong>${points(round.transfer_penalty)}</strong> transfer penalty = <strong>${points(round.points)} pts</strong>.</p><p>One extra copy of the best selected driver's whole-weekend score is included in every scenario. Different drivers can win different scenarios, so the expected extra is shared across their rows below; no single forecast row necessarily doubles.</p></section>` : ""}${roundMarkup(dataset, team, round)}`;
 }
 function roundMarkup(dataset, team, r) {
