@@ -391,3 +391,21 @@ test("individual prediction ranges cannot masquerade as a joint season range", (
     /score-range/,
   );
 });
+
+test("season plan tooltips expose actual joint high/low bands and missing evidence", () => {
+  const { data, team, result } = fixture();
+  assert.match(
+    strategyMarkup(data, team, result),
+    /high and low bands unavailable/,
+  );
+  result.rounds[0].joint_scenarios = [0, 20].map((score) => ({
+    scores: Object.fromEntries(data.assets.map((a) => [a.id, [0, 0, score]])),
+  }));
+  const html = strategyMarkup(data, team, result);
+  assert.match(html, /class="season-chart-point" tabindex="0"/);
+  assert.match(html, /low band -10\.0 pts \(10th percentile\)/);
+  assert.match(html, /high band 150\.0 pts \(90th percentile\)/);
+  assert.match(html, /High 150\.0 · P90/);
+  assert.match(html, /Low -10\.0 · P10/);
+  assert.match(html, /Provisional 80% simulated range, not calibrated/);
+});

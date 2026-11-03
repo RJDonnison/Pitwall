@@ -157,7 +157,24 @@ function chart(values, labels, bands = [], cls = "trajectory-chart") {
           .concat(bands.map((b, i) => `${x(i)},${y(b.low)}`).reverse())
           .join(" ")}"/>`
       : "";
-  return `<svg class="${cls}" style="min-width:${width}px" viewBox="0 0 ${width} 200" role="img" aria-label="Cumulative planned points; ${esc(labels.map((l, i) => `${l}: ${points(values[i])} points${bands[i] ? `; 80% simulated range ${points(bands[i].low)} to ${points(bands[i].high)}` : ""}`).join(", "))}">${ticks.map((v) => `<path class="chart-grid" d="M80 ${y(v)}H${width - 60}"/><text class="chart-label" x="68" y="${y(v) + 4}" text-anchor="end">${points(v)}</text>`).join("")}${band}${bands.map((b, i) => `<path class="chart-range-whisker" d="M${x(i) - 5} ${y(b.high)}h10m-5 0V${y(b.low)}m-5 0h10"/>`).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<g><title>${esc(labels[i])}: ${points(v)} pts${bands[i] ? `; 80% simulated range ${points(bands[i].low)}–${points(bands[i].high)} pts` : ""}</title><circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text></g>`).join("")}</svg>`;
+  const tooltip = (v, i) => {
+    const b = bands[i];
+    const description = `${labels[i]}: expected ${points(v)} pts; ${b ? `low band ${points(b.low)} pts (10th percentile); high band ${points(b.high)} pts (90th percentile). Provisional 80% simulated range, not calibrated.` : "high and low bands unavailable."}`;
+    const lines = [
+      labels[i],
+      `Expected ${points(v)} pts`,
+      ...(b
+        ? [
+            `High ${points(b.high)} · P90`,
+            `Low ${points(b.low)} · P10`,
+            "80% simulated · provisional",
+          ]
+        : ["Bands unavailable"]),
+    ];
+    const tx = Math.max(4, Math.min(width - 204, x(i) - 100));
+    return `<g class="season-chart-point" tabindex="0" role="img" aria-label="${esc(description)}"><rect class="season-chart-hit" x="${x(i) - 30}" y="20" width="60" height="145"/><circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text><g class="season-chart-tooltip" transform="translate(${tx},22)" aria-hidden="true"><rect width="200" height="${lines.length * 20 + 16}" rx="6"/>${lines.map((line, j) => `<text x="12" y="${25 + j * 20}">${esc(line)}</text>`).join("")}</g></g>`;
+  };
+  return `<svg class="${cls}" style="min-width:${width}px" viewBox="0 0 ${width} 200" role="group" aria-label="Cumulative planned points; ${esc(labels.map((l, i) => `${l}: ${points(values[i])} points${bands[i] ? `; 80% simulated range ${points(bands[i].low)} to ${points(bands[i].high)}` : ""}`).join(", "))}. Hover, focus or tap a round for high and low bands.">${ticks.map((v) => `<path class="chart-grid" d="M80 ${y(v)}H${width - 60}"/><text class="chart-label" x="68" y="${y(v) + 4}" text-anchor="end">${points(v)}</text>`).join("")}${band}${bands.map((b, i) => `<path class="chart-range-whisker" d="M${x(i) - 5} ${y(b.high)}h10m-5 0V${y(b.low)}m-5 0h10"/>`).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map(tooltip).join("")}</svg>`;
 }
 export function heroMarkup(dataset) {
   const r = dataset.rounds[0];

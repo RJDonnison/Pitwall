@@ -1,0 +1,118 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { predictMarkup, predictState } from "../src/predict.js";
+
+const now = Date.parse("2026-11-03T12:00:00Z");
+function fixture() {
+  const q = {
+    id: 1,
+    number: 1,
+    template: 1,
+    text: "Predict <the> podium",
+    options: [
+      { id: "a", name: "A <driver>", points: 10 },
+      { id: "b", name: "B", points: 20 },
+      { id: "c", name: "C", points: 30 },
+    ],
+  };
+  return {
+    schema_version: 1,
+    status: "ready",
+    season: 2026,
+    gameday_id: 20,
+    fetched_at: "2026-11-03T11:00:00Z",
+    first_session_utc: "2026-11-06T12:00:00Z",
+    locked: false,
+    questions: [q],
+    simulations: 4000,
+    seed: 2026,
+    telemetry: true,
+    recommendation: {
+      complete: true,
+      expected_total_points: 90,
+      unsupported: [],
+      answers: [
+        {
+          question_id: 1,
+          selected_options: ["a", "b", "c"],
+          booster_id: "1",
+          expected_points: 90,
+          expected_points_before_boost: 45,
+          probabilities: {
+            a: [0.5, 0.2, 0.1],
+            b: [0.2, 0.5, 0.1],
+            c: [0.1, 0.1, 0.5],
+          },
+          model_type: "podium",
+          calibration: {
+            method: "uncalibrated_insufficient_prelock_archives",
+            training_outcomes: 0,
+            cutoff_utc: "2026-11-03T11:00:00Z",
+          },
+        },
+      ],
+    },
+  };
+}
+
+test("Predict preserves podium order and separates exact, any-podium, payout and Boost values", () => {
+  const html = predictMarkup(fixture(), now);
+  assert.match(html, /P1<\/span><strong>A &lt;driver&gt;/);
+  assert.match(html, /50\.0% exact position · 80\.0% any podium/);
+  assert.match(html, /13\.0 \/ 10\.0 \/ 9\.0/);
+  assert.match(html, /45\.0 base \+ 45\.0 Boost extra/);
+  assert.match(html, /Uncalibrated/);
+  assert.match(html, /Exact lock deadline unavailable/);
+  assert.doesNotMatch(html, /<driver>|<the>|NaN|undefined/);
+});
+
+test("Predict blocks stale, future-dated, locked and elapsed publications", () => {
+  for (const overrides of [
+    { fetched_at: "2026-11-03T06:00:00Z" },
+    { fetched_at: "2026-11-04T00:00:00Z" },
+    { locked: true },
+    { status: "locked" },
+    { first_session_utc: "2026-11-03T12:00:00Z" },
+    { first_session_utc: "invalid" },
+    { deadline_utc: "2026-11-03T11:59:00Z" },
+  ]) {
+    const publication = { ...fixture(), ...overrides };
+    assert.equal(predictState(publication, now).available, false);
+    assert.doesNotMatch(
+      predictMarkup(publication, now),
+      /Your recommended answer sheet|predict-picks/,
+    );
+  }
+});
+
+test("partial predictions keep unsupported reasons visible and label the subtotal", () => {
+  const publication = fixture();
+  publication.questions.push({
+    id: 2,
+    number: 2,
+    text: "Unsupported <question>",
+  });
+  publication.recommendation.complete = false;
+  publication.recommendation.unsupported.push({
+    question_id: 2,
+    reason: "Missing Sprint evidence",
+  });
+  const html = predictMarkup(publication, now);
+  assert.match(html, /Partial answer sheet/);
+  assert.match(html, /Supported answers expected points/);
+  assert.match(html, /Missing Sprint evidence/);
+  assert.match(html, /1 of 2 questions supported/);
+});
+
+test("a single answer exposes probability-times-payout rather than podium scoring", () => {
+  const publication = fixture();
+  publication.questions[0].template = 3;
+  Object.assign(publication.recommendation.answers[0], {
+    selected_options: ["b"],
+    probabilities: { a: 0.6, b: 0.3, c: 0.1 },
+  });
+  const html = predictMarkup(publication, now);
+  assert.match(html, /30\.0% model probability/);
+  assert.match(html, /Payout × model probability/);
+  assert.doesNotMatch(html, /exact position|any podium/);
+});

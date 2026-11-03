@@ -7,6 +7,9 @@ import { bannerText } from "./publication.js";
 import "./insight-visuals.css";
 import "./participant-browser.css";
 import "./accuracy.css";
+import "./predict.css";
+import "./season-tooltip.css";
+import { predictMarkup } from "./predict.js";
 import {
   CHIPS,
   PREWEEK,
@@ -174,10 +177,11 @@ function route({ scroll = false } = {}) {
   const page =
     name === "garage" || name === "asset-registry"
       ? "garage"
-      : name === "insights"
-        ? "insights"
+      : ["insights", "predict"].includes(name)
+        ? name
         : "strategy";
-  for (const p of ["strategy", "garage", "insights"])
+  document.body.dataset.page = page;
+  for (const p of ["strategy", "garage", "insights", "predict"])
     $(`#page-${p}`).hidden = p !== page;
   document
     .querySelectorAll("[data-nav]")
@@ -208,6 +212,17 @@ function shell() {
     `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
      <main id="main"><div id="state-banner" class="state-banner" role="status" hidden></div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   $("#new-team").onclick = suggestTeam;
+  document
+    .querySelector(".masthead nav")
+    .insertAdjacentHTML(
+      "beforeend",
+      '<a href="#predict" data-nav="predict">Predict</a>',
+    );
+  $("#main").insertAdjacentHTML(
+    "beforeend",
+    '<section id="page-predict" aria-label="F1 Predict" hidden><div id="predict"></div></section>',
+  );
+  $("#predict").innerHTML = predictMarkup(null);
   $(".market-tools").insertAdjacentHTML(
     "beforeend",
     '<label class="market-sort">Sort by<select id="market-sort"><option value="price-desc">Price: high to low</option><option value="price-asc">Price: low to high</option><option value="points">Projected points</option><option value="value">Points per $m</option><option value="name">Name: A–Z</option></select></label>',
@@ -229,7 +244,13 @@ function shell() {
   document.querySelectorAll("[data-nav]").forEach((link) => {
     link.insertAdjacentHTML(
       "afterbegin",
-      icon(link.dataset.nav === "garage" ? "grid" : "bolt"),
+      icon(
+        link.dataset.nav === "garage"
+          ? "grid"
+          : link.dataset.nav === "predict"
+            ? "flag"
+            : "bolt",
+      ),
     );
   });
   route({ scroll: true });
@@ -274,7 +295,7 @@ function render() {
     `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
   $("#planning-status").innerHTML = busy
     ? '<span class="loading-spinner small" role="status" aria-label="Updating"></span>'
-    : result || t.selected.length === 7 && !error
+    : result || (t.selected.length === 7 && !error)
       ? ""
       : error
         ? "Check team settings"
@@ -294,7 +315,10 @@ function render() {
    }).join("")}</fieldset>
   <div class="garage-utilities"><details class="advanced" id="active-setup" ${advancedOpen ? "open" : ""}><summary>Already activated a chip?</summary><label>Active this weekend<select id="active-chip"><option value="">None</option>${PREWEEK.map((c) => `<option value="${c}" ${t.active === c ? "selected" : ""}>${chipNames[c]}</option>`).join("")}</select></label>${
     t.active === "limitless"
-      ? `<fieldset class="restore-picker" id="restore"><legend>Team restored after Limitless</legend>${["DRIVER", "CONSTRUCTOR"]
+      ? `<fieldset class="restore-picker" id="restore"><legend>Team restored after Limitless</legend>${[
+          "DRIVER",
+          "CONSTRUCTOR",
+        ]
           .map(
             (kind) =>
               `<div class="restore-group"><span>${kind === "DRIVER" ? "Choose five drivers" : "Choose two constructors"}</span><div>${dataset.assets
@@ -305,7 +329,9 @@ function render() {
                 )
                 .join("")}</div></div>`,
           )
-          .join("")}</fieldset><p class="hint">Select the original seven. Required for full-season restoration.</p>`
+          .join(
+            "",
+          )}</fieldset><p class="hint">Select the original seven. Required for full-season restoration.</p>`
       : '<p class="hint">An active chip retains its effect even if removed from remaining inventory. Final Fix is a separate remaining-session decision.</p>'
   }</details>
     <div class="import-export"><button id="export-team">Export team</button><label class="file-button">Import team<input type="file" id="import-team" accept="application/json,.json"/></label></div></div><p id="editor-error" class="error" role="alert" tabindex="-1">${esc(error)}</p></div>`;
@@ -471,6 +497,14 @@ function renderStrategy() {
     selectedRound,
     error,
   );
+  document.querySelectorAll(".season-chart-point").forEach((point) => {
+    point.onclick = () => point.focus({ preventScroll: true });
+    point.onfocus = () => point.classList.remove("tooltip-dismissed");
+    point.onmouseleave = () => point.classList.remove("tooltip-dismissed");
+    point.onkeydown = (event) => {
+      if (event.key === "Escape") point.classList.add("tooltip-dismissed");
+    };
+  });
   document.querySelectorAll("[data-round]").forEach(
     (b) =>
       (b.onclick = () => {
@@ -722,12 +756,49 @@ async function importTeam(e) {
     render();
   }
 }
+let predictPublication = null;
+let predictLoading = false;
+async function loadPredict() {
+  if (predictLoading) return;
+  predictLoading = true;
+  let markup;
+  try {
+    const response = await fetch(`${import.meta.env.BASE_URL}predict.json`, {
+      cache: "no-store",
+    });
+    if (!response.ok)
+      throw new Error("The public Predict publication is unavailable.");
+    predictPublication = await response.json();
+    markup = predictMarkup(predictPublication);
+  } catch (e) {
+    predictPublication = {
+      status: "unavailable",
+      message:
+        "Cannot load verified Predict recommendations. Please wait for the next publication.",
+    };
+    markup = predictMarkup(predictPublication);
+  } finally {
+    predictLoading = false;
+    // Preserve open option tables and keyboard focus on unchanged refreshes.
+    if ($("#predict").dataset.markup !== markup) {
+      $("#predict").innerHTML = markup;
+      $("#predict").dataset.markup = markup;
+    }
+  }
+}
 shell();
 render();
 load();
+loadPredict();
 setInterval(() => {
-  if (!document.hidden) load();
+  if (!document.hidden) {
+    load();
+    loadPredict();
+  }
 }, 60_000);
 document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) load();
+  if (!document.hidden) {
+    load();
+    loadPredict();
+  }
 });

@@ -33,11 +33,12 @@
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
 - Daily weather classifications drive a shrunk same-format official-score adjustment for selected Q/S/R Fantasy forecasts and chip planning. Weather-free counterfactuals are archived for paired forward MAE by population/session/format; selection is not an improvement claim. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages. Race Insights odds retain the joint racing model.
 
-### V8 — Website prediction system
+### V8 — Website prediction system (implemented)
 
 - Fetch the latest official F1 Predict questions, legal answer choices, variable payouts and lock state.
 - Bring the existing CLI expected-points model to the website: calculate the highest expected-scoring valid answers, ordered podium and question Boost, with probability and points breakdowns.
 - Keep Predict scoring distinct from Fantasy and fail clearly on unsupported questions or unverifiable data.
+- Dedicated responsive Predict page uses the CLI's expected-points model, distinct-driver podium assignment and one question Boost. Expand each question for legal payouts, probabilities and expected-point breakdowns. Independent two-hour public snapshots expire after six hours or at event start; official lock state and missing exact deadlines are disclosed. No authenticated submission.
 
 ## V1 — Fantasy recommendations (implemented)
 

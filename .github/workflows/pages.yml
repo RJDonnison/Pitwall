@@ -56,6 +56,9 @@ jobs:
       - name: Generate fresh public forecasts
         timeout-minutes: 5
         run: python -m f1fantasy.web_data
+      - name: Generate fresh public Predict recommendations
+        timeout-minutes: 5
+        run: python -m f1fantasy.web_predict
       - name: Build the static website
         run: npm run build --prefix web
       - name: Preserve first pre-weekend forecasts

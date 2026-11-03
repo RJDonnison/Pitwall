@@ -1,0 +1,34 @@
+.season-chart-hit {
+  fill: transparent;
+  cursor: help;
+}
+.season-chart-tooltip {
+  visibility: hidden;
+  pointer-events: none;
+}
+.season-chart-tooltip rect {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 1;
+}
+.trajectory-chart .season-chart-tooltip text {
+  fill: var(--paper);
+  font-size: 12px;
+  font-weight: 400;
+}
+.season-chart-point:hover .season-chart-tooltip,
+.season-chart-point:focus .season-chart-tooltip {
+  visibility: visible;
+  pointer-events: auto;
+}
+.season-chart-point.tooltip-dismissed .season-chart-tooltip {
+  visibility: hidden;
+  pointer-events: none;
+}
+.season-chart-point:focus {
+  outline: none;
+}
+.season-chart-point:focus .chart-dot {
+  stroke: var(--ink);
+  stroke-width: 3;
+}

@@ -467,6 +467,42 @@ archive includes generation/cutoff times, models, roster, weather, selected and
 weather-free session scores. Settlement requires matching season/round, completed
 official Fantasy totals and a completed racing record. A new archive starts
 empty: waiting for finalized outcomes is an honest unavailable state.
+# Website F1 Predict
+
+The **Predict** navigation item opens an independent F1 Predict answer sheet in
+the same Inter, paper and vermilion design as Strategy and Race Insights.
+
+`python -m f1fantasy.web_predict` fetches fresh official round questions, legal
+options, variable payouts and lock state, then reuses the CLI's pre-weekend model
+and expected-points selector. Pages runs this separately from Fantasy publication
+every two hours, producing `web/public/predict.json`. A Fantasy market failure
+does not prevent Predict publication. Failed Predict checks publish an explicit
+unavailable state rather than reusing old questions. Locked/started rounds publish
+no picks. The browser checks publications on load, each foreground minute and
+when returning to the tab; snapshots expire after six hours or at event start.
+
+Each supported question shows its answer, model probability and expected points.
+Ordered podium picks show both exact-position and any-podium probabilities;
+the breakdown uses payout × (any-podium probability + exact-position probability).
+The optimizer chooses distinct drivers across all three slots and assigns the one
+2× question Boost to the largest expected gain. Expandable tables retain every
+legal option's payout, probability and pre-Boost expected points. Unsupported
+questions show their reason and make the total explicitly partial.
+
+The page displays publication time and official lock state at publication. It
+does not invent an exact deadline from the first session. Users must verify the
+latest official options, payouts and lock state before making their own picks.
+Website recommendations have no settled calibration archive and remain labelled
+uncalibrated. No login or authenticated submission is performed.
+
+# Season-plan band tooltips
+
+Hover, keyboard-focus or tap a cumulative season-plan point to see expected
+points and the low (P10) and high (P90) bands. Escape dismisses the tooltip.
+The bands use the existing joint-weekend bootstrap, include planned Boost/chips
+and transfer penalties, preserve negative scores, and are labelled a provisional,
+uncalibrated central 80% simulated range. Missing joint evidence is explicit.
+
 # V8 — Forward accuracy and visual uncertainty
 
 Race Insights follows the selected driver/team and regular/Sprint weekend

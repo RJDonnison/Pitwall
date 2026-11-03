@@ -17,6 +17,7 @@ from f1fantasy import (
 )
 from f1fantasy import predict_account, predict_scheduler
 from f1fantasy.data import DataError
+from f1fantasy import web_predict
 
 
 @pytest.fixture
@@ -91,6 +92,42 @@ def test_expected_points_selects_payout_not_most_likely_answer(game):
     best = max(result["answers"], key=lambda a: a["expected_points_before_boost"])
     assert best["booster_id"] == "1"
     assert best["calibration"]["method"].startswith("uncalibrated")
+
+
+def test_web_predict_publishes_cli_scoring_and_public_contract(monkeypatch, game):
+    monkeypatch.setattr(data, "fetch", lambda season: game)
+    monkeypatch.setattr(predict_model, "forecast", lambda *a, **k: forecasts(game))
+    monkeypatch.setattr(predict, "pitstop_forecasts", lambda snapshot: {})
+    publication = web_predict.build(2099)
+    assert publication["status"] == "ready"
+    assert publication["questions"] == game["questions"]
+    assert publication["recommendation"] == predict.select(game, forecasts(game))
+    assert publication["question_fingerprint"] == data.fingerprint(game)
+    assert publication["deadline_utc"] is None
+    assert "roster" not in publication
+    assert "fixtures" not in publication
+
+
+def test_web_predict_locked_and_failed_feeds_do_not_publish_picks(monkeypatch, game):
+    monkeypatch.setattr(data, "fetch", lambda season: game)
+    monkeypatch.setattr(
+        predict, "recommend", lambda *a, **k: pytest.fail("must not forecast")
+    )
+    game["locked"] = True
+    assert web_predict.build(2099)["status"] == "locked"
+    assert web_predict.build(2099)["recommendation"] is None
+    game["locked"] = False
+    game["first_session_utc"] = "2000-01-01T00:00:00Z"
+    assert web_predict.build(2099)["status"] == "locked"
+
+    def fail(season):
+        raise DataError("Cannot verify questions")
+
+    monkeypatch.setattr(data, "fetch", fail)
+    publication = web_predict.build(2099)
+    assert publication["status"] == "unavailable"
+    assert "recommendation" not in publication
+    assert publication["message"] == "Cannot verify questions"
 
 
 def test_podium_assignment_matches_exhaustive_ordered_scores(game):
