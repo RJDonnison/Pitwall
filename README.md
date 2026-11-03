@@ -12,6 +12,7 @@ Pitwall is a static website where you enter your F1 Fantasy teams and plan the r
 - **Detailed forecasts:** qualifying, Sprint and race projections, with [chronologically validated Fantasy modeling](docs/fantasy-model.md) adopted only where it beats both baselines.
 - **Race Insights:** selectable driver/team cards with likely race positions and placement distributions, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
 - **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.
+- **Season-plan prediction band:** a provisional central 80% simulated range from joint historical weekend outcomes, including both constructors, Boost, chips and penalties. Future weekends are sampled independently; coverage is uncalibrated. Missing common history is shown explicitly instead of inventing a range.
 - **Privacy-friendly:** no F1 login, server-side team storage or automatic submission required.
 - **Companion CLI:** a Python CLI and official F1 Predict tooling (see [Predict commands](docs/predict.md)).
 

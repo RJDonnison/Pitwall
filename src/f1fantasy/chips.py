@@ -41,6 +41,9 @@ class ChipValues:
     autopilot: dict[int, tuple[dict[str, Estimate], ...]] = field(default_factory=dict)
     history_gamedays: dict[int, tuple[int, ...]] = field(default_factory=dict)
     skipped_history_gamedays: tuple[int, ...] = ()
+    joint: dict[int, tuple[dict[str, dict[str, Estimate]], ...]] = field(
+        default_factory=dict
+    )
 
 
 def load_chip_values(
@@ -152,6 +155,7 @@ def load_chip_values(
             )
     nn: dict[tuple[int, str], Estimate] = {}
     ap: dict[int, tuple[dict[str, Estimate], ...]] = {}
+    joint = {}
     for t, weekend in enumerate(weekends):
         sample = samples[weekend.sprint]
         means = {}
@@ -188,11 +192,61 @@ def load_chip_values(
             }
             for scores, _ in sample
         )
+        # Keep each historical weekend intact across every driver, constructor
+        # and session. Independent asset sampling would lose their covariance.
+        adjusted_means = {
+            a.id: tuple(
+                sum(
+                    components(scores[a.id])[k] + components(uplifts[a.id])[k]
+                    for scores, uplifts in sample
+                )
+                / len(sample)
+                for k in range(3)
+            )
+            for a in assets
+        }
+        joint[t] = tuple(
+            {
+                "scores": {
+                    a.id: Estimate(
+                        *(
+                            components(estimates[t, a.id])[k]
+                            + components(scores[a.id])[k]
+                            - means[a.id][k]
+                            for k in range(3)
+                        )
+                    )
+                    for a in assets
+                },
+                "no_negative": {
+                    a.id: Estimate(
+                        *(
+                            (
+                                components(estimates[t, a.id])[k]
+                                + components(nn[t, a.id])[k]
+                            )
+                            * (
+                                components(scores[a.id])[k]
+                                + components(uplifts[a.id])[k]
+                            )
+                            / adjusted_means[a.id][k]
+                            if adjusted_means[a.id][k] > 0
+                            else components(estimates[t, a.id])[k]
+                            + components(nn[t, a.id])[k]
+                            for k in range(3)
+                        )
+                    )
+                    for a in assets
+                },
+            }
+            for scores, uplifts in sample
+        )
     return ChipValues(
         nn,
         ap,
         {t: tuple(sampled[w.sprint]) for t, w in enumerate(weekends)},
         tuple(sorted(skipped)),
+        joint,
     )
 
 

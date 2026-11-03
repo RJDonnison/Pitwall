@@ -67,7 +67,21 @@ def public(monkeypatch):
     monkeypatch.setattr(
         web_data,
         "load_chip_values",
-        lambda *a: ChipValues(nn, ap, {0: (18,), 1: (18,)}, (13,)),
+        lambda *a: ChipValues(
+            nn,
+            ap,
+            {0: (18,), 1: (18,)},
+            (13,),
+            {
+                t: (
+                    {
+                        "scores": {a.id: Estimate(2, 0, 10) for a in assets},
+                        "no_negative": {a.id: Estimate(3, 0, 12) for a in assets},
+                    },
+                )
+                for t in range(2)
+            },
+        ),
     )
     return assets
 
@@ -78,6 +92,8 @@ def test_publication_includes_all_remaining_inputs_and_no_account_data(public):
     assert len(result["rounds"]) == 2 and len(result["assets"]) == 9
     assert result["rounds"][0]["forecasts"]["0"] == (2, 0, 10)
     assert result["rounds"][0]["no_negative"]["0"] == (1, 0, 2)
+    assert result["rounds"][0]["joint_scenarios"][0]["scores"]["6"] == (2, 0, 10)
+    assert result["rounds"][0]["joint_scenarios"][0]["no_negative"]["0"] == (3, 0, 12)
     assert result["skipped_history_gamedays"] == (13,)
     assert result["forecast_cutoff"] < result["rounds"][0]["first_session_utc"]
     assert all(

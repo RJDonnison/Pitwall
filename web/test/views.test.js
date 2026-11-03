@@ -122,6 +122,33 @@ test("season plan exposes its actual round range and a readable cumulative point
   );
 });
 
+test("season plan draws a shaded joint range, numeric bounds and accessible per-round ranges", () => {
+  const { data, team, result } = fixture();
+  const r = result.rounds[0];
+  r.joint_scenarios = [5, 15].map((n) => ({
+    scores: Object.fromEntries(data.assets.map((a) => [a.id, [0, 0, n]])),
+  }));
+  result.rounds.push({ ...structuredClone(r), round: 11 });
+  result.points = 140;
+  const html = strategyMarkup(data, team, result);
+  assert.match(html, /polygon class="chart-range"/);
+  assert.match(html, /class="chart-range-whisker"/);
+  assert.match(html, /80% simulated range 30.0 to 110.0/);
+  assert.match(html, /season-range-total">60.0–220.0 pts/);
+  assert.match(html, /provisional/);
+  result.rounds.pop();
+  const single = strategyMarkup(data, team, result);
+  assert.match(single, /class="chart-range-whisker"/);
+  assert.doesNotMatch(single, /polygon class="chart-range"/);
+  delete r.joint_scenarios;
+  const unavailable = strategyMarkup(data, team, result);
+  assert.match(unavailable, /Prediction range unavailable/);
+  assert.doesNotMatch(
+    unavailable,
+    /class="chart-range-whisker"|polygon class="chart-range"/,
+  );
+});
+
 test("Autopilot displays scenario-dependent extra points without naming a fixed winner", () => {
   const { data, team, result } = fixture();
   result.rounds[0].chip = "autopilot";

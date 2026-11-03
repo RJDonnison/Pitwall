@@ -682,6 +682,37 @@ def test_loader_strict_cutoff_last_five_same_type_and_official_category_uplift(
         ]
         assert all(len(set(row)) == 1 for row in deviations)
         assert deviations[0][0] != deviations[-1][0]
+        assert len(values.joint[t]) == 5
+        for a in assets:
+            for k in range(3):
+                base_mean = (
+                    sum(chips.components(s["scores"][a.id])[k] for s in values.joint[t])
+                    / 5
+                )
+                adjusted_mean = (
+                    sum(
+                        chips.components(s["no_negative"][a.id])[k]
+                        for s in values.joint[t]
+                    )
+                    / 5
+                )
+                assert base_mean == pytest.approx(
+                    chips.components(estimates[t, a.id])[k]
+                )
+                assert adjusted_mean == pytest.approx(
+                    chips.components(estimates[t, a.id])[k]
+                    + chips.components(values.no_negative[t, a.id])[k]
+                )
+        # Constructor shocks belong to the very same weekend as driver shocks.
+        for s in values.joint[t]:
+            assert s["scores"]["c0"].race - estimates[t, "c0"].race == pytest.approx(
+                s["scores"]["0"].race - estimates[t, "0"].race
+            )
+            for a in assets[:6]:
+                assert (
+                    s["scores"][a.id]
+                    == values.autopilot[t][values.joint[t].index(s)][a.id]
+                )
 
 
 def test_no_negative_loader_covers_target_downside_and_scheduler_prefers_it(
@@ -730,6 +761,7 @@ def test_loader_excludes_null_weekends_from_the_entire_joint_sample(monkeypatch)
     assert values.history_gamedays[0] == (7, 9, 11, 13)
     assert values.skipped_history_gamedays == (5,)
     assert len(values.autopilot[0]) == 4
+    assert len(values.joint[0]) == 4
     assert len(values.autopilot[1]) == 5
     assert values.no_negative[0, "c0"] == Estimate(1, 0, 11)
     for a in assets[:6]:

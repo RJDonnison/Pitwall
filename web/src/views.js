@@ -1,4 +1,5 @@
 import { total } from "./optimizer.js";
+import { seasonRange } from "./season-range.js";
 import { esc } from "./text.js";
 import {
   portrait,
@@ -139,9 +140,9 @@ export function allocationMarkup(dataset, team) {
   const width = (n) => (100 * n) / Math.max(cost, team.budget);
   return `<section class="panel allocation"><div class="section-heading"><h2>Budget allocation</h2><strong>${money(cost)} / ${money(team.budget)}</strong></div><div class="allocation-bar" role="img" aria-label="Drivers ${money(drivers)}, constructors ${money(constructors)}, ${free >= 0 ? "free" : "over cap"} ${money(Math.abs(free))}"><span style="width:${width(drivers)}%"></span><span style="width:${width(constructors)}%"></span><span style="width:${width(Math.max(0, free))}%"></span></div><div class="allocation-key"><span><i></i>Drivers<strong>${money(drivers)}</strong></span><span><i></i>Constructors<strong>${money(constructors)}</strong></span><span><i></i>Available<strong class="${free < 0 ? "negative" : ""}">${money(free)}</strong></span></div>${free < 0 ? `<p class="negative">Above the entered budget: ${money(-free)} over cap${team.active === "limitless" ? " · Limitless active" : " · adjust the roster or budget"}</p>` : ""}</section>`;
 }
-function chart(values, labels, cls = "trajectory-chart") {
-  const low = Math.min(0, ...values),
-    high = Math.max(1, ...values);
+function chart(values, labels, bands = [], cls = "trajectory-chart") {
+  const low = Math.min(0, ...values, ...bands.map((b) => b.low)),
+    high = Math.max(1, ...values, ...bands.map((b) => b.high));
   const width = Math.max(800, 100 + values.length * 90);
   const x = (i) =>
     values.length === 1
@@ -149,7 +150,14 @@ function chart(values, labels, cls = "trajectory-chart") {
       : 80 + (i / (values.length - 1)) * (width - 140);
   const y = (v) => 150 - ((v - low) / (high - low)) * 120;
   const ticks = [low, (low + high) / 2, high];
-  return `<svg class="${cls}" style="min-width:${width}px" viewBox="0 0 ${width} 200" role="img" aria-label="Cumulative planned points; ${esc(labels.map((l, i) => `${l}: ${points(values[i])} points`).join(", "))}">${ticks.map((v) => `<path class="chart-grid" d="M80 ${y(v)}H${width - 60}"/><text class="chart-label" x="68" y="${y(v) + 4}" text-anchor="end">${points(v)}</text>`).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text>`).join("")}</svg>`;
+  const band =
+    bands.length > 1
+      ? `<polygon class="chart-range" points="${bands
+          .map((b, i) => `${x(i)},${y(b.high)}`)
+          .concat(bands.map((b, i) => `${x(i)},${y(b.low)}`).reverse())
+          .join(" ")}"/>`
+      : "";
+  return `<svg class="${cls}" style="min-width:${width}px" viewBox="0 0 ${width} 200" role="img" aria-label="Cumulative planned points; ${esc(labels.map((l, i) => `${l}: ${points(values[i])} points${bands[i] ? `; 80% simulated range ${points(bands[i].low)} to ${points(bands[i].high)}` : ""}`).join(", "))}">${ticks.map((v) => `<path class="chart-grid" d="M80 ${y(v)}H${width - 60}"/><text class="chart-label" x="68" y="${y(v) + 4}" text-anchor="end">${points(v)}</text>`).join("")}${band}${bands.map((b, i) => `<path class="chart-range-whisker" d="M${x(i) - 5} ${y(b.high)}h10m-5 0V${y(b.low)}m-5 0h10"/>`).join("")}<polyline class="chart-line" points="${values.map((v, i) => `${x(i)},${y(v)}`).join(" ")}"/>${values.map((v, i) => `<g><title>${esc(labels[i])}: ${points(v)} pts${bands[i] ? `; 80% simulated range ${points(bands[i].low)}–${points(bands[i].high)} pts` : ""}</title><circle class="chart-dot" cx="${x(i)}" cy="${y(v)}" r="4"/><text x="${x(i)}" y="${y(v) - 12}" text-anchor="middle">${points(v)}</text><text class="chart-label" x="${x(i)}" y="184" text-anchor="middle">${esc(labels[i])}</text></g>`).join("")}</svg>`;
 }
 export function heroMarkup(dataset) {
   const r = dataset.rounds[0];
@@ -282,6 +290,7 @@ export function strategyMarkup(
   );
   const denominator = Math.max(1, first.points, reference[0]);
   let cumulative = 0;
+  const range = seasonRange(dataset, result.rounds);
   return `${heroMarkup(dataset, team, result)}<div class="directive-grid">${transferDirective(dataset, team, first)}${boostDirective(dataset, first)}<section class="panel directive chip-directive"><div class="directive-heading"><span>${icon("shield")}Chip plan</span><span class="tag ${first.chip ? "red" : ""}">${first.chip ? "Use" : "Save"}</span></div><div class="chip-callout ${first.chip ? `plan-chip chip-${first.chip}` : ""}">${first.chip ? chipIcon(first.chip) : icon("shield")}<div><h2>${first.chip ? chipNames[first.chip] : "Save chips"}</h2></div></div><ul class="chip-inventory" aria-label="Remaining chips">${Object.keys(
     chipNames,
   )
@@ -293,9 +302,10 @@ export function strategyMarkup(
       "",
     )}</ul><div class="directive-footer">Next chip<span>${nextChip ? `R${nextChip.round} · ${chipNames[nextChip.chip]}` : "None planned"}</span></div></section></div>
    <section class="panel score-panel"><div class="section-heading"><h2>Next race</h2></div><div class="score-comparison"><div class="projected-number"><strong>${points(first.points)}</strong><span>Estimated points</span></div><div><div class="comparison-label"><span>Current team · 2× only</span><strong>${points(reference[0])}</strong></div><div class="comparison-track"><i style="width:${(100 * Math.max(0, reference[0])) / denominator}%"></i></div><div class="comparison-label accent"><span>Suggested team</span><strong>${points(first.points)}</strong></div><div class="comparison-track recommended"><i style="width:${(100 * Math.max(0, first.points)) / denominator}%"></i></div><div class="score-components"><span>Drivers <b>${points(driverScore)}</b></span><span>Constructors <b>${points(constructorScore)}</b></span><span>Penalty <b>−${first.transfer_penalty}</b></span></div></div></div></section>
-   <section class="panel horizon"><div class="section-heading"><div><h2>Season plan</h2><p class="season-plan-range">${result.rounds.length === 1 ? `R${first.round}` : `R${first.round}–R${result.rounds.at(-1).round}`} · ${result.rounds.length} ${result.rounds.length === 1 ? "round" : "rounds"} · cumulative points</p></div><div class="horizon-total"><strong>${points(result.points)} pts</strong></div></div><div class="chart-scroll">${chart(
+   <section class="panel horizon"><div class="section-heading"><div><h2>Season plan</h2><p class="season-plan-range">${result.rounds.length === 1 ? `R${first.round}` : `R${first.round}–R${result.rounds.at(-1).round}`} · ${result.rounds.length} ${result.rounds.length === 1 ? "round" : "rounds"} · cumulative points</p></div><div class="horizon-total"><strong>${points(result.points)} pts</strong>${range.bands ? `<span class="season-range-total">${points(range.bands.at(-1).low)}–${points(range.bands.at(-1).high)} pts</span>` : ""}</div></div><p class="season-range-key ${range.bands ? "has-range" : ""}">${range.bands ? "Line: expected points · Shading / whiskers: 80% simulated range" : esc(range.message)}</p>${range.bands ? `<p class="season-range-note">${esc(range.message)} Historical weekends per round: ${Math.min(...range.bands.map((b) => b.samples))}–${Math.max(...range.bands.map((b) => b.samples))}.</p>` : ""}<div class="chart-scroll">${chart(
      result.rounds.map((r) => (cumulative += r.points)),
      result.rounds.map((r) => `R${r.round}`),
+     range.bands,
    )}</div><div class="round-strip" role="group" aria-label="Choose a planned round">${result.rounds.map((r, i) => `<button data-round="${i}" aria-pressed="${i === selectedRound}"><small>R${r.round} · ${date(r.first_session_utc)}${r.sprint ? " · Sprint" : ""}</small><strong>${esc(shortRace(r.name))}</strong><span class="plan-chip ${r.chip ? `chip-${r.chip}` : "saved-chip"}">${r.chip ? chipIcon(r.chip) : icon("shield")}${r.chip ? chipNames[r.chip] : "Save"}</span><b>${points(r.points)} <small>pts</small></b></button>`).join("")}</div></section>
     ${round.chip === "autopilot" ? `<section class="panel autopilot-summary" aria-label="Autopilot points breakdown"><div class="section-heading"><h2>R${round.round} · Autopilot 2× included</h2></div><p><strong>${points(total(round.entries.map((e) => total(e.base))))}</strong> unboosted team + <strong>${points(total(round.entries.map((e) => total(e.extra))))}</strong> expected 2× extra − <strong>${points(round.transfer_penalty)}</strong> transfer penalty = <strong>${points(round.points)} pts</strong>.</p><p>One extra copy of the best selected driver's whole-weekend score is included in every scenario. Different drivers can win different scenarios, so the expected extra is shared across their rows below; no single forecast row necessarily doubles.</p></section>` : ""}${roundMarkup(dataset, team, round)}`;
 }

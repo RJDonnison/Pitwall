@@ -1537,6 +1537,37 @@ article {
   stroke-width: 3;
   fill: none;
 }
+.chart-range {
+  fill: var(--red);
+  opacity: 0.14;
+}
+.chart-range-whisker {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+.horizon .season-range-key,
+.horizon .season-range-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.season-range-key.has-range::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 10px;
+  margin-right: 8px;
+  background: color-mix(in srgb, var(--red) 20%, var(--paper));
+  border: 1px solid var(--red);
+}
+.season-range-total {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
 .chart-dot {
   fill: var(--paper);
   stroke: var(--red);

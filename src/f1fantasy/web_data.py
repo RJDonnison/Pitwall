@@ -117,6 +117,13 @@ def build(season: int, *, telemetry: bool = True, archive=None) -> dict:
                 for scenario in values.autopilot[t]
             ]
             row["history_gamedays"] = values.history_gamedays[t]
+            row["joint_scenarios"] = [
+                {
+                    kind: {key: components(score) for key, score in scores.items()}
+                    for kind, scores in scenario.items()
+                }
+                for scenario in values.joint.get(t, ())
+            ]
         rounds.append(row)
     generated = datetime.now(timezone.utc)
     publication = {
