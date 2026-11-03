@@ -33,17 +33,7 @@
 - Compare chronologically against the existing model before claiming improved predictions; expose uncertain or missing weather inputs.
 - Daily weather classifications drive a shrunk same-format official-score adjustment for selected Q/S/R Fantasy forecasts and chip planning. Weather-free counterfactuals are archived for paired forward MAE by population/session/format; selection is not an improvement claim. First pre-weekend publications are preserved in `data/forecast-archive.json` by Pages. Race Insights odds retain the joint racing model.
 
-### V8 — Forecast confidence and accuracy scores (implemented; forward archive collecting)
-
-- Show MAE (mean absolute error) in Fantasy points, with predicted-versus-actual history for drivers, constructors and qualifying/Sprint/race forecasts. Include sample counts, evaluation dates and model version.
-- Evaluate archived pre-weekend predictions chronologically against finalized results; exclude current-weekend outcomes from training, calibration and the original prediction. Compare against a clearly identified baseline.
-- Add empirically calibrated prediction ranges and show their measured coverage. Keep historical accuracy separate from confidence in an individual forecast; MAE is not a confidence percentage.
-- Distinguish regular and Sprint weekends and disclose sparse or missing evidence. Show unavailable or insufficient-history states instead of invented confidence scores.
-- Where supported by joint outcome evidence, expose uncertainty in recommended changes and team totals, accounting for correlated driver/constructor and chip effects rather than simply adding individual errors.
-- Use defined text confidence labels; keep numeric confidence scores rare. Prioritize error bars and visual error comparisons.
-- Shipped: archived error diagrams and accessible values, paired last-three baseline MAE, separate population/session/format evidence, weekend-block conformal ranges, and later-only coverage. Defined labels are “Insufficient history”, “Provisional range” and “Forward checked”; no arbitrary confidence percentage. Ranges wait for eight archived weekends and team uncertainty remains unavailable without joint evidence.
-
-### V9 — Website prediction system
+### V8 — Website prediction system
 
 - Fetch the latest official F1 Predict questions, legal answer choices, variable payouts and lock state.
 - Bring the existing CLI expected-points model to the website: calculate the highest expected-scoring valid answers, ordered podium and question Boost, with probability and points breakdowns.
