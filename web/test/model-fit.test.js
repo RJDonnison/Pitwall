@@ -30,17 +30,15 @@ const dataset = (gain = 0.0231) => ({
   },
 });
 
-test("explains accuracy in plain language with the previous score", () => {
+test("shows two clearly labelled accuracy scores and no explanation", () => {
   const html = modelFitMarkup(dataset());
-  assert.match(html, /How accurate are the forecasts\?/);
-  assert.match(html, /Updated after every race/);
-  assert.match(html, /We replay 50 past races up to 2026 round 18/);
-  assert.match(html, /fit-accuracy">86\.6%/);
-  assert.match(html, /Up 0\.7 points since the last update \(85\.9%\)/);
-  assert.doesNotMatch(html, /<details|Technical|Brier|half-life/i);
+  assert.match(html, /<h2>Accuracy<\/h2>/);
+  assert.match(html, /Before qualifying · this weekend<\/span><strong class="fit-accuracy">86\.6%/);
+  assert.match(html, /Before qualifying · last weekend<\/span><strong class="fit-accuracy">85\.9%/);
+  assert.doesNotMatch(html, /replay|First score|Predicting|After qualifying|<details|Last updated/);
   const first = dataset();
   first.model.fit.pre_weekend.previous_accuracy = null;
-  assert.match(modelFitMarkup(first), /First score recorded/);
+  assert.match(modelFitMarkup(first), /last weekend<\/span><strong class="fit-accuracy">n\/a/);
 });
 
 test("renders nothing for a publication without a fit", () => {
