@@ -143,7 +143,8 @@
           "ret_half_life": 6.0,
           "ret_prior": 16.0
         },
-        "gain_vs_defaults": 0.023062050018364345
+        "gain_vs_defaults": 0.023062050018364345,
+        "accuracy": 86.6
       },
       "post_qualifying": {
         "adopted": false,
