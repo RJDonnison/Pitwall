@@ -9,8 +9,38 @@
 }
 .participant-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
+}
+.participant-team {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
+}
+.participant-team-name {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-left: 3px solid var(--team-color);
+  padding-left: 8px;
+}
+.participant-team-drivers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.participant-team-drivers .participant-tile {
+  border-top-width: 1px;
+  padding: 10px;
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+.participant-team-drivers .participant-tile .asset-photo,
+.participant-team-drivers .participant-tile > svg {
+  width: 36px;
+  height: 42px;
 }
 .participant-tile {
   display: grid;
@@ -92,11 +122,6 @@
   font-size: 10px;
   color: var(--muted);
 }
-.detail-round-tag {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-}
 .participant-prediction {
   position: sticky;
   top: 24px;
@@ -159,31 +184,6 @@
 .placement-session-heading h4 {
   font-size: 14px;
   margin: 0;
-}
-.position-estimate {
-  font-size: 26px;
-  line-height: 1.1;
-  font-weight: 600;
-  letter-spacing: -0.04em;
-}
-.placement-result {
-  display: grid;
-  justify-items: end;
-  text-align: right;
-  gap: 3px;
-}
-.placement-result > span,
-.placement-result > small,
-.placement-average {
-  font-size: 11px;
-  color: var(--muted);
-}
-.placement-average {
-  margin: 8px 0 0;
-}
-.placement-average strong {
-  color: var(--ink);
-  font-weight: 500;
 }
 .placement-curve {
   display: block;
@@ -361,5 +361,26 @@
 }
 
 .curve-axis{fill:var(--muted);font-size:9px}
-.curve-nc-bar{fill:var(--red);opacity:.35}
-.curve-nc-value{fill:var(--ink);font-size:10px;font-weight:700}
+
+.placement-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 6px 0 4px;
+}
+.placement-stats dt {
+  font-size: 10px;
+  color: var(--muted);
+}
+.placement-stats dd {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.placement-stats dd small {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
