@@ -8,8 +8,6 @@ The browser stores up to three teams locally. It can suggest a next-round team, 
 
 ## Features
 
-## Features
-
 ### Season planning
 
 - **Whole-season exact optimisation:** jointly plans drivers, constructors, Boost, chips and transfers across every remaining round, solved in-browser with HiGHS (WebAssembly)
