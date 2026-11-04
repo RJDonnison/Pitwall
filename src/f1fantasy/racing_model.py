@@ -96,7 +96,9 @@ def load_fit(path=None):
 FIT = load_fit()
 PRE_PARAMETERS = dict(FIT["pre"]) if FIT else dict(DEFAULT_PRE)
 POST_QUALIFYING_PARAMETERS = dict(FIT["post"]) if FIT else dict(DEFAULT_POST)
-PRACTICE_WEIGHT = dict(FIT["practice"]) if FIT and FIT["practice"] else dict(DEFAULT_PRACTICE)
+PRACTICE_WEIGHT = (
+    dict(FIT["practice"]) if FIT and FIT["practice"] else dict(DEFAULT_PRACTICE)
+)
 
 PARAMETERS = [
     {
@@ -261,11 +263,12 @@ def _form(records, drivers, kind, params):
 
 
 # Retirement propensity used to decide *who* retires in a shared incident count.
-# Chosen on the 2025-2026 walk-forward in docs/racing-model.md (not-classified
+# Chosen on the archived 2025-2026 walk-forward (not-classified
 # section): a slower decay than the pace half-life and a pooling prior of 16
 # driver-races toward the field rate.
 RETIREMENT_HALF_LIFE = float(
-    (FIT["pre"].get("ret_half_life") if FIT else None) or DEFAULT_RETIREMENT["half_life"]
+    (FIT["pre"].get("ret_half_life") if FIT else None)
+    or DEFAULT_RETIREMENT["half_life"]
 )
 RETIREMENT_PRIOR = float(
     (FIT["pre"].get("ret_prior") if FIT else None) or DEFAULT_RETIREMENT["prior"]
@@ -297,14 +300,13 @@ def _retirement_propensity(
             if team is None or reason in {"disqualified", "did_not_start"}:
                 continue
             exposures[team] += weight
-            failures[team] += weight * (not row["classified"] and reason != "mechanical")
+            failures[team] += weight * (
+                not row["classified"] and reason != "mechanical"
+            )
     prior = RETIREMENT_PRIOR if prior is None else prior
     field = (sum(failures.values()) + 0.5) / (sum(exposures.values()) + 1.0)
     return np.array(
-        [
-            (failures[t] + prior * field) / (exposures[t] + prior)
-            for t in team_ids
-        ]
+        [(failures[t] + prior * field) / (exposures[t] + prior) for t in team_ids]
     )
 
 
@@ -372,7 +374,9 @@ def draw(
             grid_kind = "SQ" if kind == "S" and "SQ" in output else "Q"
             if grid is not None and kind == "R":
                 worst = max(n, max(grid.values()))
-                grid_ranks = np.array([grid.get(d["tla"], worst) for d in drivers])[None, :]
+                grid_ranks = np.array([grid.get(d["tla"], worst) for d in drivers])[
+                    None, :
+                ]
             else:
                 grid_ranks = output[grid_kind]["ranks"]
             performance += (
@@ -629,6 +633,29 @@ def averages(rows):
     }
 
 
+def qualifying_model(candidate, baseline):
+    """Choose qualifying independently using only already-scored weekends."""
+    pairs = [
+        (current, previous)
+        for current, previous in zip(candidate, baseline)
+        if all(
+            metric in current and metric in previous
+            for metric in ("pole_brier", "pole_log_loss")
+        )
+    ]
+    if len(pairs) < 8:
+        return "rank_v1"
+    current = averages([row[0] for row in pairs])
+    previous = averages([row[1] for row in pairs])
+    return (
+        "margin_v2"
+        if current.get("pole_brier", 1) < previous.get("pole_brier", 1)
+        and current.get("pole_log_loss", float("inf"))
+        <= previous.get("pole_log_loss", float("inf"))
+        else "rank_v1"
+    )
+
+
 def evaluate(records, *, simulations=600, seed=2026):
     from .predict_model import _rank_draw
     from .public_history import date
@@ -636,6 +663,7 @@ def evaluate(records, *, simulations=600, seed=2026):
     records = sorted(records, key=lambda r: date(r["end"]))
     candidate_scores = [[] for _ in PARAMETERS]
     nested, comparisons, folds = [], {"rank_v1": [], "uniform": [], "last8": []}, []
+    hybrid = []
     for index, target in enumerate(records):
         # Compact archived calendars retain only race start. An additional
         # 72-hour embargo keeps these historical folds pre-weekend.
@@ -654,6 +682,7 @@ def evaluate(records, *, simulations=600, seed=2026):
                 objective(averages(candidate_scores[i])) if candidate_scores[i] else i
             ),
         )
+        qualifying_selected = qualifying_model(nested, comparisons["rank_v1"])
         scores = []
         for j, params in enumerate(PARAMETERS):
             prediction = draw(
@@ -678,6 +707,12 @@ def evaluate(records, *, simulations=600, seed=2026):
                 )
             )
             comparisons[name].append(score(prediction, target, drivers))
+        combined = dict(nested[-1])
+        if qualifying_selected == "rank_v1":
+            for metric in ("pole_brier", "pole_log_loss"):
+                if metric in comparisons["rank_v1"][-1]:
+                    combined[metric] = comparisons["rank_v1"][-1][metric]
+        hybrid.append(combined)
         folds.append(
             {
                 "season": target["season"],
@@ -686,6 +721,7 @@ def evaluate(records, *, simulations=600, seed=2026):
                 "training_events": len(history),
                 "parameter_training_folds": len(folds),
                 "parameters": PARAMETERS[selected],
+                "qualifying_selected": qualifying_selected,
                 "candidate": nested[-1],
                 "baselines": {name: values[-1] for name, values in comparisons.items()},
             }
@@ -693,6 +729,7 @@ def evaluate(records, *, simulations=600, seed=2026):
     metrics = {
         "candidate": averages(nested),
         **{name: averages(values) for name, values in comparisons.items()},
+        "hybrid": averages(hybrid),
     }
     params = PARAMETERS[
         min(
@@ -730,6 +767,7 @@ def evaluate(records, *, simulations=600, seed=2026):
     return {
         "model": VERSION,
         "selected": selection,
+        "qualifying_selected": qualifying_model(nested, comparisons["rank_v1"]),
         "parameters": params,
         "evaluated_events": len(folds),
         "metrics": metrics,

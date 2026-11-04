@@ -189,7 +189,7 @@ def select(snapshot, forecasts, training=(), *, risk_aversion=0):
                 probabilities.sum(axis=1)[:, None] + probabilities
             )
             slots, indexes = linear_sum_assignment(-expected.T)
-            picks = [int(indexes[list(slots).index(slot)]) for slot in range(3)]
+            picks = indexes[np.argsort(slots)].astype(int).tolist()
             points = float(sum(expected[i, slot] for slot, i in enumerate(picks)))
             if forecast.get("podium_outcomes"):
                 moments = predict_risk.podium_moments(
@@ -203,8 +203,9 @@ def select(snapshot, forecasts, training=(), *, risk_aversion=0):
                     sd = predict_risk.podium_sd(picks, payouts, moments)
         else:
             deviations = np.abs(payouts) * np.sqrt(probabilities * (1 - probabilities))
-            index = int(np.argmax(payouts * probabilities - risk_aversion * deviations))
-            picks, points = [index], float((payouts * probabilities)[index])
+            expected = payouts * probabilities
+            index = int(np.argmax(expected - risk_aversion * deviations))
+            picks, points = [index], float(expected[index])
             sd = float(deviations[index])
         answers.append(
             {

@@ -136,9 +136,16 @@ def schedule(year):
         return fastf1.get_event_schedule(year)
     if source["update"]:
         raw = fastf1.get_event_schedule(year)
+        keys = set()
         for number in raw["RoundNumber"]:
             if int(number) > 0:
                 event(year, int(number))
+                keys.add(f"{year}/{int(number)}")
+        # Refreshes must also remove cancelled rounds from this season's calendar.
+        events = source["document"]["events"]
+        for key in list(events):
+            if key.startswith(f"{year}/") and key not in keys:
+                del events[key]
     rows = [
         value
         for key, value in source["document"]["events"].items()

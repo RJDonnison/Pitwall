@@ -8,31 +8,55 @@ import { esc } from "./text.js";
 export const logo = () =>
   '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
 
-const collection =
-  "https://raw.githubusercontent.com/TracingInsights/2026/main/images/";
-const repository = "https://github.com/TracingInsights/2026/blob/main/";
+const rawMedia =
+  "https://raw.githubusercontent.com/RJDonnison/Pitwall/main/web/public/media/";
+export const mediaUrl = (path) => path.replace(/^\.\/media\//, rawMedia);
+const bundledPhotos = Object.fromEntries(
+  Object.entries(photos).map(([id, photo]) => [
+    id,
+    {
+      ...photo,
+      path: photo.repository
+        ? photo.repository
+            .replace(
+              "https://github.com/",
+              "https://raw.githubusercontent.com/",
+            )
+            .replace("/blob/", "/")
+        : mediaUrl(photo.path),
+      cutout: photo.repository?.includes("/images/drivers/") || false,
+      changes:
+        "Displayed from the upstream collection; tall driver cutouts cropped to the upper square. Not Creative Commons.",
+    },
+  ]),
+);
 const identity = (value) => normalize(value || "").replace(/[^a-z0-9]/g, "");
 const teamIdentity = (value) => identity(value).replace(/f1team$/, "");
 const imageFile = (file) => file.split("/").map(encodeURIComponent).join("/");
-let participantPhotos = photos;
+let participantPhotos = bundledPhotos;
 let mediaAssets = null;
 
 export async function loadParticipantMedia(dataset, fetcher = fetch) {
+  const season = dataset.season ?? 2026;
+  const collection = `https://raw.githubusercontent.com/TracingInsights/${season}/main/images/`;
+  const repository = `https://github.com/TracingInsights/${season}/blob/main/`;
   const assets = dataset.assets;
   const before = JSON.stringify(participantPhotos);
   mediaAssets = assets;
   const changed = () =>
     mediaAssets === assets && JSON.stringify(participantPhotos) !== before;
+  const constructors = new Map();
+  for (const asset of assets)
+    if (asset.kind === "CONSTRUCTOR" && !constructors.has(asset.team_id))
+      constructors.set(asset.team_id, asset.name);
   const teamName = (asset) =>
     asset.kind === "CONSTRUCTOR"
       ? asset.name
-      : assets.find(
-          (a) => a.kind === "CONSTRUCTOR" && a.team_id === asset.team_id,
-        )?.name || asset.team_name;
+      : constructors.get(asset.team_id) || asset.team_name;
   // Bind bundled images to the current identity, not just an ID that may be reused.
   participantPhotos = Object.fromEntries(
     assets.map((asset) => {
-      const local = photos[asset.id];
+      const local = season === 2026 ? bundledPhotos[asset.id] : null;
       const path = decodeURIComponent(local?.repository || "");
       const team =
         asset.kind === "DRIVER"
@@ -66,10 +90,11 @@ export async function loadParticipantMedia(dataset, fetcher = fetch) {
     const next = { ...participantPhotos };
     for (const asset of assets) {
       const driver = asset.kind === "DRIVER";
+      const currentTeam = teamIdentity(teamName(asset));
       const matches = (rows) =>
         rows.filter(
           (row) =>
-            teamIdentity(row.team) === teamIdentity(teamName(asset)) &&
+            teamIdentity(row.team) === currentTeam &&
             (!driver || row.driver === asset.tla),
         );
       let candidates = matches(driver ? manifest.headshots : manifest.cars);
@@ -94,7 +119,7 @@ export async function loadParticipantMedia(dataset, fetcher = fetch) {
       next[asset.id] = {
         path: collection + file,
         name: asset.name,
-        subject: `${asset.name} · 2026 ${driver ? "portrait" : "car"}`,
+        subject: `${asset.name} · ${season} ${driver ? "portrait" : "car"}`,
         author: "Formula 1 · distributed by TracingInsights",
         license: "Upstream repository: Apache-2.0; source imagery: Formula 1",
         license_url: repository + "LICENSE",
@@ -122,7 +147,7 @@ export function portrait(asset, fallback = "") {
     : fallback;
 }
 export function creditsMarkup() {
-  return `<details id="image-credits"><summary>Image & circuit credits</summary><p>Driver and car images: Formula 1, via the requested TracingInsights 2026 repository (Apache-2.0 repository licence). Source imagery is not labelled Creative Commons. Venue photographs retain their individual Commons licences. No endorsement is implied.</p><ul>${Object.values(
+  return `<details id="image-credits"><summary>Image & circuit credits</summary><p>Driver and car images: Formula 1, via the season's TracingInsights repository (Apache-2.0 repository licence). Source imagery is not labelled Creative Commons. Venue photographs retain their individual Commons licences. No endorsement is implied.</p><ul>${Object.values(
     { ...participantPhotos, ...racePhotos },
   )
     .filter(Boolean)
@@ -137,7 +162,7 @@ export function creditsMarkup() {
   )
     .map(
       ([id, g]) =>
-        `<li><a href="${g.source}" target="_blank" rel="noopener noreferrer">${esc(circuits.find((c) => c.id === id)?.name || id)} · official circuit guide</a> · <a href="${g.photo_asset}" target="_blank" rel="noopener noreferrer">Original venue image</a> · <a href="${g.map_asset}" target="_blank" rel="noopener noreferrer">Original map</a>. Downloaded as WebP for local display; hero cropped with an image scrim.</li>`,
+        `<li><a href="${g.source}" target="_blank" rel="noopener noreferrer">${esc(circuits.find((c) => c.id === id)?.name || id)} · official circuit guide</a> · <a href="${g.photo_asset}" target="_blank" rel="noopener noreferrer">Original venue image</a> · <a href="${g.map_asset}" target="_blank" rel="noopener noreferrer">Original map</a>. Converted to WebP and served from GitHub; hero cropped with an image scrim.</li>`,
     )
     .join(
       "",
@@ -226,7 +251,7 @@ export function chipIcon(name) {
 export function racePhotoMarkup(name) {
   const photo = racePhotos[circuitForRace(name)?.id];
   return photo
-    ? `<img class="race-photo" src="${esc(photo.path)}" alt="${esc(photo.subject)} (archive venue photograph)" title="${esc(photo.author)} · ${esc(photo.license)} · attribution in footer" width="1100" height="600"/>`
+    ? `<img class="race-photo" src="${esc(mediaUrl(photo.path))}" alt="${esc(photo.subject)} (archive venue photograph)" title="${esc(photo.author)} · ${esc(photo.license)} · attribution in footer" width="1100" height="600"/>`
     : "";
 }
 export function priceTrend(dataset, asset) {

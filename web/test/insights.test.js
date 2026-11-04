@@ -345,7 +345,11 @@ test("a decided championship replaces the entire chart with a champion portrait 
       html,
       /Championship horizon|champ-stacked-bar|champ-breakdown/,
     );
-    if (population === "drivers") assert.match(html, /media\/131.webp/);
+    if (population === "drivers")
+      assert.match(
+        html,
+        /src="https:\/\/raw\.githubusercontent\.com\/TracingInsights\/2026\/[a-f0-9]{40}\/images\/headshots\/Red%20Bull%20Racing\/VER\.png/,
+      );
   }
   data.insights.championship.status = "unavailable";
   assert.doesNotMatch(insightsMarkup(data), /Championship decided/);

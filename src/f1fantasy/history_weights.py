@@ -19,7 +19,7 @@ from __future__ import annotations
 REGULATION_RESETS = frozenset({2014, 2022, 2026})
 
 # Races for the weight of a result to halve. A fitted value is preferable once
-# enough walk-forward evaluation exists; see docs/model-evaluation.md.
+# enough chronological walk-forward evaluation exists.
 HALF_LIFE_RACES = 3.0
 
 # Weight multiplier for a season from an earlier regulation era (car pace is
@@ -56,9 +56,7 @@ def recency_weights(count: int, half_life: float | None = None) -> list[float]:
     return [0.5 ** ((count - 1 - i) / half_life) for i in range(count)]
 
 
-def weights(
-    seasons, target_season: int, half_life: float | None = None
-) -> list[float]:
+def weights(seasons, target_season: int, half_life: float | None = None) -> list[float]:
     """Combined recency and era weights for chronologically ordered results.
 
     ``seasons`` holds each result's season, oldest first.

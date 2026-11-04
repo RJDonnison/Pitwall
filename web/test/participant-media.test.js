@@ -90,7 +90,7 @@ test("headshots are preferred and another team's same-TLA image is never substit
   );
 });
 
-test("bundled matching portraits remain local, while reused IDs and team changes are re-matched", async () => {
+test("bundled matches use pinned upstream images, while reused IDs and team changes are re-matched", async () => {
   const ocon = { ...hirakawa, id: "118", name: "Esteban Ocon", tla: "OCO" };
   const manifest = collection();
   manifest.headshots.push(
@@ -100,7 +100,10 @@ test("bundled matching portraits remain local, while reused IDs and team changes
     }),
   );
   await loadParticipantMedia({ assets: [ocon, haas] }, response(manifest));
-  assert.match(portrait(ocon), /src="\.\/media\/118.webp\?v=/);
+  assert.match(
+    portrait(ocon),
+    /src="https:\/\/raw.githubusercontent.com\/TracingInsights\/2026\/[a-f0-9]{40}\/images\/headshots\/Haas%20F1%20Team\/OCO.png\?v=/,
+  );
   const replacement = { ...hirakawa, id: "118" };
   await loadParticipantMedia(
     { assets: [replacement, haas] },
@@ -114,6 +117,30 @@ test("bundled matching portraits remain local, while reused IDs and team changes
     portrait(ocon, "no current-team image"),
     "no current-team image",
   );
+});
+
+test("a new season uses its own collection and never silently reuses old-season clothing", async () => {
+  const ocon = { ...hirakawa, id: "118", name: "Esteban Ocon", tla: "OCO" };
+  await loadParticipantMedia(
+    { season: 2027, assets: [ocon, haas] },
+    async (url) => {
+      assert.match(url, /TracingInsights\/2027\/main\/images\/manifest.json$/);
+      return { ok: false };
+    },
+  );
+  assert.equal(
+    portrait(ocon, "no current-season image"),
+    "no current-season image",
+  );
+  await loadParticipantMedia(
+    { season: 2027, assets: [hirakawa, haas] },
+    response(collection()),
+  );
+  assert.match(
+    portrait(hirakawa),
+    /TracingInsights\/2027\/main\/images\/drivers\//,
+  );
+  assert.match(portrait(hirakawa), /2027 portrait/);
 });
 
 test("missing, ambiguous, unsafe or unavailable images retain a safe fallback", async () => {

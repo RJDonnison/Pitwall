@@ -1,6 +1,7 @@
 {
   "model": "timing-team-regime-walkforward-v2",
   "selected": "margin_v2",
+  "qualifying_selected": "rank_v1",
   "parameters": {
     "half_life": 1.5,
     "temperature": 0.8,
@@ -47,6 +48,15 @@
       "podium_brier": 0.10530347940186174,
       "head_to_head_brier": 0.21723544865795966,
       "position_rps": 0.15796152557999782
+    },
+    "hybrid": {
+      "winner_brier": 0.8058679738562091,
+      "winner_log_loss": 1.8301034764360133,
+      "pole_brier": 0.8310141612200436,
+      "pole_log_loss": 1.9440565848827611,
+      "podium_brier": 0.08750204892057832,
+      "head_to_head_brier": 0.18335808795518893,
+      "position_rps": 0.13357404634918707
     }
   },
   "winner_reliability": [
@@ -103,6 +113,7 @@
         "grid_weight": 0.0,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.665138888888889,
         "winner_log_loss": 1.1904040751198672,
@@ -483,6 +494,7 @@
         "grid_weight": 0.0,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.3020111111111111,
         "winner_log_loss": 0.6435766808066322,
@@ -863,6 +875,7 @@
         "grid_weight": 0.0,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.2064055555555553,
         "winner_log_loss": 2.8161466965789113,
@@ -1243,6 +1256,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.3424055555555554,
         "winner_log_loss": 3.5512580762378887,
@@ -1623,6 +1637,7 @@
         "grid_weight": 0.0,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.2026000000000001,
         "winner_log_loss": 3.2147858396166757,
@@ -2003,6 +2018,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6135,
         "winner_log_loss": 1.2401380807940054,
@@ -2383,6 +2399,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.8128777777777776,
         "winner_log_loss": 1.6994343662671834,
@@ -2763,6 +2780,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.1238166666666667,
         "winner_log_loss": 3.610098576260822,
@@ -3143,6 +3161,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.7726722222222222,
         "winner_log_loss": 1.565342592568876,
@@ -3523,6 +3542,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.7842333333333333,
         "winner_log_loss": 1.7084434362095495,
@@ -3903,6 +3923,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.1791944444444444,
         "winner_log_loss": 3.34540602203374,
@@ -4283,6 +4304,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.2079277777777777,
         "winner_log_loss": 3.5512580762378887,
@@ -4663,6 +4685,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.1045444444444443,
         "winner_log_loss": 2.3970759364149683,
@@ -5043,6 +5066,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.0898888888888887,
         "winner_log_loss": 2.5740066445740464,
@@ -5423,6 +5447,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.5943166666666668,
         "winner_log_loss": 1.2344883482518865,
@@ -5803,6 +5828,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6025611111111111,
         "winner_log_loss": 1.1585711485466563,
@@ -6183,6 +6209,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6083611111111111,
         "winner_log_loss": 1.3414150349424576,
@@ -6563,6 +6590,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6639055555555554,
         "winner_log_loss": 1.2067087841448108,
@@ -6943,6 +6971,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.9576555555555557,
         "winner_log_loss": 1.8543327096806723,
@@ -7323,6 +7352,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.8402666666666668,
         "winner_log_loss": 1.4753943559059366,
@@ -7703,6 +7733,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.4734833333333334,
         "winner_log_loss": 0.9307388676215411,
@@ -8083,6 +8114,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.618988888888889,
         "winner_log_loss": 1.0498221244986778,
@@ -8463,6 +8495,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.4032611111111111,
         "winner_log_loss": 0.6882412017910909,
@@ -8843,6 +8876,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.3937222222222225,
         "winner_log_loss": 3.443044491597656,
@@ -9223,6 +9257,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.2727777777777778,
         "winner_log_loss": 2.762800715873618,
@@ -9603,6 +9638,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.196188888888889,
         "winner_log_loss": 3.2147858396166757,
@@ -9983,6 +10019,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.8119222222222223,
         "winner_log_loss": 1.5193574793270528,
@@ -10363,6 +10400,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.5275388888888888,
         "winner_log_loss": 1.0175612622804564,
@@ -10743,6 +10781,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.29496666666666665,
         "winner_log_loss": 0.6624748810268617,
@@ -11123,6 +11162,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.1116388888888888,
         "winner_log_loss": 2.089326300912378,
@@ -11503,6 +11543,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.7659277777777778,
         "winner_log_loss": 1.3540334989016691,
@@ -11883,6 +11924,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.8306777777777777,
         "winner_log_loss": 1.4332828705558096,
@@ -12263,6 +12305,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.9600055555555554,
         "winner_log_loss": 2.6894035319349427,
@@ -12675,6 +12718,7 @@
         "grid_weight": 0.6,
         "prior": 4.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.7249722222222221,
         "winner_log_loss": 1.4280715307144733,
@@ -13089,6 +13133,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.3868055555555555,
         "winner_log_loss": 0.6704924899951391,
@@ -13503,6 +13548,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.3354777777777778,
         "winner_log_loss": 0.6144902998798544,
@@ -13917,6 +13963,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.22845555555555558,
         "winner_log_loss": 0.5701043159638708,
@@ -14331,6 +14378,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.3486222222222223,
         "winner_log_loss": 0.8111348197976052,
@@ -14745,6 +14793,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.0402500000000001,
         "winner_log_loss": 1.8987579868901197,
@@ -15159,6 +15208,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.1040666666666665,
         "winner_log_loss": 2.554367248131,
@@ -15573,6 +15623,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.2042555555555556,
         "winner_log_loss": 3.137952226179419,
@@ -15987,6 +16038,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.30098888888888886,
         "winner_log_loss": 0.7030156817006992,
@@ -16401,6 +16453,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.081811111111111,
         "winner_log_loss": 2.9338568698359033,
@@ -16815,6 +16868,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.7953777777777777,
         "winner_log_loss": 1.6921437375271204,
@@ -17229,6 +17283,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.576938888888889,
         "winner_log_loss": 1.1498194467017588,
@@ -17643,6 +17698,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.24863333333333337,
         "winner_log_loss": 0.6114691495456782,
@@ -18057,6 +18113,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.8557277777777779,
         "winner_log_loss": 1.536090107553776,
@@ -18471,6 +18528,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.047277777777778,
         "winner_log_loss": 2.173770206600849,
@@ -18885,6 +18943,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6304777777777778,
         "winner_log_loss": 1.2646997227001808,
@@ -19299,6 +19358,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 0.6675944444444444,
         "winner_log_loss": 1.2881612093791788,
@@ -19713,6 +19773,7 @@
         "ret_half_life": 6.0,
         "ret_prior": 16.0
       },
+      "qualifying_selected": "rank_v1",
       "candidate": {
         "winner_brier": 1.18615,
         "winner_log_loss": 4.0637217020081176,

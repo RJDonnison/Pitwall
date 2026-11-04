@@ -71,7 +71,58 @@ def test_chronological_tuning_never_trains_on_the_scored_target(monkeypatch):
     assert min(seen) == 8
     assert [f["parameter_training_folds"] for f in report["folds"]] == [0, 1, 2, 3]
     assert report["selected"] == "rank_v1"  # insufficient validation folds
-    assert set(report["metrics"]) == {"candidate", "rank_v1", "uniform", "last8"}
+    assert set(report["metrics"]) == {
+        "candidate",
+        "rank_v1",
+        "uniform",
+        "last8",
+        "hybrid",
+    }
+    assert all(f["qualifying_selected"] == "rank_v1" for f in report["folds"])
+
+
+def test_qualifying_selection_requires_its_own_evidence_and_both_proper_scores():
+    rank = [{"pole_brier": 0.83, "pole_log_loss": 1.94}] * 8
+    race_winner = [
+        {"winner_brier": 0.70, "pole_brier": 0.86, "pole_log_loss": 2.15}
+    ] * 8
+    assert racing_model.qualifying_model(race_winner, rank) == "rank_v1"
+    better = [{"pole_brier": 0.80, "pole_log_loss": 1.90}] * 8
+    assert racing_model.qualifying_model(better[:7], rank[:7]) == "rank_v1"
+    assert racing_model.qualifying_model(better[:7] + [{}], rank) == "rank_v1"
+    assert racing_model.qualifying_model(better, rank) == "margin_v2"
+    worse_log = [{"pole_brier": 0.80, "pole_log_loss": 2.00}] * 8
+    assert racing_model.qualifying_model(worse_log, rank) == "rank_v1"
+
+
+def test_live_hybrid_keeps_race_draws_and_uses_the_verified_qualifying_model(
+    monkeypatch,
+):
+    from f1fantasy import predict_model
+
+    records = history()
+    drivers = racing_model.roster(records[-1])
+    monkeypatch.setattr(
+        racing_model,
+        "selection",
+        lambda _: {
+            "selected": "margin_v2",
+            "qualifying_selected": "rank_v1",
+            "parameters": racing_model.PARAMETERS[0],
+        },
+    )
+    expected = racing_model.draw(
+        records, drivers, 300, np.random.default_rng(7), {}, racing_model.PARAMETERS[0]
+    )
+    baseline_q = {
+        "ranks": np.tile([4, 3, 2, 1], (300, 1)),
+        "classified": np.ones((300, 4), dtype=bool),
+    }
+    monkeypatch.setattr(predict_model, "_rank_draw", lambda *args: {"Q": baseline_q})
+    actual = predict_model._draw(records, drivers, 300, np.random.default_rng(7), {})
+    assert actual["Q"] is baseline_q
+    for kind in ("R", "S"):
+        assert np.array_equal(actual[kind]["ranks"], expected[kind]["ranks"])
 
 
 def test_driver_changes_car_without_carrying_old_team_absolute_pace():
@@ -226,7 +277,9 @@ def test_known_grid_moves_race_win_probability_and_is_opt_in():
     )
 
     def win(draws, i):
-        return ((draws["R"]["ranks"][:, i] == 1) & draws["R"]["classified"][:, i]).mean()
+        return (
+            (draws["R"]["ranks"][:, i] == 1) & draws["R"]["classified"][:, i]
+        ).mean()
 
     assert win(held, 3) > win(free, 3) + 0.05
     assert win(held, 0) < win(free, 0) - 0.05
@@ -325,8 +378,15 @@ def _refresh_setup(monkeypatch, race_start, sessions):
 def _results():
     return pd.DataFrame(
         [
-            dict(Abbreviation=d, Position=i + 1, ClassifiedPosition=str(i + 1),
-                 Points=0, TeamName="T", Status="Finished", Laps=5)
+            dict(
+                Abbreviation=d,
+                Position=i + 1,
+                ClassifiedPosition=str(i + 1),
+                Points=0,
+                TeamName="T",
+                Status="Finished",
+                Laps=5,
+            )
             for i, d in enumerate("ABC")
         ]
     )
@@ -336,7 +396,9 @@ def test_recent_race_with_missing_timing_is_retried_not_archived(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     now = datetime(2026, 11, 2, tzinfo=timezone.utc)
-    saved = _refresh_setup(monkeypatch, now - timedelta(days=2), UnloadedSession(_results()))
+    saved = _refresh_setup(
+        monkeypatch, now - timedelta(days=2), UnloadedSession(_results())
+    )
     racing_data.refresh({}, 2026, 2026, now)
     assert saved == []  # not archived with permanent holes; the next run retries
 
@@ -345,7 +407,9 @@ def test_old_race_with_missing_timing_is_archived_as_it_is(monkeypatch):
     from datetime import datetime, timedelta, timezone
 
     now = datetime(2026, 11, 2, tzinfo=timezone.utc)
-    saved = _refresh_setup(monkeypatch, now - timedelta(days=30), UnloadedSession(_results()))
+    saved = _refresh_setup(
+        monkeypatch, now - timedelta(days=30), UnloadedSession(_results())
+    )
     racing_data.refresh({}, 2026, 2026, now)
     assert len(saved) == 1
     assert saved[0]["session_context"]["R"]["regime"] == "unknown"

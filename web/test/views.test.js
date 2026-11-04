@@ -220,7 +220,10 @@ test("regular Boost uses its driver's real portrait, not an arbitrary Autopilot 
   result.rounds[0].entries[0].id = "131";
   result.rounds[0].boost = "131";
   const html = strategyMarkup(data, team, result, false, 0);
-  assert.match(html, /class="boost-backdrop"[^>]*><img[^>]*media\/131.webp/);
+  assert.match(
+    html,
+    /class="boost-backdrop"[^>]*><img[^>]*src="https:\/\/raw\.githubusercontent\.com\/TracingInsights\/2026\/[a-f0-9]{40}\/images\/headshots\/Red%20Bull%20Racing\/VER\.png/,
+  );
   result.rounds[0].chip = "autopilot";
   const automatic = strategyMarkup(data, team, result, false, 0);
   assert.match(automatic, /class="boost-candidates"/);
@@ -248,7 +251,10 @@ test("3× Boost features the tripled driver, portrait and score while retaining 
   );
   assert.match(boost, /Driver Boost<\/span><span class="tag">3×/);
   assert.match(boost, /<h2>Max &lt;Verstappen&gt;<\/h2>/);
-  assert.match(boost, /boost-backdrop[^>]*><img[^>]*media\/131.webp/);
+  assert.match(
+    boost,
+    /boost-backdrop[^>]*><img[^>]*src="https:\/\/raw\.githubusercontent\.com\/TracingInsights\/2026\/[a-f0-9]{40}\/images\/headshots\/Red%20Bull%20Racing\/VER\.png/,
+  );
   assert.match(boost, /30.0<\/strong><span>forecast pts including 3×/);
   assert.match(boost, /2×: Selection 0/);
   assert.doesNotMatch(boost, /NaN|undefined|including 2×/);

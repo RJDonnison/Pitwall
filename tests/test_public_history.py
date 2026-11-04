@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import json
 
 import pytest
+import pandas as pd
 
 from f1fantasy import data, predict_model, projections, public_history as archive
 
@@ -79,6 +80,44 @@ def test_failed_update_keeps_previous_data_and_restores_context(tmp_path):
             raise RuntimeError("interrupted updater")
     assert archive.current() is None
     assert path.read_bytes() == original
+
+
+def test_calendar_refresh_uses_future_season_order_and_removes_cancelled_rounds(
+    tmp_path, monkeypatch
+):
+    stored = document()
+    stored["events"]["2027/3"] = {**stored["events"]["2026/1"], "RoundNumber": 3}
+    path = write(tmp_path, stored)
+    monkeypatch.setattr(
+        archive.fastf1,
+        "get_event_schedule",
+        lambda year: pd.DataFrame({"RoundNumber": [1, 2]}),
+    )
+
+    class Event(dict):
+        def get_session_date(self, *args, **kwargs):
+            return pd.Timestamp("2027-05-01T12:00:00Z")
+
+    def upcoming(year, number):
+        assert year == 2027
+        return Event(
+            EventName="New Venue" if number == 1 else "Reordered Venue",
+            Location="New" if number == 1 else "Existing",
+            EventFormat="sprint" if number == 1 else "conventional",
+        )
+
+    monkeypatch.setattr(archive.fastf1, "get_event", upcoming)
+    with archive.repository(path, update=True):
+        schedule = archive.schedule(2027)
+        assert schedule["EventName"].tolist() == ["New Venue", "Reordered Venue"]
+        assert archive.event(2027, 1)["EventFormat"] == "sprint"
+    with archive.repository(path):
+        with pytest.raises(data.DataError, match="no event"):
+            archive.event(2027, 3)
+    refreshed = json.loads(path.read_text())
+    assert (
+        "2026/1" in refreshed["events"]
+    )  # History is retained, not indiscriminately pruned.
 
 
 def test_historical_source_cannot_supply_live_prices(tmp_path, monkeypatch):

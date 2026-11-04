@@ -72,14 +72,21 @@ body[data-page="predict"] .predict-risk {
   color: var(--muted);
 }
 .predict-question-grid {
-  column-count: 2;
-  column-gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+}
+.predict-question-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
 }
 .predict-question {
-  break-inside: avoid;
   min-width: 0;
   overflow: hidden;
-  margin: 0 0 24px;
+  margin: 0;
   padding: 0;
 }
 .predict-question .section-heading {
@@ -237,10 +244,11 @@ body[data-page="predict"] .predict-risk {
     padding: 20px 0 0;
   }
   .predict-question-grid {
-    column-count: 1;
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
-  .predict-question {
-    margin-bottom: 16px;
+  .predict-question-column {
+    display: contents;
   }
   .predict-question-body,
   .predict-unavailable {

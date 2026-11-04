@@ -34,6 +34,7 @@ def podium_distribution(options, indices, ranks, classified):
 def podium_moments(question, forecast, probabilities, raw_weight):
     """Mix joint raw and uniform distributions using the probability calibration weight."""
     ids = [o["id"] for o in question["options"]]
+    valid_ids = set(ids)
     index = {ident: i for i, ident in enumerate(ids)}
     rows = forecast["podium_outcomes"]
     orders, counts = [], []
@@ -43,7 +44,7 @@ def podium_moments(question, forecast, probabilities, raw_weight):
         if (
             len(order) != 3
             or len(set(present)) != len(present)
-            or not set(present) <= set(ids)
+            or not set(present) <= valid_ids
             or not isinstance(row["count"], int)
             or row["count"] <= 0
         ):
@@ -54,9 +55,10 @@ def podium_moments(question, forecast, probabilities, raw_weight):
         raise DataError("Missing joint Predict podium outcomes")
 
     def features(orders):
+        orders = np.asarray(orders)
         actual = np.zeros((len(orders), len(ids), 3))
         for slot in range(3):
-            positions = np.asarray(orders)[:, slot]
+            positions = orders[:, slot]
             valid = positions >= 0
             actual[np.flatnonzero(valid), positions[valid], slot] = 1
         return actual, (actual.sum(axis=2)[:, :, None] + actual).reshape(

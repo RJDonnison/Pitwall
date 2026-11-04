@@ -31,7 +31,7 @@ def main(argv=None):
         summaries = {
             (row["year"], row["round"], row["session_number"]): row
             for row in document["features"] + features
-            if now.year - 2 <= row["year"] <= now.year
+            if args.season - 2 <= row["year"] <= args.season
             and public_history.date(row["completed_at"]) < now
         }
         features = [summaries[key] for key in sorted(summaries)]

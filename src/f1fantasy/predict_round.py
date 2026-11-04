@@ -21,23 +21,26 @@ def _yes_no(options, value, text):
 def _teams(options, snapshot):
     from .insights import _team_key
 
-    return [
-        next(iter(matches))
-        if len(
-            matches := {
-                str(d["team_id"])
-                for d in snapshot["roster"]
-                if int(d["kind"]) == 2
-                and (
-                    (int(o.get("kind", 0)) == 2 and str(d["id"]) == str(o["id"]))
-                    or _team_key(d["name"]) == _team_key(o["name"])
+    teams = []
+    for option in options:
+        matches = {
+            str(row["team_id"])
+            for row in snapshot["roster"]
+            if int(row["kind"]) == 2
+            and (
+                (
+                    int(option.get("kind", 0)) == 2
+                    and str(row["id"]) == str(option["id"])
                 )
-            }
-        )
-        == 1
-        else None
-        for o in options
-    ]
+                or _team_key(row["name"]) == _team_key(option["name"])
+            )
+        }
+        teams.append(next(iter(matches)) if len(matches) == 1 else None)
+    return teams
+
+
+def _team_mask(drivers, team_id):
+    return [str(driver["team_id"]) == team_id for driver in drivers]
 
 
 def _points(draws, sprint):
@@ -245,8 +248,8 @@ def question(question, snapshot, drivers, draws, records):
         reached = (q["ranks"] <= threshold) & q["classified"]
         if "how many teams" in text:
             number = sum(
-                reached[:, [str(d["team_id"]) == t for d in drivers]].any(axis=1)
-                for t in team_ids
+                reached[:, _team_mask(drivers, team_id)].any(axis=1)
+                for team_id in team_ids
             )
             masks = [model._bin(o["name"], number) for o in options]
             semantic = "teams_qstage_count"
@@ -276,8 +279,7 @@ def question(question, snapshot, drivers, draws, records):
             "classified"
         ]
         number = sum(
-            scoring[:, [str(d["team_id"]) == t for d in drivers]].any(axis=1)
-            for t in team_ids
+            scoring[:, _team_mask(drivers, team_id)].any(axis=1) for team_id in team_ids
         )
         masks = [model._bin(o["name"], number) for o in options]
         semantic = f"{'sprint' if sprint else 'race'}_points_teams"
@@ -446,20 +448,15 @@ def question(question, snapshot, drivers, draws, records):
         if "points" in text:
             earned = _points(draws, snapshot.get("_sprint", False))
             values = np.column_stack(
-                [
-                    earned[:, [str(d["team_id"]) == t for d in drivers]].sum(axis=1)
-                    for t in compared
-                ]
+                [earned[:, _team_mask(drivers, t)].sum(axis=1) for t in compared]
             )
             semantic = "weekend_team_points"
         else:
             values = np.column_stack(
                 [
                     -np.where(
-                        race["classified"][
-                            :, [str(d["team_id"]) == t for d in drivers]
-                        ],
-                        race["ranks"][:, [str(d["team_id"]) == t for d in drivers]],
+                        race["classified"][:, _team_mask(drivers, t)],
+                        race["ranks"][:, _team_mask(drivers, t)],
                         len(drivers) + 1,
                     ).min(axis=1)
                     for t in compared

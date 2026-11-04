@@ -59,7 +59,7 @@ _DEFAULT_FAILURE = {"R": 0.10, "S": 0.08, "Q": 0.02, "SQ": 0.02}
 @dataclass(frozen=True)
 class RaceModelConfig:
     """Tunable parameters. Defaults come from the walk-forward grids reported in
-    ``docs/model-evaluation.md`` (regenerate with ``python -m f1fantasy.race_eval``)."""
+    the paired model comparison (``python -m f1fantasy.model_compare``)."""
 
     half_life: float = 3.0  # races, recency decay of the strength fit
     team_ridge: float = 0.3  # shrinks team strengths toward the field average
@@ -119,8 +119,7 @@ def _team_of(records, drivers):
         if d["tla"] in latest:
             by_team.setdefault(str(d["team_id"]), latest[d["tla"]])
     return {
-        d["tla"]: latest.get(d["tla"], by_team.get(str(d["team_id"])))
-        for d in drivers
+        d["tla"]: latest.get(d["tla"], by_team.get(str(d["team_id"]))) for d in drivers
     }
 
 
@@ -338,7 +337,9 @@ def draw(
     if config.attrition_sd > 0:
         sd = config.attrition_sd
         attrition = np.exp(rng.normal(-0.5 * sd * sd, sd, (simulations, 1)))
-    available = {k for k in ("Q", "R", "S", "SQ") if any(r["sessions"].get(k) for r in records)}
+    available = {
+        k for k in ("Q", "R", "S", "SQ") if any(r["sessions"].get(k) for r in records)
+    }
     wanted = kinds or ["Q", "R", "S"] + (["SQ"] if "SQ" in available else [])
     output = {}
     for kind in wanted:

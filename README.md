@@ -1,24 +1,40 @@
 # Pitwall
 
-**Season-long strategy planning for F1 Fantasy.**
+[![Publish season planner](https://github.com/RJDonnison/Pitwall/actions/workflows/pages.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/pages.yml) [![Refresh public history](https://github.com/RJDonnison/Pitwall/actions/workflows/history.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/history.yml) [![Fit model parameters](https://github.com/RJDonnison/Pitwall/actions/workflows/model-fit.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/model-fit.yml)
 
-Pitwall is a static website for entering your F1 Fantasy teams and planning the rest of the season. It jointly optimises five drivers, two constructors, Boost, chip timing and net transfers for maximum predicted points within your budget.
+Pitwall plans F1 Fantasy teams across the remaining season. It is available as a static browser [app](https://rjdonnison.github.io/Pitwall) and a [Python CLI](docs/cli.md).
+
+The browser stores up to three teams locally. It can suggest a next-round team, compare round-by-round changes and optimize the remaining published schedule in a Web Worker with HiGHS. Race Insights and F1 Predict are separate views built from the same point-in-time racing data.
 
 ## Features
 
-- **Season-wide planning:** plans every remaining published round, not a rolling horizon.
-- **Exact optimisation:** a mixed-integer optimiser (HiGHS WebAssembly) runs in a browser worker.
-- **Three independent teams:** use Garage's Suggest team button to fill a slot with an optimized lineup, with browser storage and JSON import/export.
-- **Detailed forecasts:** qualifying, Sprint and race projections, with [chronologically validated Fantasy modeling](docs/fantasy-model.md) adopted only where it beats both baselines.
-- **Race Insights:** selectable driver/team cards with likely race positions and placement distributions, race and fastest-stationary-stop probabilities, plus real F1 championship point projections with simulation ranges.
-- **Transparent strategy:** round-by-round changes, penalties, multipliers and chip effects.
-- **Season-plan prediction band:** a provisional central 80% simulated range from joint historical weekend outcomes, including both constructors, Boost, chips and penalties. Future weekends are sampled independently; coverage is uncalibrated. Missing common history is shown explicitly instead of inventing a range.
-- **Privacy-friendly:** no F1 login, server-side team storage or automatic submission required.
-- **Companion CLI:** a Python CLI and official F1 Predict tooling (see [Predict commands](docs/predict.md)).
+## Features
 
-## Quick start
+### Season planning
 
-Requires Python 3.11+ and Node.js 20.19+ or 22.12+.
+- **Whole-season exact optimisation:** jointly plans drivers, constructors, Boost, chips and transfers across every remaining round, solved in-browser with HiGHS (WebAssembly)
+- **Team Garage:** three independent teams, stored locally, with JSON import/export
+- **Transparent strategy:** round-by-round transfers, penalties, multipliers and chip effects
+
+### Models
+
+- **Self-fitting forecasts:** qualifying, Sprint and race projections built from FastF1 session data
+- **Validated before adoption:** a model is used only if it beats chronological baselines
+- **Wether data** is included in the racing model
+
+### Race Insights
+
+- **Placement distributions** per driver and team, plus race and fastest-stop probabilities
+- **Championship outlook** with simulation ranges
+- **Track data, pit stop analysis and driver/team breakdowns**
+
+### F1 Predict
+
+- **Live question fetching** with EV-based point estimates and risk modelling
+
+## Run the website locally
+
+You need Python 3.11+ and Node.js 20.19+ or 22.12+.
 
 ```sh
 python -m venv .venv
@@ -28,74 +44,30 @@ npm ci --prefix web
 npm run dev --prefix web
 ```
 
-Open the local URL printed by Vite.
+Open the URL printed by Vite. The data publisher needs network access. The built site only needs a browser with WebAssembly support.
 
-## Using the website
+## Data and limits
 
-1. In **Team Garage**, pick your seven selections from the asset registry.
-2. Enter **team value plus cash**, free transfers and remaining chips.
-3. Open **Strategy** to see transfer, Boost and chip directives, net score comparisons, the cumulative season trajectory and each round's selection breakdown.
+Completed-session inputs are stored in `data/history.json`; For more information see [data/README.md](data/README.md).
 
-Strategy updates automatically as you edit. Open **Race Insights** to select a remaining round, choose a driver or team card, inspect placement predictions in the sidebar and explore championship projections. Observed points, real F1 predictions and Fantasy forecasts are separate; probabilities and ranges are explicitly uncalibrated. Final Fix is shown as a separate post-qualifying decision rather than given speculative pre-weekend points.
+Forecasts are estimates, not guarantees. The project does not claim measured prediction accuracy, calibrated probabilities or complete support for malformed historical Predict feeds.
 
-The interface follows [`DESIGN.md`](DESIGN.md), with a full-width Garage, compact mobile roster, bottom navigation, recorded round-price trends and coloured chip controls. Driver and car images come from the TracingInsights 2026 collection; venue photographs and circuit outline change with the selected round. Credits are in the footer.
+Driver and constructor images load directly from raw GitHub URLs in the season's TracingInsights collection. Pitwall discovers team-aware TLA matches from `images/manifest.json`; venue photographs use GitHub-hosted copies with their original credits. See [docs/media.md](docs/media.md).
 
-See [website design and data boundaries](docs/website.md#design-and-accessibility) and [replacing images](docs/media.md).
+### Known gaps
 
-## Data
+- **Risk doesn't shape the plan.** The optimiser maximises expected points. The F1 Predict risk setting does not change season plans or team suggestions.
+- **Optimal for the model, not for reality.** "Exact" means the solver finds the best plan for the predicted points.
+- **Future weekends are sampled independently.** Streaks such as car development or reliability runs aren't modelled across rounds.
+- **Final Fix** is shown as a post-qualifying decision with no pre-weekend points forecast.
+- **Team lock times** aren't verified. Always check the Fantasy site's deadline.
+- **No automatic submission.** You apply changes yourself.
+- **History updates daily, not live.** Pages builds use the shipped `data/history.json` and don't download raw FastF1 sessions.
+- **Depends on unofficial feeds.** Prices, roster and schedule come from public F1 Fantasy endpoints that can change without notice.
 
-Completed-session inputs ship in the [public historical dataset](data/README.md), so Pages builds never download raw FastF1 sessions. The **Refresh public history** workflow updates `data/history.json` daily or on demand, reusing completed race records. Normal publication still fetches current official prices, roster, schedule and Statistics. Racing forecasts are compared with chronological baselines before adoption; see [model evidence and measured limitations](docs/racing-model.md).
-
-Neither workflow needs `F1_USERNAME` or `F1_PASSWORD`. FastF1's optional live-feed authentication warning is not a request for your credentials.
-
-## Command-line interface
-
-Install into the virtual environment and activate it (or call `.venv/bin/f1fantasy` directly):
-
-```sh
-python -m venv .venv
-.venv/bin/python -m pip install -e .
-source .venv/bin/activate
-```
-
-Common commands:
-
-```sh
-f1fantasy prices                      # current roster and prices
-f1fantasy recommend --races 3         # recommend for your connected team
-f1fantasy recommend --team 2          # a specific team on the account
-f1fantasy recommend --no-account --no-chips --races 3   # local preview
-f1fantasy chips                       # chip planning
-f1fantasy statistics                  # official Fantasy Statistics rankings
-f1fantasy backtest --races 4 --show-points
-```
-
-Every command accepts `--format json` for versioned, machine-readable output. Prices are integer tenths of a million (`price_tenths_m`).
-
-> Always check the Fantasy website's team-lock deadline. The session start shown by the CLI is not a verified lock time.
-
-### Requirements
-
-- Python 3.11+ and an internet connection (F1 Fantasy and FastF1 data).
-- Optional: about 0.1–1 GB of disk for a three-season `preload` cache in compact mode.
-
-### Documentation
-
-| Topic                                                                                | Guide                                                      |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| Full CLI reference (recommend, transfers, chips, Final Fix, preload, backtest, JSON) | [docs/cli.md](docs/cli.md)                                 |
-| Chip model                                                                           | [docs/chips.md](docs/chips.md)                             |
-| Account integration and applying changes                                             | [docs/account-integration.md](docs/account-integration.md) |
-| Scheduling                                                                           | [docs/scheduling.md](docs/scheduling.md)                   |
-| F1 Predict commands and verification limits                                          | [docs/predict.md](docs/predict.md)                         |
-| Website design and data boundaries                                                   | [docs/website.md](docs/website.md)                         |
-| Replacing images                                                                     | [docs/media.md](docs/media.md)                             |
-| Roadmap                                                                              | [roadmap.md](roadmap.md)                                   |
-
-## Resources
+## Official resources
 
 - [F1 Fantasy rules](https://fantasy.formula1.com/en/game-rules) and [FAQ](https://fantasy.formula1.com/en/faqs)
-- [F1 Fantasy public schedule feed](https://fantasy.formula1.com/feeds/v2/schedule/raceday_en.json)
 - [F1 Fantasy Statistics](https://fantasy.formula1.com/en/statistics)
 - [FastF1 documentation](https://docs.fastf1.dev/)
-- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) and [FAQs](https://f1predict.formula1.com/en/faqs)
+- [F1 Predict rules](https://f1predict.formula1.com/en/game-rules) and [FAQ](https://f1predict.formula1.com/en/faqs)

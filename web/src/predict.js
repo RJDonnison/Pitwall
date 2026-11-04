@@ -75,21 +75,25 @@ function questionMarkup(q, answer, unsupported) {
   const options = q.options
     .map((o) => {
       const p = answer.probabilities[o.id];
+      const podiumProbability = podium
+        ? p.reduce((sum, value) => sum + value, 0)
+        : 0;
       const ev = podium
-        ? p.map((v) => o.points * (p.reduce((a, b) => a + b, 0) + v))
+        ? p.map((value) => o.points * (podiumProbability + value))
         : o.points * p;
-      return { ...o, p, ev };
+      return { ...o, p, ev, podiumProbability };
     })
     .sort((a, b) =>
       podium ? Math.max(...b.ev) - Math.max(...a.ev) : b.ev - a.ev,
     );
+  const optionsById = new Map(options.map((option) => [option.id, option]));
   return `<article class="panel predict-question ${boost ? "predict-boosted" : ""}">
     <div class="section-heading"><span class="eyebrow">Question ${q.number} · ${podium ? "Ordered podium" : "Single answer"}</span>${boost ? '<span class="tag red">2× question Boost</span>' : ""}</div>
     <div class="predict-question-body"><h2>${esc(q.text)}</h2>${q.subtext ? `<p>${esc(q.subtext)}</p>` : ""}
     <ol class="predict-picks ${podium ? "predict-podium" : ""}">${answer.selected_options
       .map((id, i) => {
-        const o = options.find((o) => o.id === id);
-        return `<li>${podium ? `<span class="predict-place">P${i + 1}</span>` : ""}<strong>${esc(o.name)}</strong><small>${podium ? `${percent(o.p[i])} exact position · ${percent(o.p.reduce((a, b) => a + b, 0))} any podium` : `${percent(o.p)} model probability`}</small>${podium ? `<span class="predict-pick-points">${number(o.ev[i] * (boost ? 2 : 1))} expected pts${boost ? " · 2× included" : ""}</span>` : ""}</li>`;
+        const o = optionsById.get(id);
+        return `<li>${podium ? `<span class="predict-place">P${i + 1}</span>` : ""}<strong>${esc(o.name)}</strong><small>${podium ? `${percent(o.p[i])} exact position · ${percent(o.podiumProbability)} any podium` : `${percent(o.p)} model probability`}</small>${podium ? `<span class="predict-pick-points">${number(o.ev[i] * (boost ? 2 : 1))} expected pts${boost ? " · 2× included" : ""}</span>` : ""}</li>`;
       })
       .join("")}</ol>
      <div class="predict-score"><span>Expected points${boost ? " · 2× included" : ""}</span><strong>${number(answer.expected_points)} <small>pts</small></strong></div>
@@ -109,13 +113,20 @@ export function predictMarkup(publication, now = Date.now(), risk = null) {
     return `<div class="predict-page">${heading}<section class="panel predict-unavailable" role="status">${preference ? "Risk-adjusted recommendations are awaiting a refreshed publication." : "No verified recommendation in this publication."}</section></div>`;
   return `<div class="predict-page">${heading}
     <section class="predict-summary panel" aria-label="Predict recommendation summary"><div><span class="eyebrow">${publication.season} · official round ${publication.gameday_id}</span><h2>${result.complete ? "Your recommended answer sheet" : "Partial answer sheet"}</h2><p>${result.answers.length} of ${publication.questions.length} questions supported${result.complete ? "" : " · unsupported questions need your own decision"}</p></div><div><span class="eyebrow">${result.complete ? "Total" : "Supported answers"} expected points</span><strong class="predict-total">${number(result.expected_total_points)} <small>pts</small></strong></div></section>
-    <div class="predict-question-grid">${publication.questions
-      .map((q) =>
-        questionMarkup(
-          q,
-          result.answers.find((a) => a.question_id === q.id),
-          result.unsupported.find((a) => a.question_id === q.id),
-        ),
+    <div class="predict-question-grid">${[1, 0]
+      .map(
+        (parity) =>
+          `<div class="predict-question-column">${publication.questions
+            .filter((q) => q.number % 2 === parity)
+            .map(
+              (q) =>
+                `<div class="predict-question-item" style="order: ${q.number}">${questionMarkup(
+                  q,
+                  result.answers.find((a) => a.question_id === q.id),
+                  result.unsupported.find((a) => a.question_id === q.id),
+                )}</div>`,
+            )
+            .join("")}</div>`,
       )
       .join("")}</div></div>`;
 }

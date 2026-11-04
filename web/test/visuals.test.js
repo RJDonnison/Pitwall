@@ -68,7 +68,7 @@ test("sparklines use actual recorded prices and missing history is not fabricate
   assert.match(priceTrend({}, a), /unavailable/);
   assert.doesNotMatch(priceTrend({}, a), /<polyline/);
 });
-test("all 33 portraits are local and carry source-specific licence and provenance", () => {
+test("all 33 portraits use raw upstream URLs and retain source-specific provenance", () => {
   assert.equal(Object.keys(media).length, 33);
   for (const [id, p] of Object.entries(media)) {
     if (p.repository) {
@@ -87,6 +87,10 @@ test("all 33 portraits are local and carry source-specific licence and provenanc
         /2026.*portrait|2026.*car/,
       );
       assert.match(portrait({ id, kind: "DRIVER" }), /\?v=[a-f0-9]{12}/);
+      assert.match(
+        portrait({ id, kind: "DRIVER" }),
+        /src="https:\/\/raw.githubusercontent.com\/TracingInsights\//,
+      );
     } else {
       assert.match(p.license, /^(CC BY-SA |CC BY |CC0)/);
       assert.match(p.license_url, /creativecommons\.org/);

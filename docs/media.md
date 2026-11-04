@@ -1,65 +1,44 @@
-# Driver, car and circuit images
+# Images and attribution
 
-## Current source
+## Driver and constructor images
 
-The requested collection is [TracingInsights/2026/images](https://github.com/TracingInsights/2026/tree/main/images).
-Pitwall keeps local copies for the bundled roster and discovers missing or changed
-driver and team images dynamically from the same collection's `images/manifest.json`.
-Drivers are matched by **TLA and current constructor**, cars by constructor name;
-images do not depend on a hard-coded Fantasy asset ID.
-Headshots are preferred; Arvid Lindblad currently uses the matching full driver
-cutout cropped to its upper square because that team has no matching headshot.
-Transparency is preserved in the local WebP copies. New matches load directly from
-the collection's GitHub-hosted files. For example, a Haas roster entry for Ryo
-Hirakawa (`HIR`) automatically selects `drivers/Haas F1 Team/HIR.webp`.
+Pitwall displays driver and constructor images directly from raw GitHub URLs in the season's TracingInsights collection, currently [TracingInsights/2026/images](https://github.com/TracingInsights/2026/tree/main/images). It checks `images/manifest.json` for new drivers, team changes and newly recognized constructors.
 
-The source repository is Apache-2.0 and says its images originate from Formula 1.
-That does not make the underlying Formula 1 images Creative Commons. For bundled
-files, Pitwall records the exact upstream commit, source URL, subject and resizing/crop
-in `web/src/media.json` and `web/public/media/ATTRIBUTION.json`, with credits in
-the footer. Venue photos have their own Commons attribution and licence records
-in `web/src/race-media.json` and `web/public/media/CIRCUIT-PHOTOS.json`.
+Drivers are matched by TLA and current constructor. Constructors are matched by team name. The match does not depend on a Fantasy asset ID. Pitwall prefers a headshot, then a matching driver cutout cropped to the upper square. Car side views keep their transparent background and natural aspect ratio. Ambiguous or failed matches use the built-in placeholder rather than another team's image.
 
-## Automatic discovery and refresh
+Known 2026 matches use their pinned upstream commit until a changed manifest record is found. New matches load from the live collection. A 2027 forecast requests the 2027 collection; an unpublished collection produces placeholders rather than old-season clothing. One manifest request is shared across an accepted forecast roster, and an older roster response cannot replace a newer one.
 
-Each accepted forecast dataset triggers one manifest request, shared across all
-its drivers and constructors. Matching bundled images stay local; new identities,
-constructor changes or changed source records use the discovered image. A response
-for an older roster cannot overwrite a newer roster's images. Discovery runs
-without blocking forecasts, transfers or optimization.
+Venue and hero photographs use raw GitHub links to the existing processed files in this project's public media directory. Local copies and their attribution records remain available as source assets, but rendered photographs no longer load from the deployed site's media directory. GitHub availability and the source files' download sizes therefore affect image loading. Maps and interface icons drawn as inline SVG remain part of the page.
 
-Headshots take precedence over driver cutouts for the same team. Tall cutouts are
-cropped to their upper square in CSS; car sideviews retain contain fitting.
-Ambiguous or unavailable matches use the existing helmet/car placeholder rather
-than a different team's picture. Failed image downloads also restore that placeholder.
+## Rights and records
 
-The footer adds discovered images' original Formula 1 URLs, upstream file links,
-rights and display transformations. Bundled records retain pinned commit links;
-dynamic records explicitly link the live source collection rather than claiming a
-pinned revision. `web/public/media/ATTRIBUTION.json` describes the bundled files.
+The TracingInsights repository uses Apache-2.0 and identifies Formula 1 as the source of its images. That repository license does not make the underlying Formula 1 images Creative Commons.
 
-## Maintain a bundled image
+Bundled provenance is recorded in:
 
-For a local image, replace `web/public/media/ID.webp` and its
-matching source/author/licence/transformation record in both attribution files.
-Keep accurate provenance; don't rename a different person to an existing ID.
-Increment the record's revision so a published browser requests the new image.
-Match the upstream manifest's original source and file path in its provenance
-record to keep serving the bundled copy when that image is rediscovered.
+- `web/src/media.json`
+- `web/public/media/ATTRIBUTION.json`
 
-## Layout and venue imagery
+Each record includes the source, subject, upstream path, pinned commit where applicable and any crop or resize. Dynamic records link to the live upstream collection rather than claiming a pinned revision. Credits are shown in the site footer.
 
-Card fitting lives in `.asset-photo`, `.official-photo` and `.car-photo` in
-`web/src/style.css`. Driver portraits use contain fitting; the Commons tool can
-crop a source before resizing. Cars keep their natural sideview aspect ratio.
+Venue photographs have separate Commons records in `web/src/race-media.json` and `web/public/media/CIRCUIT-PHOTOS.json`. Circuit outlines and sector maps retain their own source information. These images illustrate the venue; they do not show current weather or track conditions.
 
-The five remaining circuit sector maps are clean transparent SVG surfaces extracted
-from the official 2026 maps listed in `web/src/track-guides.json`. Sector text gaps
-are joined locally; labels, activation markers and background are omitted. Full
-original maps remain linked. `python -m f1fantasy.circuit_maps` regenerates
-`web/src/sector-maps.json` from the local credited WebPs, without network access.
-Other circuit outlines are projected from MIT-licensed `bacinger/f1-circuits` data,
-not generated shapes. `web/src/visuals.js` maps GP names to circuit IDs. Venue
-photos are local `web/public/media/CIRCUIT-ID.webp`; update their attribution
-records when replacing them. They are archival venue illustrations, not claims
-about current weather, track conditions or a live race image.
+## Update a pinned image
+
+1. Verify the person or car, current constructor and upstream collection path.
+2. Update the matching repository URL, source and pinned commit in `web/src/media.json` and `web/public/media/ATTRIBUTION.json`.
+3. Record any crop and increment the record revision.
+
+Replacing `web/public/media/ID.webp` alone no longer changes the displayed portrait: the browser uses its upstream repository URL. Keep a local derivative only when needed as a source or attribution record. Do not relabel a different person or car under an existing ID, and preserve transparency where the source has it.
+
+## Circuit images
+
+Current sector maps are transparent SVG surfaces derived from the credited official maps in `web/src/track-guides.json`. Labels and backgrounds are omitted from the compact view, while the full source remains linked. Other circuit outlines use the MIT-licensed `bacinger/f1-circuits` coordinates.
+
+The existing local source files can regenerate `web/src/sector-maps.json` with:
+
+```sh
+python -m f1fantasy.circuit_maps
+```
+
+Venue photographs live at `web/public/media/CIRCUIT-ID.webp`. Update their Commons attribution records whenever a file changes.

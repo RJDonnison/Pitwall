@@ -225,7 +225,7 @@ def _draw(records, drivers, simulations, rng, telemetry, grid=None, practice=Non
             if grid is not None
             else fitted["parameters"]
         )
-        return racing_model.draw(
+        result = racing_model.draw(
             records,
             drivers,
             simulations,
@@ -235,6 +235,10 @@ def _draw(records, drivers, simulations, rng, telemetry, grid=None, practice=Non
             grid=grid,
             practice=practice,
         )
+        if fitted.get("qualifying_selected", fitted["selected"]) == "rank_v1":
+            # Pole validation is independent of the race model's aggregate gains.
+            result["Q"] = _rank_draw(records, drivers, simulations, rng, telemetry)["Q"]
+        return result
     return _rank_draw(records, drivers, simulations, rng, telemetry)
 
 
@@ -252,6 +256,9 @@ def _rank_draw(records, drivers, simulations, rng, telemetry):
         qualifying = kind in {"Q", "SQ"}
         means[kind], retirement[kind] = [], []
         for driver in drivers:
+            teammate_tlas = {
+                d["tla"] for d in drivers if d["team_id"] == driver["team_id"]
+            }
             observations = []
             failures = 0
             for index, record in enumerate(forms[kind]):
@@ -273,11 +280,7 @@ def _rank_draw(records, drivers, simulations, rng, telemetry):
                 r["position"]
                 for record in forms[kind]
                 for r in record["sessions"].get(kind, [])
-                if r.get("position")
-                and any(
-                    d["tla"] == r["tla"] and d["team_id"] == driver["team_id"]
-                    for d in drivers
-                )
+                if r.get("position") and r["tla"] in teammate_tlas
             ]
             prior = float(np.mean(teammate)) if teammate else (n + 1) / 2
             mean = (3 * prior + sum(w * p for w, p in observations)) / (
@@ -362,9 +365,9 @@ def _mentioned(text, drivers):
     matches = []
     for i, driver in enumerate(drivers):
         full = _text(driver["name"])
-        last = full.split()[-1]
-        if re.search(r"\b" + re.escape(full) + r"\b", text) or re.search(
-            r"\b" + re.escape(last) + r"\b", text
+        if any(
+            re.search(r"\b" + re.escape(name) + r"\b", text)
+            for name in (full, full.split()[-1])
         ):
             matches.append(i)
     return matches
@@ -387,9 +390,10 @@ def _mentioned_teams(text, roster):
         core = " ".join(
             word for word in name.split() if word not in {"f1", "formula", "1", "team"}
         )
+        names = {name, core, *aliases.get(_team_key(name), ())}
         if any(
             alias and re.search(r"\b" + re.escape(alias) + r"\b", text)
-            for alias in {name, core, *aliases.get(_team_key(name), ())}
+            for alias in names
         ):
             team_ids.add(str(row["team_id"]))
     return team_ids
@@ -857,10 +861,9 @@ def _season_question(question, snapshot, drivers, events, world, cutoff):
                 or _text(r["name"]) == _text(option["name"])
             )
         }
+        match = next(iter(matches)) if len(matches) == 1 else None
         team_indices.append(
-            world["teams"].index(next(iter(matches)))
-            if len(matches) == 1 and next(iter(matches)) in world["teams"]
-            else None
+            world["teams"].index(match) if match in world["teams"] else None
         )
     masks, error_key = None, None
     extra = {}
@@ -1120,7 +1123,7 @@ def _starting_grid(snapshot, drivers):
     """Optional verified post-qualifying grid (driver code -> position).
 
     Supplying ``starting_grid`` switches the race forecast to the grid-conditioned
-    parameters, which the 50-race walk-forward (docs/model-evaluation.md) shows cut
+    parameters, which the archived 50-race walk-forward shows cut
     winner Brier by about a third. Only the race is conditioned; qualifying
     questions and pre-weekend forecasts are unchanged. A partial or invalid grid
     is rejected rather than silently ignored.
