@@ -2,7 +2,7 @@
 
 [![Publish season planner](https://github.com/RJDonnison/Pitwall/actions/workflows/pages.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/pages.yml) [![Refresh public history](https://github.com/RJDonnison/Pitwall/actions/workflows/history.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/history.yml) [![Fit model parameters](https://github.com/RJDonnison/Pitwall/actions/workflows/model-fit.yml/badge.svg)](https://github.com/RJDonnison/Pitwall/actions/workflows/model-fit.yml)
 
-Pitwall plans F1 Fantasy teams across the remaining season. It is available as a static browser [app](https://rjdonnison.github.io/Pitwall) and a [Python CLI](docs/cli.md).
+Pitwall plans F1 Fantasy teams across the remaining season. It is available as a [website](https://rjdonnison.github.io/Pitwall) and a [Python CLI](docs/cli.md).
 
 The browser stores up to three teams locally. It can suggest a next-round team, compare round-by-round changes and optimize the remaining published schedule in a Web Worker with HiGHS. Race Insights and F1 Predict are separate views built from the same point-in-time racing data.
 
@@ -59,8 +59,6 @@ Fantasy and Predict can roll into later seasons under unchanged game contracts. 
 - **Risk doesn't shape the plan.** The optimiser maximises expected points. The F1 Predict risk setting does not change season plans or team suggestions.
 - **Optimal for the model, not for reality.** "Exact" means the solver finds the best plan for the predicted points.
 - **Future weekends are sampled independently.** Streaks such as car development or reliability runs aren't modelled across rounds.
-- **Final Fix** is shown as a post-qualifying decision with no pre-weekend points forecast.
-- **Team lock times** aren't verified. Always check the Fantasy site's deadline.
 - **No automatic submission.** You apply changes yourself.
 - **History updates daily, not live.** Pages builds use the shipped `data/history.json` and don't download raw FastF1 sessions.
 - **Depends on unofficial feeds.** Prices, roster and schedule come from public F1 Fantasy endpoints that can change without notice.
