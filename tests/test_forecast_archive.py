@@ -53,6 +53,24 @@ def test_settlement_needs_finalized_matching_year_and_round():
     assert forecast_archive.settled(archive, d, now) == []
 
 
+def test_new_season_capture_prunes_only_forecasts_outside_retention():
+    archive = {
+        "schema": 1,
+        "forecasts": [{"season": 2024, "round": 1}, {"season": 2025, "round": 2}],
+    }
+    old = deepcopy(archive["forecasts"][1])
+    p = publication()
+    p["season"] = 2027
+    for key in ("generated_at", "forecast_cutoff"):
+        p[key] = p[key].replace("2026", "2027")
+    p["rounds"][0]["first_session_utc"] = p["rounds"][0]["first_session_utc"].replace(
+        "2026", "2027"
+    )
+    forecast_archive.capture(archive, p)
+    assert [row["season"] for row in archive["forecasts"]] == [2025, 2027]
+    assert archive["forecasts"][0] == old
+
+
 def test_weather_thresholds_and_temporal_gate():
     assert [weather_model.classify(v) for v in (0, 29, 30, 69, 70, 100)] == [
         "dry",

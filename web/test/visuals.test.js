@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import {
   circuitMarkup,
   circuitForRace,
@@ -8,6 +8,7 @@ import {
   portrait,
   creditsMarkup,
   racePhotoMarkup,
+  mediaUrl,
 } from "../src/visuals.js";
 import { heroMarkup, rosterMarkup } from "../src/views.js";
 import media from "../src/media.json" with { type: "json" };
@@ -31,8 +32,9 @@ test("each remaining race has its own real projected circuit, not a reused image
     assert.match(racePhotoMarkup(name), /archive venue photograph/);
     const p = raceMedia[circuitForRace(name).id];
     assert.match(p.license, /^CC BY/);
-    assert.ok(
-      existsSync(new URL("../public/" + p.path.slice(2), import.meta.url)),
+    assert.match(
+      racePhotoMarkup(name),
+      /src="https:\/\/raw\.githubusercontent\.com\/RJDonnison\/Pitwall\/[a-f0-9]{40}\//,
     );
     assert.ok(creditsMarkup().includes(p.source));
   }
@@ -98,12 +100,22 @@ test("all 33 portraits use raw upstream URLs and retain source-specific provenan
       assert.match(portrait({ id, kind: "DRIVER" }), /archive photograph/);
     }
     assert.ok(p.author && p.changes);
-    assert.ok(
-      existsSync(new URL("../public/" + p.path.slice(2), import.meta.url)),
-    );
   }
   assert.match(creditsMarkup(), /MIT licence/);
   assert.match(creditsMarkup(), /not labelled Creative Commons/);
+});
+test("deployment contains credits rather than downloaded image copies", () => {
+  const files = readdirSync(new URL("../public/media/", import.meta.url));
+  assert.deepEqual(
+    files.filter((file) => /\.(webp|png|jpe?g)$/i.test(file)),
+    [],
+  );
+  assert.ok(files.includes("ATTRIBUTION.json"));
+  assert.ok(files.includes("CIRCUITS-LICENSE.txt"));
+  assert.match(
+    mediaUrl("./media/mx-1962-map-2026.webp"),
+    /Pitwall\/[a-f0-9]{40}\/web\/public\/media\/mx-1962-map-2026.webp$/,
+  );
 });
 test("Garage roster is price-focused and does not include forecast scores", () => {
   const assets = Array.from({ length: 7 }, (_, i) => ({

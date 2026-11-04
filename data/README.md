@@ -19,6 +19,7 @@ Run the relevant command from the repository root:
 
 ```sh
 python -m f1fantasy.refresh_history
+python -m f1fantasy.prune_history
 python -m f1fantasy.fantasy_model
 python -m f1fantasy.racing_evaluation
 python -m f1fantasy.model_compare
@@ -27,19 +28,21 @@ python -m f1fantasy.model_fit
 
 `refresh_history` is the only publication path that downloads missing completed sessions. It writes `history.json` through a temporary file, so a failed refresh leaves the previous committed dataset intact. Website publication reads the committed history without downloading gaps and fails closed when required records are missing or malformed.
 
-The **Refresh public history** workflow runs the updater and checks the publication path before committing `history.json`. The Pages workflow reads that history, generates current Fantasy and Predict publications, and commits a new `forecast-archive.json` entry only when the first eligible pre-weekend forecast for a round is available. The **Fit model parameters** workflow runs after a successful history refresh. Each fitted family can move by at most one neighboring parameter step when the older folds, recent holdout and full paired sample pass the fit gates. When settings change, the workflow also refreshes `racing-evaluation.json`.
+The **Refresh public history** workflow runs the updater, prunes unused history and first forecasts, and checks the publication path before committing the two archives. The Pages workflow reads that history, generates current Fantasy and Predict publications, and captures only the first eligible pre-weekend forecast for a round within the retention window. The **Fit model parameters** workflow runs after a successful history refresh. Each fitted family can move by at most one neighboring parameter step when the older folds, recent holdout and full paired sample pass the fit gates. When settings change, the workflow also refreshes `racing-evaluation.json`.
 
 ## Freshness and chronology
 
 Every historical observation must precede the forecast cutoff. Completed-session records are reused instead of downloaded again. Recent racing records with missing timing are retried rather than archived immediately with permanent gaps, and practice pace is backfilled for at most three recent eligible races per refresh.
 
-The history updater requests the selected season and the two preceding seasons. Its compact telemetry feature list is limited to that three-year window. Existing completed racing and stationary-stop records are reused, while a newly saved racing record replaces only the matching season and round. Entering 2027 does **not** delete the archived 2024 racing records, schedules or first-publication evidence. Those records support historical evaluation even after the live forecast stops selecting them. The forecast archive has no automatic pruning path.
+The retained model window is the selected season and the two preceding seasons. In 2027, pruning removes 2024 calendars, session scores, racing and telemetry summaries, stationary-stop observations, Predict race-control and pit-stop labels, and first-publication forecasts. Unreferenced historical Fantasy feeds are also removed. First publications inside the window remain immutable. The complete all-time GP winner facts are retained because questions about a new winner at a venue need that history; static evaluation reports and fitted settings are not rewritten by pruning.
+
+`python -m f1fantasy.prune_history --season 2027` applies this retention policy without downloading anything. The history updater also prunes before enrichment, so old seasons cannot be rediscovered and downloaded through the retained records. It fetches schedules only for the three retained seasons, reuses completed session and stationary-stop records, and replaces a racing record only for the matching season and round. Older inputs remain in Git history if a historical evaluation needs them.
 
 Calendar refresh replaces the selected year's round metadata and removes rounds no longer present in that source schedule, while retaining other years. New or reordered venues follow the official schedule rather than a fixed round list. Fantasy roster identities and team affiliations are read from the live feed; a new driver can use teammate and field priors before enough individual history exists. An unknown venue has no invented track history or circuit specifications.
 
 ### Season rollover
 
-Publication and history commands default to the current UTC year, but an upstream calendar and active roster must be published before that year's site can generate fresh recommendations. The Fantasy scoring tables, chip rules and transfer costs remain implemented rules and need checking when the game changes. Predict explicitly accepts only its reviewed 2026 rules and rejects 2027 until those rules are reviewed. Circuit guides and specifications are also season-specific; they do not automatically become verified for a new season. Roster additions and reordered tracks are data changes, not evidence that every future F1 rule change is supported.
+Publication and history commands default to the current UTC year. Fantasy and Predict accept future seasons when their official feeds publish a matching calendar, active roster and the same validated game contracts. There is no 2026 cutoff. The existing scoring tables, chips and transfer costs are assumed unchanged; season, freshness, lock-state, option and payout validation still apply. Known circuit guides and coordinates can be reused in later seasons while retaining their original source year. Unknown venues still have no invented specifications. A changed upstream game contract or circuit layout needs a code or data update.
 
 Current Fantasy prices, active roster, schedule and Statistics are fetched afresh. Recorded round prices are used only for Garage sparklines. They are not future-price predictions or a fallback for current prices. Missing price history is shown as unavailable rather than synthesized.
 

@@ -9,7 +9,7 @@ export const logo = () =>
   '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
 
 const rawMedia =
-  "https://raw.githubusercontent.com/RJDonnison/Pitwall/main/web/public/media/";
+  "https://raw.githubusercontent.com/RJDonnison/Pitwall/1e09f384d3d2a3ad09823024f17f51e9e22fc622/web/public/media/";
 export const mediaUrl = (path) => path.replace(/^\.\/media\//, rawMedia);
 const bundledPhotos = Object.fromEntries(
   Object.entries(photos).map(([id, photo]) => [

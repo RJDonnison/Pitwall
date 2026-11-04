@@ -28,7 +28,7 @@ def race_context(weekend, *, now=None):
     )
     track = next((v for k, v in TRACKS.items() if k in name), None)
     result = {"weather": {"status": "unavailable"}}
-    if track is None or weekend.season != 2026:
+    if track is None:
         return result
     length, laps, distance, latitude, longitude, slug = track
     result["track_spec"] = {

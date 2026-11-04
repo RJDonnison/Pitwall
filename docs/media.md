@@ -8,7 +8,7 @@ Drivers are matched by TLA and current constructor. Constructors are matched by 
 
 Known 2026 matches use their pinned upstream commit until a changed manifest record is found. New matches load from the live collection. A 2027 forecast requests the 2027 collection; an unpublished collection produces placeholders rather than old-season clothing. One manifest request is shared across an accepted forecast roster, and an older roster response cannot replace a newer one.
 
-Venue and hero photographs use raw GitHub links to the existing processed files in this project's public media directory. Local copies and their attribution records remain available as source assets, but rendered photographs no longer load from the deployed site's media directory. GitHub availability and the source files' download sizes therefore affect image loading. Maps and interface icons drawn as inline SVG remain part of the page.
+Venue photographs, heroes and detailed maps use raw GitHub links pinned to published commit `1e09f384d3d2a3ad09823024f17f51e9e22fc622`, which contains the processed files. The downloaded image copies have been removed from the working tree and deployment; only attribution and license records remain in `web/public/media`. Pinning these links keeps them valid after the files are removed from the main branch. GitHub availability and source download sizes affect image loading. Maps and interface icons drawn as inline SVG remain part of the page.
 
 ## Rights and records
 
@@ -29,16 +29,16 @@ Venue photographs have separate Commons records in `web/src/race-media.json` and
 2. Update the matching repository URL, source and pinned commit in `web/src/media.json` and `web/public/media/ATTRIBUTION.json`.
 3. Record any crop and increment the record revision.
 
-Replacing `web/public/media/ID.webp` alone no longer changes the displayed portrait: the browser uses its upstream repository URL. Keep a local derivative only when needed as a source or attribution record. Do not relabel a different person or car under an existing ID, and preserve transparency where the source has it.
+The browser uses the upstream repository URL, so no local derivative is needed. Do not relabel a different person or car under an existing ID, and preserve transparency where the source has it. Attribution records retain the historical derivative names for provenance.
 
 ## Circuit images
 
 Current sector maps are transparent SVG surfaces derived from the credited official maps in `web/src/track-guides.json`. Labels and backgrounds are omitted from the compact view, while the full source remains linked. Other circuit outlines use the MIT-licensed `bacinger/f1-circuits` coordinates.
 
-The existing local source files can regenerate `web/src/sector-maps.json` with:
+Regenerating `web/src/sector-maps.json` is a manual operation. First obtain the credited source maps and place them at the paths listed in `web/src/track-guides.json`, then run:
 
 ```sh
 python -m f1fantasy.circuit_maps
 ```
 
-Venue photographs live at `web/public/media/CIRCUIT-ID.webp`. Update their Commons attribution records whenever a file changes.
+Builds and GitHub Actions use the committed SVG geometry and remote image URLs; they do not download or regenerate these image files. A browser test checks that deployment media contains no downloaded image copies. Update the pinned URL and Commons attribution together if a venue photograph changes.

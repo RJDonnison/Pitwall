@@ -141,5 +141,25 @@ def test_distant_or_unknown_round_never_requests_guessed_weather(monkeypatch, we
         module.race_context(distant, now=NOW)["weather"]["status"] == "outside_horizon"
     )
     assert "track_spec" not in module.race_context(
-        replace(weekend, season=2027), now=NOW
+        replace(weekend, name="Unknown Grand Prix"), now=NOW
     )
+
+
+def test_future_season_reuses_known_location_and_retains_spec_source_year(
+    monkeypatch, weekend, payload
+):
+    future = replace(
+        weekend,
+        season=2027,
+        first_session=weekend.first_session.replace(year=2027),
+        last_session=weekend.last_session.replace(year=2027),
+    )
+    payload["daily"]["time"] = [
+        date.replace("2026", "2027") for date in payload["daily"]["time"]
+    ]
+    response(monkeypatch, payload)
+    result = module.race_context(future, now=NOW.replace(year=2027))
+    assert result["weather"]["status"] == "available"
+    assert result["weather"]["start_date"] == "2027-10-31"
+    assert result["track_spec"]["season"] == 2026
+    assert "/2026/" in result["track_spec"]["source"]

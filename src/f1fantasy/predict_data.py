@@ -14,7 +14,6 @@ import requests
 from .data import DataError
 
 BASE = "https://f1predict.formula1.com"
-REVIEWED_RULES_SEASON = 2026
 
 
 def utc(value):
@@ -159,10 +158,6 @@ def questions(rows, players):
 
 
 def fetch(season, gameday_id=None, scope="round"):
-    if season != REVIEWED_RULES_SEASON:
-        raise DataError(
-            "Predict scoring rules require an official rules/FAQ review for this season"
-        )
     try:
         config = get("apps/web_config.json")
         if integer(config["currentSeasonYear"]) != season or scope not in {

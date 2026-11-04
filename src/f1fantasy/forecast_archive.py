@@ -21,6 +21,7 @@ def load(path=DEFAULT):
 
 def capture(archive, publication):
     """Freeze the first eligible snapshot per round; never replace with hindsight."""
+    prune(archive, publication["season"])
     known = {(r["season"], r["round"]) for r in archive["forecasts"]}
     for row in publication["rounds"][:1]:
         key = publication["season"], row["round"]
@@ -47,6 +48,13 @@ def capture(archive, publication):
             }
         )
         known.add(key)
+
+
+def prune(archive, season):
+    """Retain first publications only within the history model's season window."""
+    rows = archive["forecasts"]
+    archive["forecasts"] = [row for row in rows if row["season"] >= season - 2]
+    return len(rows) - len(archive["forecasts"])
 
 
 def settled(archive, document, cutoff):

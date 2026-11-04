@@ -330,12 +330,57 @@ def test_bonus_season_contradiction_fails_instead_of_silently_switching_year(
         data.fetch(2026, scope="season")
 
 
-def test_new_season_requires_official_rules_review(monkeypatch):
-    monkeypatch.setattr(
-        data, "get", lambda *a: pytest.fail("Do not fetch before season scoring review")
-    )
-    with pytest.raises(DataError, match="rules/FAQ review"):
-        data.fetch(2027)
+@pytest.mark.parametrize("season", [2027, 2030])
+def test_future_season_accepts_the_same_verified_official_contract(monkeypatch, season):
+    roster = [
+        {
+            "Id": i,
+            "Value": f"Participant {i}",
+            "Type": 1 if i <= 20 else 2,
+            "IsActive": 1,
+        }
+        for i in range(1, 31)
+    ]
+
+    def envelope(value):
+        return {"Data": {"Value": value}}
+
+    values = {
+        "apps/web_config.json": {"currentSeasonYear": season},
+        "limits/constraints.json": envelope({"GamedayId": 1}),
+        "schedule/raceday_en.json": envelope(
+            [
+                {
+                    "GamedayId": 1,
+                    "Season": season,
+                    "IsBonusRound": 0,
+                    "IsPostponed": 0,
+                    "RaceDay": 1,
+                    "MatchStatus": 1,
+                    "RaceId": 10,
+                    "SessionStartDateISO8601": f"{season}-03-01T12:00:00Z",
+                    "SessionEndDateISO8601": f"{season}-03-01T14:00:00Z",
+                }
+            ]
+        ),
+        "drivers/drivers_1_en.json": envelope(roster),
+        "questions/questions_1_en.json": envelope({"Questions": raw_questions()}),
+    }
+    monkeypatch.setattr(data, "get", lambda path: values[path])
+    snapshot = data.fetch(season)
+    assert snapshot["season"] == season
+    assert len(snapshot["questions"]) == 10
+    assert len(snapshot["roster"]) == 30
+    assert not snapshot["locked"]
+
+    values["questions/questions_1_en.json"]["Data"]["Value"]["Questions"][0][
+        "OptionTemplateId"
+    ] = 1
+    with pytest.raises(DataError, match="podium contract"):
+        data.fetch(season)
+    values["apps/web_config.json"]["currentSeasonYear"] = season - 1
+    with pytest.raises(DataError, match="official configuration"):
+        data.fetch(season)
 
 
 def save_archive(directory, snapshot, raw, *, actual=None, settled=None):

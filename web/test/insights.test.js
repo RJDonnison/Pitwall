@@ -182,7 +182,12 @@ test("The selected round owns its sourced hero, map and daily weather briefing",
     /35% rain|mx-1962-map-2026.webp|overtake detection and activation points|NaN|undefined/,
   );
   data.season = 2027;
-  assert.doesNotMatch(insightsMarkup(data), /map-2026.webp|1:17.774/);
+  assert.match(insightsMarkup(data), /map-2026.webp/);
+  assert.match(insightsMarkup(data), /1:17.774/);
+  assert.match(
+    insightsMarkup(data),
+    /href="https:\/\/raw\.githubusercontent\.com\/RJDonnison\/Pitwall\/[a-f0-9]{40}\/web\/public\/media\/mx-1962-map-2026.webp/,
+  );
 });
 
 test("driver and team deep dives show selected participants and classified position distributions", () => {

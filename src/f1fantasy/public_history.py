@@ -30,6 +30,47 @@ def date(value):
     return result
 
 
+def prune(document, season):
+    """Keep the three-season model window without discarding all-time Predict facts."""
+    first = season - 2
+    removed = {}
+    for name in ("events", "scores"):
+        rows = document[name]
+        kept = {
+            key: row for key, row in rows.items() if int(key.split("/")[0]) >= first
+        }
+        removed[name] = len(rows) - len(kept)
+        document[name] = kept
+    for name in (
+        "racing",
+        "features",
+        "stationary_stops",
+        "predict_races",
+        "pitstop_winners",
+    ):
+        if name not in document:
+            continue
+        rows = document[name]
+        field = "year" if name == "features" else "season"
+        kept = [row for row in rows if row[field] >= first]
+        removed[name] = len(rows) - len(kept)
+        document[name] = kept
+    events = document["fantasy_events"]
+    kept = {key: end for key, end in events.items() if date(end).year >= first}
+    removed["fantasy_events"] = len(events) - len(kept)
+    document["fantasy_events"] = kept
+    rows = document["fantasy"]
+    document["fantasy"] = {key: row for key, row in rows.items() if key in kept}
+    removed["fantasy"] = len(rows) - len(document["fantasy"])
+    if "coverage" in document:
+        document["coverage"].update(
+            race_records=len(document["racing"]),
+            session_scores=len(document["scores"]),
+            telemetry_summaries=len(document["features"]),
+        )
+    return removed
+
+
 @contextmanager
 def repository(path=DEFAULT, *, update=False):
     path = Path(path)

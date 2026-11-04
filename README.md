@@ -54,6 +54,8 @@ Forecasts are estimates, not guarantees. The project does not claim measured pre
 
 Driver and constructor images load directly from raw GitHub URLs in the season's TracingInsights collection. Pitwall discovers team-aware TLA matches from `images/manifest.json`; venue photographs use GitHub-hosted copies with their original credits. See [docs/media.md](docs/media.md).
 
+Fantasy and Predict can roll into later seasons under unchanged game contracts. History retains the current season and two prior seasons; daily Actions prune older model inputs and first forecasts without downloading them again. Downloaded image copies are not included in the site build.
+
 ### Known gaps
 
 - **Risk doesn't shape the plan.** The optimiser maximises expected points. The F1 Predict risk setting does not change season plans or team suggestions.

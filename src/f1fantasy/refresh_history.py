@@ -26,6 +26,8 @@ def main(argv=None):
     history.configure_cache()
     features = history.historical_features(now)
     with public_history.repository(args.output, update=True) as document:
+        # Prune before enrichment so discarded seasons cannot trigger downloads.
+        public_history.prune(document, args.season)
         # A fresh runner may have no local telemetry cache. Preserve the compact
         # observations already committed, replacing them only with newer extracts.
         summaries = {
@@ -41,6 +43,11 @@ def main(argv=None):
             str(w.gameday_id): w.last_session.isoformat()
             for w in data.season_weekends(args.season)
             if w.last_session is not None and w.last_session < now
+        }
+        document["fantasy"] = {
+            day: rows
+            for day, rows in document["fantasy"].items()
+            if day in document["fantasy_events"]
         }
         document["features"] = features
         # Keep official round prices for Garage trends. These are historical
