@@ -8,7 +8,7 @@ Drivers are matched by TLA and current constructor. Constructors are matched by 
 
 Known 2026 matches use their pinned upstream commit until a changed manifest record is found. New matches load from the live collection. A 2027 forecast requests the 2027 collection; an unpublished collection produces placeholders rather than old-season clothing. One manifest request is shared across an accepted forecast roster, and an older roster response cannot replace a newer one.
 
-Venue photographs, heroes and detailed maps use raw GitHub links pinned to published commit `1e09f384d3d2a3ad09823024f17f51e9e22fc622`, which contains the processed files. The downloaded image copies have been removed from the working tree and deployment; only attribution and license records remain in `web/public/media`. Pinning these links keeps them valid after the files are removed from the main branch. GitHub availability and source download sizes affect image loading. Maps and interface icons drawn as inline SVG remain part of the page.
+Current circuit guides use the photograph and detailed-map URLs published on Formula 1's official season pages. Older venue photographs, heroes and detailed maps remain available through raw GitHub links pinned to published commit `1e09f384d3d2a3ad09823024f17f51e9e22fc622`. The downloaded image copies have been removed from the working tree and deployment; only attribution and license records remain in `web/public/media`. Maps and interface icons drawn as inline SVG remain part of the page.
 
 ## Rights and records
 
@@ -33,12 +33,16 @@ The browser uses the upstream repository URL, so no local derivative is needed. 
 
 ## Circuit images
 
-Current sector maps are transparent SVG surfaces derived from the credited official maps in `web/src/track-guides.json`. Labels and backgrounds are omitted from the compact view, while the full source remains linked. Other circuit outlines use the MIT-licensed `bacinger/f1-circuits` coordinates.
+The daily history refresh discovers circuit pages through the official season calendar. It stores current specifications, descriptions, source dates and remote artwork URLs in `history.json`; it never downloads the image files. Both the strategy page and race deep dive use this published information, including for new circuits.
 
-Regenerating `web/src/sector-maps.json` is a manual operation. First obtain the credited source maps and place them at the paths listed in `web/src/track-guides.json`, then run:
+The browser loads each official detailed map and extracts its three coloured road surfaces. It removes annotations and filled legend boxes, bridges small label gaps and draws the result as transparent SVG in the same pink, gold and cyan palette and viewport as the existing maps. Geometry is shared in memory between views of the same map URL. An unreadable map or missing sector produces an unavailable message and retains the full-map link; it does not substitute an invented layout. Existing guides and committed geometry remain fallbacks when current metadata is absent. Other circuit outlines use the MIT-licensed `bacinger/f1-circuits` coordinates.
+
+Remote images use the browser's normal HTTP cache according to the source server's headers. This is separate from the in-memory geometry cache; there is no offline image mirror or service worker. Updated URLs use new cache entries, while reopening an unchanged map can reuse its existing image and geometry.
+
+Regenerating the legacy fallback `web/src/sector-maps.json` remains a manual operation. First obtain the credited source maps and place them at the paths listed in `web/src/track-guides.json`, then run:
 
 ```sh
 python -m f1fantasy.circuit_maps
 ```
 
-Builds and GitHub Actions use the committed SVG geometry and remote image URLs; they do not download or regenerate these image files. A browser test checks that deployment media contains no downloaded image copies. Update the pinned URL and Commons attribution together if a venue photograph changes.
+Builds and GitHub Actions publish metadata and remote URLs, without downloading or regenerating image files. The browser processes a map when it is displayed. A browser test checks that deployment media contains no downloaded image copies. Formula 1 source links are shown beside current maps; the existing Commons and pinned-image credits remain in the footer.

@@ -3646,6 +3646,20 @@ footer b {
   stroke-width: 2px;
   stroke-linejoin: round;
 }
+.circuit-map-status {
+  display: grid;
+  place-items: center;
+  height: 170px;
+  text-align: center;
+  font-size: 12px;
+}
+.masthead nav .mobile-fantasy-nav {
+  display: none;
+}
+.circuit-guide-source {
+  display: block;
+  margin-top: 8px;
+}
 @media (max-width: 650px) {
   .market-sort {
     width: 100%;

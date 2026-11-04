@@ -6,6 +6,8 @@ import unicodedata
 
 import requests
 
+from . import circuit_info
+
 
 # Published 2026 Formula 1 circuit specifications, checked 2026-10-29.
 # Coordinates identify the circuit, not the weather model's selected grid cell.
@@ -28,17 +30,27 @@ def race_context(weekend, *, now=None):
     )
     track = next((v for k, v in TRACKS.items() if k in name), None)
     result = {"weather": {"status": "unavailable"}}
+    guide = circuit_info.lookup(weekend)
+    if guide:
+        result["circuit"] = guide
+        result["track_spec"] = {
+            **guide["spec"],
+            **{key: guide[key] for key in ("season", "source", "checked_at")},
+        }
     if track is None:
         return result
     length, laps, distance, latitude, longitude, slug = track
-    result["track_spec"] = {
-        "length_km": length,
-        "race_laps": laps,
-        "race_distance_km": distance,
-        "season": 2026,
-        "checked_at": "2026-10-29",
-        "source": f"https://www.formula1.com/en/racing/2026/{slug}/circuit",
-    }
+    result.setdefault(
+        "track_spec",
+        {
+            "length_km": length,
+            "race_laps": laps,
+            "race_distance_km": distance,
+            "season": 2026,
+            "checked_at": "2026-10-29",
+            "source": f"https://www.formula1.com/en/racing/2026/{slug}/circuit",
+        },
+    )
     start = weekend.first_session.astimezone(timezone.utc).date()
     end = (
         (weekend.last_session or weekend.first_session).astimezone(timezone.utc).date()

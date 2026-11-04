@@ -10,6 +10,7 @@ import "./accuracy.css";
 import "./predict.css";
 import "./season-tooltip.css";
 import { predictMarkup, riskPreference, riskControlMarkup } from "./predict.js";
+import { circuitMapEvent } from "./circuit-maps.js";
 import {
   CHIPS,
   PREWEEK,
@@ -219,7 +220,7 @@ function stateBanner(dataset) {
 
 function shell() {
   $("#app").innerHTML =
-    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
+    `<a class="skip-link" href="#main">Skip to content</a><header class="masthead"><div class="header-inner"><a class="brand" href="#strategy" aria-label="Pitwall home">${logo()}<strong>Pitwall</strong></a><nav aria-label="Main navigation"><a class="mobile-fantasy-nav" href="#strategy" data-nav="strategy">Fantasy</a><a href="#garage" data-nav="garage">Garage</a><a href="#insights" data-nav="insights">Race Insights</a></nav><div class="header-tools"><span id="header-cap" class="cap-tag">Loading…</span><label class="team-switch"><span class="sr-only">Active team</span><select id="team-switch"></select></label></div></div></header>
      <main id="main"><div id="state-banner" class="state-banner" role="status" hidden></div><section id="page-strategy" aria-label="Season strategy"><div id="strategy"></div></section><section id="page-garage" aria-label="Garage" hidden><div class="page-heading garage-heading"><div><h1>Garage</h1><span id="planning-status" role="status"></span></div><button type="button" id="new-team">Suggest team</button></div><div id="profile-cards" class="profile-grid" role="group" aria-label="Saved teams"></div><section id="settings" aria-label="Budget, transfers and chips"></section><div id="allocation"></div><section id="roster-board" aria-label="Starting roster"></section><section class="market" id="asset-registry"><div class="section-heading"><h2>Asset Registry</h2></div><div class="market-tools"><input id="search" type="search" aria-label="Search drivers and constructors" placeholder="Search driver or constructor…"/><div class="segments" role="group" aria-label="Asset type"><button id="all-tab" data-kind="ALL" aria-pressed="true">All</button><button id="drivers-tab" data-kind="DRIVER" aria-pressed="false">Drivers</button><button id="constructors-tab" data-kind="CONSTRUCTOR" aria-pressed="false">Constructors</button></div></div><div id="market-list" class="market-cards"></div></section></section><section id="page-insights" aria-label="Race Insights" hidden><div id="insights"></div></section></main>${footerMarkup()}`;
   const masthead = $(".masthead");
   $(".header-tools").insertAdjacentHTML(
@@ -822,6 +823,8 @@ async function loadPredict() {
     renderPredict();
   }
 }
+document.addEventListener("load", circuitMapEvent, true);
+document.addEventListener("error", circuitMapEvent, true);
 document.addEventListener(
   "error",
   (event) => {

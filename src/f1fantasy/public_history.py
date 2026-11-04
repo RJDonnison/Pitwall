@@ -34,7 +34,9 @@ def prune(document, season):
     """Keep the three-season model window without discarding all-time Predict facts."""
     first = season - 2
     removed = {}
-    for name in ("events", "scores"):
+    for name in ("events", "scores", "circuits"):
+        if name not in document:
+            continue
         rows = document[name]
         kept = {
             key: row for key, row in rows.items() if int(key.split("/")[0]) >= first

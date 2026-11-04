@@ -17,6 +17,9 @@ def history():
         document["fantasy_events"][str(year)] = f"{year}-03-01T18:00:00+00:00"
         document["fantasy"][str(year)] = [{"PlayerId": year}]
     document["fantasy"]["unused"] = []
+    document["circuits"] = {
+        f"{year}/1": {"season": year} for year in (2024, 2025, 2026)
+    }
     for name in ("stationary_stops", "predict_races", "pitstop_winners"):
         document[name] = [{"season": year} for year in (2024, 2025, 2026)]
     document["features"] = [
@@ -45,6 +48,7 @@ def test_2027_prunes_2024_everywhere_but_preserves_needed_historic_winners():
     assert removed["events"] == removed["scores"] == removed["racing"] == 1
     assert removed["fantasy"] == 2
     assert set(document["events"]) == {"2025/1", "2026/1"}
+    assert set(document["circuits"]) == {"2025/1", "2026/1"}
     assert [row["year"] for row in document["features"]] == [2025, 2026]
     for name in ("racing", "stationary_stops", "predict_races", "pitstop_winners"):
         assert {row["season"] for row in document[name]} == {2025, 2026}

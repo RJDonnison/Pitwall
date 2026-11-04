@@ -14,6 +14,7 @@ from . import (
     racing_data,
     practice_archive,
     predict_evidence,
+    circuit_info,
 )
 
 
@@ -39,6 +40,7 @@ def main(argv=None):
         features = [summaries[key] for key in sorted(summaries)]
         for year in range(args.season - 2, args.season + 1):
             public_history.schedule(year)
+        circuit_info.refresh(document, args.season, now)
         document["fantasy_events"] = {
             str(w.gameday_id): w.last_session.isoformat()
             for w in data.season_weekends(args.season)

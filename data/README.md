@@ -20,6 +20,7 @@ Run the relevant command from the repository root:
 ```sh
 python -m f1fantasy.refresh_history
 python -m f1fantasy.prune_history
+python -m f1fantasy.circuit_info
 python -m f1fantasy.fantasy_model
 python -m f1fantasy.racing_evaluation
 python -m f1fantasy.model_compare
@@ -38,11 +39,13 @@ The retained model window is the selected season and the two preceding seasons. 
 
 `python -m f1fantasy.prune_history --season 2027` applies this retention policy without downloading anything. The history updater also prunes before enrichment, so old seasons cannot be rediscovered and downloaded through the retained records. It fetches schedules only for the three retained seasons, reuses completed session and stationary-stop records, and replaces a racing record only for the matching season and round. Older inputs remain in Git history if a historical evaluation needs them.
 
-Calendar refresh replaces the selected year's round metadata and removes rounds no longer present in that source schedule, while retaining other years. New or reordered venues follow the official schedule rather than a fixed round list. Fantasy roster identities and team affiliations are read from the live feed; a new driver can use teammate and field priors before enough individual history exists. An unknown venue has no invented track history or circuit specifications.
+Calendar refresh replaces the selected year's round metadata and removes rounds no longer present in that source schedule, while retaining other years. New or reordered venues follow the official schedule rather than a fixed round list. Fantasy roster identities and team affiliations are read from the live feed; a new driver can use teammate and field priors before enough individual history exists. An unknown venue has no invented track history.
+
+The updater discovers circuit pages from the official Formula 1 season calendar and refreshes their metadata daily. The `circuits` records in `history.json` contain lap length, scheduled laps, race distance, description, lap record, first Grand Prix, remote map and photograph URLs, source and check time. Pages must match the archived season, weekend dates and venue. The standalone `circuit_info` command refreshes this display metadata without downloading sessions or image files. A failed page refresh keeps the record's original provenance; a missing or mismatched venue is not filled with guessed information. Circuit metadata follows the same three-season retention window and is not a racing-model feature.
 
 ### Season rollover
 
-Publication and history commands default to the current UTC year. Fantasy and Predict accept future seasons when their official feeds publish a matching calendar, active roster and the same validated game contracts. There is no 2026 cutoff. The existing scoring tables, chips and transfer costs are assumed unchanged; season, freshness, lock-state, option and payout validation still apply. Known circuit guides and coordinates can be reused in later seasons while retaining their original source year. Unknown venues still have no invented specifications. A changed upstream game contract or circuit layout needs a code or data update.
+Publication and history commands default to the current UTC year. Fantasy and Predict accept future seasons when their official feeds publish a matching calendar, active roster and the same validated game contracts. There is no 2026 cutoff. The existing scoring tables, chips and transfer costs are assumed unchanged; season, freshness, lock-state, option and payout validation still apply. Circuit pages and their map URLs are rediscovered each season, so new venues and published layout changes can update automatically. If current metadata is unavailable, existing guides retain their original source year. Weather still needs known circuit coordinates. A changed upstream game or page contract needs a code update.
 
 Current Fantasy prices, active roster, schedule and Statistics are fetched afresh. Recorded round prices are used only for Garage sparklines. They are not future-price predictions or a fallback for current prices. Missing price history is shown as unavailable rather than synthesized.
 

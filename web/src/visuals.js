@@ -4,6 +4,7 @@ import racePhotos from "./race-media.json" with { type: "json" };
 import trackGuides from "./track-guides.json" with { type: "json" };
 import sectorMaps from "./sector-maps.json" with { type: "json" };
 import { esc } from "./text.js";
+import { liveCircuitMarkup, sectorMarkup } from "./circuit-maps.js";
 
 export const logo = () =>
   '<svg class="pitwall-logo" viewBox="0 0 40 40" aria-hidden="true"><rect width="40" height="40" rx="6" fill="#1c1917"/><path d="m8 30 7-20h17l-3 8H18l-4 12Z" fill="#fbfbfa"/><path d="M20 22h10l-2 6H18Z" fill="#d94636"/></svg>';
@@ -207,14 +208,19 @@ export function circuitForRace(name) {
   const key = Object.keys(aliases).find((key) => normalize(name).includes(key));
   return key ? circuits.find((c) => c.id === aliases[key]) : null;
 }
-export function circuitMarkup(name) {
+export function circuitMarkup(name, guide) {
+  if (guide?.map_asset) return liveCircuitMarkup(guide, name);
   const circuit = circuitForRace(name);
   if (!circuit)
     return '<div class="circuit-missing">Circuit outline unavailable</div>';
   const map = sectorMaps[circuit.id];
   if (map) {
-    const colors = ["#e7527d", "#e5bd43", "#55b9cc"];
-    return `<div class="circuit-art sector-map" data-circuit="${circuit.id}"><svg viewBox="0 0 680 300" role="img" aria-label="${esc(circuit.name)} circuit sector map"><title>${esc(circuit.name)} · official sectors 1, 2 and 3</title>${map.sectors.map((paths, i) => `<path class="sector-surface" fill="${colors[i]}" stroke="${colors[i]}" fill-rule="evenodd" d="${paths.map((p) => p.map((v, j) => `${j ? "L" : "M"}${v.join(",")}`).join(" ") + " Z").join(" ")}"/>`).join("")}</svg><div class="sector-legend" aria-label="Circuit sectors">${colors.map((color, i) => `<span><i style="background:${color}"></i>S${i + 1}</span>`).join("")}</div><span>${esc(circuit.name)} · ${esc(circuit.location)}</span></div>`;
+    return sectorMarkup(
+      map.sectors,
+      circuit.name,
+      circuit.location,
+      circuit.id,
+    );
   }
   const coords = circuit.coordinates,
     lat = coords.reduce((sum, p) => sum + p[1], 0) / coords.length;

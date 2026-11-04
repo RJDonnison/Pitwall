@@ -220,7 +220,10 @@ body[data-page="predict"] .predict-risk {
 }
 @media (max-width: 760px) {
   .masthead nav {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .masthead nav .mobile-fantasy-nav {
+    display: flex;
   }
   .predict-page {
     gap: 16px;

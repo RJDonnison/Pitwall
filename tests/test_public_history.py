@@ -180,6 +180,7 @@ def test_updater_preserves_bundled_features_without_a_runner_cache(
         lambda _: [replacement] if cached else [],
     )
     monkeypatch.setattr(archive, "schedule", lambda _: None)
+    monkeypatch.setattr(updater.circuit_info, "refresh", lambda *args: None)
     monkeypatch.setattr(updater.data, "season_weekends", lambda _: [])
     monkeypatch.setattr(updater.predict_model, "_history", lambda *a: [])
     enriched = []

@@ -35,7 +35,7 @@ jobs:
       - name: Prune unused public data without downloads
         run: python -m f1fantasy.prune_history
       - name: Verify the committed-data publication path
-        run: python -m pytest tests/test_public_history.py tests/test_prune_history.py tests/test_forecast_archive.py tests/test_web_data.py
+        run: python -m pytest tests/test_public_history.py tests/test_prune_history.py tests/test_forecast_archive.py tests/test_circuit_info.py tests/test_web_data.py
       - name: Commit updated public data
         run: |
           git add data/history.json data/forecast-archive.json
