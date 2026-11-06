@@ -163,7 +163,7 @@ def test_every_snapshot_refetches_prices_and_rejects_an_empty_update(monkeypatch
         2026, 1, "Opening", 1, datetime(2026, 11, 1, tzinfo=timezone.utc), False, False
     )
     monkeypatch.setattr(data, "season_weekends", lambda _: [next_race])
-    monkeypatch.setattr(data, "load_statistics", lambda *_: None)
+    monkeypatch.setattr(data, "load_statistics", lambda *_, **__: None)
     rows = [
         {
             "IsActive": "1",
@@ -317,7 +317,7 @@ def test_old_prices_flag_prefers_published_upcoming_feed(monkeypatch):
         False,
     )
     monkeypatch.setattr(data, "season_weekends", lambda _: [previous, upcoming])
-    monkeypatch.setattr(data, "load_statistics", lambda *_: None)
+    monkeypatch.setattr(data, "load_statistics", lambda *_, **__: None)
     calls = []
 
     def roster(week, *, require_recent=True):
@@ -411,4 +411,84 @@ def test_statistics_verifies_price_and_season_points(monkeypatch):
     with pytest.raises(data.DataError, match="points disagree"):
         data.load_statistics(
             2026, (data.Asset("a", "A", "DRIVER", "1", 102, "AAA", 119),)
+        )
+
+
+def _statistics_feed(*driver_ids):
+    return {
+        "season": "2026",
+        "driver": [
+            {
+                "config": {"key": "fPoints"},
+                "participants": [
+                    {
+                        "playerid": id_,
+                        "playername": id_.upper(),
+                        "teamname": "Team",
+                        "curvalue": 10.2,
+                        "statvalue": 120,
+                    }
+                    for id_ in driver_ids
+                ],
+            }
+        ],
+        "constructor": [
+            {
+                "config": {"key": "fPoints"},
+                "participants": [
+                    {
+                        "playerid": "c",
+                        "playername": None,
+                        "teamname": "Team",
+                        "curvalue": 15.1,
+                        "statvalue": 250,
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def test_statistics_excuses_unlisted_new_driver_only_when_allowed(monkeypatch):
+    monkeypatch.setattr(data, "_get_json", lambda _: _statistics_feed("a"))
+    rookie = data.Asset("r", "Rookie", "DRIVER", "1", 60, "RRR", 0)
+    assets = (data.Asset("a", "A", "DRIVER", "1", 102, "AAA", 120), rookie)
+    # Default behaviour is unchanged: any missing active driver fails closed.
+    with pytest.raises(data.DataError, match="missing active driver Rookie"):
+        data.load_statistics(2026, assets)
+    with pytest.warns(RuntimeWarning, match="Rookie"):
+        result = data.load_statistics(2026, assets, allow_unlisted_new_drivers=True)
+    assert {entry.id for entry in result.entries} == {"a", "c"}
+
+
+def test_statistics_unlisted_driver_with_points_still_fails(monkeypatch):
+    monkeypatch.setattr(data, "_get_json", lambda _: _statistics_feed("a"))
+    for points in (1, 25.0):
+        veteran = data.Asset("v", "Veteran", "DRIVER", "1", 60, "VVV", points)
+        with pytest.raises(data.DataError, match="missing active driver Veteran"):
+            data.load_statistics(
+                2026, (veteran,), allow_unlisted_new_drivers=True
+            )
+
+
+def test_statistics_never_excuses_constructors_or_many_drivers(monkeypatch):
+    monkeypatch.setattr(data, "_get_json", lambda _: _statistics_feed("a"))
+    missing_team = data.Asset("x", "Ghost Team", "CONSTRUCTOR", "9", 100, "", 0)
+    with pytest.raises(data.DataError, match="missing active constructor"):
+        data.load_statistics(2026, (missing_team,), allow_unlisted_new_drivers=True)
+    rookies = tuple(
+        data.Asset(f"n{i}", f"New {i}", "DRIVER", "1", 60, "NNN", 0)
+        for i in range(data.MAX_UNLISTED_NEW_DRIVERS + 1)
+    )
+    with pytest.raises(data.DataError, match="missing active driver"):
+        data.load_statistics(2026, rookies, allow_unlisted_new_drivers=True)
+
+
+def test_statistics_still_checks_price_of_listed_driver_when_allowed(monkeypatch):
+    monkeypatch.setattr(data, "_get_json", lambda _: _statistics_feed("a"))
+    with pytest.raises(data.DataError, match="price disagrees"):
+        data.load_statistics(
+            2026,
+            (data.Asset("a", "A", "DRIVER", "1", 103, "AAA", 120),),
+            allow_unlisted_new_drivers=True,
         )

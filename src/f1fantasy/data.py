@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
@@ -224,10 +225,25 @@ def load_assets(
     return tuple(assets), published
 
 
+# A mid-season driver change can reach the race-week roster before the Statistics
+# page lists the new driver. Never excuse more than a couple of drivers.
+MAX_UNLISTED_NEW_DRIVERS = 2
+
+
 def load_statistics(
-    season: int, assets: tuple[Asset, ...] | None = None
+    season: int,
+    assets: tuple[Asset, ...] | None = None,
+    *,
+    allow_unlisted_new_drivers: bool = False,
 ) -> StatisticsSnapshot:
-    """Cross-check the same official rankings shown on the Fantasy Statistics page."""
+    """Cross-check the same official rankings shown on the Fantasy Statistics page.
+
+    With ``allow_unlisted_new_drivers``, an active driver who is absent from the
+    Statistics page is excused only if the race-week feed shows no season points
+    for them yet (a debut or replacement), and at most
+    ``MAX_UNLISTED_NEW_DRIVERS`` may be excused. Every other mismatch still fails.
+    Callers that write to an account must leave this off.
+    """
     feed = _get_json("v2/statistics/driverconstructors_4.json")
     try:
         if int(feed["season"]) != season:
@@ -261,8 +277,17 @@ def load_statistics(
             raise DataError("Statistics contains duplicate Fantasy IDs")
         if assets is not None:
             known = {entry.id: entry for entry in entries}
+            unlisted = []
             for asset in assets:
                 row = known.get(asset.id)
+                if (
+                    row is None
+                    and allow_unlisted_new_drivers
+                    and asset.kind == "DRIVER"
+                    and not asset.season_points
+                ):
+                    unlisted.append(asset.name)
+                    continue
                 if row is None or row.kind != asset.kind:
                     raise DataError(
                         f"Statistics missing active {asset.kind.lower()} {asset.name}"
@@ -278,6 +303,17 @@ def load_statistics(
                     raise DataError(
                         f"Statistics points disagree with race-week feed for {asset.name}"
                     )
+            if len(unlisted) > MAX_UNLISTED_NEW_DRIVERS:
+                raise DataError(
+                    f"Statistics missing active driver {', '.join(unlisted)}"
+                )
+            if unlisted:
+                warnings.warn(
+                    "Statistics page does not yet list new driver(s) with no season "
+                    f"points: {', '.join(unlisted)}; price not cross-checked",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
         return StatisticsSnapshot(season, tuple(entries), datetime.now(timezone.utc))
     except (KeyError, TypeError, ValueError, StopIteration, InvalidOperation) as exc:
         if isinstance(exc, DataError):
@@ -365,7 +401,11 @@ def snapshot(
                     raise DataError(
                         "Upcoming Fantasy roster differs in size from the last verified round"
                     )
-    stats = load_statistics(season, assets) if price_weekend == first else None
+    stats = (
+        load_statistics(season, assets, allow_unlisted_new_drivers=True)
+        if price_weekend == first
+        else None
+    )
     return Snapshot(
         first, assets, datetime.now(timezone.utc), published, price_weekend, stats
     ), weekends
