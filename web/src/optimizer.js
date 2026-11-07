@@ -17,6 +17,22 @@ const fail = (message) => {
 
 export const CARRIED_MODES = ["carried_forward", "stale", "cached"];
 
+// The weekend the publisher says is under way (practice, or paused from
+// qualifying) stays the first round until its last session has finished, even
+// though it has started and the official game has locked it. Only that one round
+// is excused: it must be the published weekend and the race must not be over.
+export function isRoundUnderway(data, round, now = Date.now()) {
+  const state = data?.publication_state;
+  const end = Date.parse(round?.last_session_utc);
+  return (
+    ["practice", "paused"].includes(state?.state) &&
+    Number.isInteger(state.round) &&
+    state.round === round?.round &&
+    Number.isFinite(end) &&
+    end > now
+  );
+}
+
 export function validateDataset(data, now = Date.now()) {
   if (data?.schema_version !== 1 || data.status !== "ready")
     fail(
@@ -56,14 +72,14 @@ export function validateDataset(data, now = Date.now()) {
   if (!Array.isArray(data.rounds) || !data.rounds.length)
     fail("There are no published upcoming rounds.");
   let previous = -Infinity;
-  for (const round of data.rounds) {
+  for (const [t, round] of data.rounds.entries()) {
     const start = Date.parse(round.first_session_utc);
+    const underway = t === 0 && isRoundUnderway(data, round, now);
     if (
       !Number.isFinite(start) ||
-      start <= now ||
+      (!underway && (start <= now || round.locked)) ||
       start <= previous ||
-      round.season !== data.season ||
-      round.locked
+      round.season !== data.season
     )
       fail(
         "The published round is started, locked or inconsistent. Refresh the forecasts.",

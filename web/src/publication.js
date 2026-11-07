@@ -1,12 +1,20 @@
-import { CARRIED_MODES, validateDataset } from "./optimizer.js";
+import {
+  CARRIED_MODES,
+  isRoundUnderway,
+  validateDataset,
+} from "./optimizer.js";
 
 const SIX_HOURS = 6 * 3600000;
 
 // Rounds that have started or locked cannot be planned. A carried-forward
 // forecast was published before they did, so drop them here instead of failing.
+// The weekend still in progress is the exception: it stays first until its race
+// has finished, rather than the page jumping ahead to the next round.
 function openRounds(data, now) {
   const rounds = (data.rounds || []).filter(
-    (r) => Date.parse(r.first_session_utc) > now && !r.locked,
+    (r) =>
+      (Date.parse(r.first_session_utc) > now && !r.locked) ||
+      isRoundUnderway(data, r, now),
   );
   return { ...data, rounds };
 }
