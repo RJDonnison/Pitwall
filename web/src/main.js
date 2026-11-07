@@ -18,6 +18,7 @@ import {
   validateTeam,
   validateDataset,
   CARRIED_MODES,
+  isRoundUnderway,
 } from "./optimizer.js";
 import { fetchDataset, verifyLive } from "./data.js";
 import { suggestionRequest } from "./team-suggestion.js";
@@ -653,9 +654,13 @@ async function plan({ fill = false } = {}) {
       acceptDataset(fresh);
       if (!fill) validateTeam(fresh, team());
     }
-    const check = CARRIED_MODES.includes(fresh.publication_state?.mode)
-      ? { verified: false, message: "Showing the last published forecasts." }
-      : await verifyLive(fresh);
+    // The official game is locked while the weekend is under way, so live
+    // verification cannot pass; the published snapshot is what is shown.
+    const check =
+      CARRIED_MODES.includes(fresh.publication_state?.mode) ||
+      isRoundUnderway(fresh, fresh.rounds[0])
+        ? { verified: false, message: "Showing the last published forecasts." }
+        : await verifyLive(fresh);
     if (!busy || profile !== active || request !== revision) return;
     verificationText = check.verified
       ? "Live prices verified"
