@@ -3,7 +3,7 @@ import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "./style.css";
-import { bannerText } from "./publication.js";
+import { bannerText, planningPaused } from "./publication.js";
 import "./insight-visuals.css";
 import "./participant-browser.css";
 import "./accuracy.css";
@@ -168,7 +168,8 @@ function invalidate() {
 }
 function queuePlan() {
   clearTimeout(planningTimer);
-  if (!dataset || team().selected.length !== 7) return;
+  if (!dataset || planningPaused(dataset) || team().selected.length !== 7)
+    return;
   planningTimer = setTimeout(plan, 700);
 }
 function switchTeam(i) {
@@ -286,7 +287,7 @@ function shell() {
   route({ scroll: true });
 }
 function render() {
-  $("#new-team").disabled = busy || !dataset;
+  $("#new-team").disabled = busy || !dataset || planningPaused(dataset);
   $("#new-team").title =
     "Replace this slot's roster with the best next-round lineup within its budget, including the 2× Boost. Available chips are kept for season planning.";
   const focused = document.activeElement?.id;
@@ -321,15 +322,18 @@ function render() {
   $("#publication-status").textContent =
     `${verificationText} · ${new Date(dataset.price_checked_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} UTC`;
   $("#model-accuracy").textContent = accuracyText(dataset);
-  $("#publication-window").textContent =
-    `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
-  $("#planning-status").innerHTML = busy
-    ? '<span class="loading-spinner small" role="status" aria-label="Updating"></span>'
-    : result || (t.selected.length === 7 && !error)
-      ? ""
-      : error
-        ? "Check team settings"
-        : "Choose five drivers and two constructors";
+  $("#publication-window").textContent = planningPaused(dataset)
+    ? `Published ${new Date(dataset.generated_at).toLocaleString()} · new team plans resume after the race.`
+    : `Published ${new Date(dataset.generated_at).toLocaleString()} · valid for new plans until ${new Date(Date.parse(dataset.generated_at) + 6 * 60 * 60 * 1000).toLocaleString()}.`;
+  $("#planning-status").innerHTML = planningPaused(dataset)
+    ? "Team planning paused until the weekend ends"
+    : busy
+      ? '<span class="loading-spinner small" role="status" aria-label="Updating"></span>'
+      : result || (t.selected.length === 7 && !error)
+        ? ""
+        : error
+          ? "Check team settings"
+          : "Choose five drivers and two constructors";
   $("#profile-cards").innerHTML = profilesMarkup(dataset, profiles, active);
   document
     .querySelectorAll("[data-team]")
@@ -631,7 +635,13 @@ async function load() {
   render();
 }
 async function plan({ fill = false } = {}) {
-  if (busy || !dataset || (!fill && team().selected.length !== 7)) return;
+  if (
+    busy ||
+    !dataset ||
+    planningPaused(dataset) ||
+    (!fill && team().selected.length !== 7)
+  )
+    return;
   try {
     if (fill) suggestionRequest(dataset, team());
     else validateTeam(dataset, team());

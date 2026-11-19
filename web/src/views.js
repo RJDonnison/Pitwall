@@ -1,4 +1,5 @@
 import { total } from "./optimizer.js";
+import { planningPaused } from "./publication.js";
 import { seasonRange } from "./season-range.js";
 import { esc } from "./text.js";
 import {
@@ -285,6 +286,8 @@ export function strategyMarkup(
         entries: r.entries.map((e) => ({ ...e, total: e.points })),
       })),
     };
+  if (!result && planningPaused(dataset))
+    return `${heroMarkup(dataset, team, result)}<section class="panel welcome" role="status"><h2>Team planning paused</h2><p>This weekend’s forecasts stay visible until the race ends. New team plans resume when the next round is published.</p></section>`;
   if (!result)
     return `${heroMarkup(dataset, team, result)}${busy || (!error && team.selected.length === 7) ? `<section class="panel loading-panel" role="status" aria-label="Updating strategy"><span class="loading-spinner" aria-hidden="true"></span></section>` : `<section class="panel welcome" role="status"><h2>${error ? "Strategy unavailable" : "Choose your starting seven"}</h2><p>${error ? esc(error) : "Five drivers and two constructors in the Garage."}</p></section>`}`;
   const first = result.rounds[0],

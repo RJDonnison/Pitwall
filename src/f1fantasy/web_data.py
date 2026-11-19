@@ -348,14 +348,27 @@ def produce(season, *, now, previous, history, archive_path, telemetry=True):
     phase = weekend_phase.Phase(weekend_phase.OPEN, None)
     try:
         phase = weekend_phase.phase(data.season_weekends(season), now)
-    except (data.DataError, OSError, ValueError):
-        pass  # schedule unavailable: try a normal refresh, fall back below
-    if phase.state == weekend_phase.PAUSED and previous:
-        return carry_forward(
-            previous,
-            phase,
-            "Predictions are paused from qualifying until the race finishes.",
-        )
+    except (data.DataError, OSError, ValueError) as exc:
+        reason = f"Cannot verify the prediction refresh window: {exc}"
+        if previous:
+            return carry_forward(previous, phase, reason)
+        return {
+            "schema_version": 1,
+            "status": "unavailable",
+            "generated_at": now.isoformat(),
+            "message": reason,
+        }
+    if phase.state == weekend_phase.PAUSED:
+        reason = "Predictions are paused from qualifying until the race finishes."
+        if previous:
+            return carry_forward(previous, phase, reason)
+        return {
+            "schema_version": 1,
+            "status": "unavailable",
+            "generated_at": now.isoformat(),
+            "message": reason,
+            "publication_state": phase.describe(),
+        }
     try:
         with public_history.repository(history):
             archive = forecast_archive.load(archive_path)

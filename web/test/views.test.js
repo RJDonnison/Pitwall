@@ -11,6 +11,16 @@ import {
 } from "../src/views.js";
 import { footerMarkup } from "../src/visuals.js";
 
+test("an underway weekend shows a pause instead of an endless planning spinner", () => {
+  const { data, team } = fixture();
+  data.rounds[0].first_session_utc = new Date(
+    Date.now() - 3600000,
+  ).toISOString();
+  const html = strategyMarkup(data, team, null, false, 0);
+  assert.match(html, /Team planning paused/);
+  assert.doesNotMatch(html, /loading-spinner|Choose your starting seven/);
+});
+
 function fixture() {
   const assets = Array.from({ length: 7 }, (_, i) => ({
     id: String(i),

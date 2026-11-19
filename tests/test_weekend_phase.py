@@ -20,7 +20,9 @@ def weekend(sprint=False):
         ("Qualifying", 28, 29),
         ("Race", 48, 50),
     ]
-    sessions = tuple((n, T0 + timedelta(hours=a), T0 + timedelta(hours=b)) for n, a, b in names)
+    sessions = tuple(
+        (n, T0 + timedelta(hours=a), T0 + timedelta(hours=b)) for n, a, b in names
+    )
     return Weekend(2026, 20, "Mexico", 20, T0, sprint, True, sessions[-1][2], sessions)
 
 
@@ -69,7 +71,9 @@ def laps(pace_by_driver, count=8):
                     "Driver": driver,
                     "LapNumber": lap,
                     "Compound": "SOFT",
-                    "LapTime": pd.Timedelta(seconds=float(90 * (1 + gap / 100) + (lap % 3) * 0.05)),
+                    "LapTime": pd.Timedelta(
+                        seconds=float(90 * (1 + gap / 100) + (lap % 3) * 0.05)
+                    ),
                     "IsAccurate": True,
                     "PitInTime": pd.NaT,
                     "PitOutTime": pd.NaT,
@@ -94,7 +98,9 @@ def test_session_pace_orders_drivers_by_clean_fast_laps():
 
 
 def test_combine_is_centred_and_later_sessions_weigh_more():
-    combined = practice.combine({"FP1": {"A": 1.0, "B": 0.0}, "FP3": {"A": 0.0, "B": 1.0}})
+    combined = practice.combine(
+        {"FP1": {"A": 1.0, "B": 0.0}, "FP3": {"A": 0.0, "B": 1.0}}
+    )
     assert abs(sum(combined.values())) < 1e-12
     assert combined["A"] < combined["B"]  # FP3 says A is faster and counts triple
 
@@ -106,7 +112,9 @@ def test_load_uses_only_finished_practice_and_reports_failures():
         seen.append(key)
         return Session(PACE)
 
-    pace = practice.load(2026, 20, ("Practice 1", "Practice 2", "Qualifying"), loader=loader)
+    pace = practice.load(
+        2026, 20, ("Practice 1", "Practice 2", "Qualifying"), loader=loader
+    )
     assert seen == ["FP1", "FP2"] and set(pace) == set(PACE)
     with pytest.raises(DataError):
         practice.load(2026, 20, ("Practice 1",), loader=lambda *_: 1 / 0)
@@ -152,13 +160,19 @@ def test_load_previous_requires_a_ready_forecast(tmp_path):
     assert web_data.load_previous(path) == GOOD
 
 
-def test_paused_weekend_publishes_the_previous_forecast_with_its_true_age(monkeypatch, tmp_path):
+def test_paused_weekend_publishes_the_previous_forecast_with_its_true_age(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr(web_data.data, "season_weekends", lambda season: [weekend()])
     monkeypatch.setattr(
         web_data, "build", lambda *a, **k: pytest.fail("must not rebuild while paused")
     )
     out = web_data.produce(
-        2026, now=T0 + timedelta(hours=30), previous=GOOD, history=None, archive_path=tmp_path / "a.json"
+        2026,
+        now=T0 + timedelta(hours=30),
+        previous=GOOD,
+        history=None,
+        archive_path=tmp_path / "a.json",
     )
     assert out["status"] == "ready" and out["generated_at"] == GOOD["generated_at"]
     state = out["publication_state"]
@@ -166,7 +180,9 @@ def test_paused_weekend_publishes_the_previous_forecast_with_its_true_age(monkey
     assert state["last_updated"] == GOOD["generated_at"]
 
 
-def test_failed_refresh_keeps_the_last_forecast_and_only_unavailable_without_one(monkeypatch, tmp_path):
+def test_failed_refresh_keeps_the_last_forecast_and_only_unavailable_without_one(
+    monkeypatch, tmp_path
+):
     monkeypatch.setattr(web_data.data, "season_weekends", lambda season: [weekend()])
     monkeypatch.setattr(web_data.public_history, "repository", lambda *_: _Null())
     monkeypatch.setattr(web_data.forecast_archive, "load", lambda *_: {})
@@ -176,11 +192,59 @@ def test_failed_refresh_keeps_the_last_forecast_and_only_unavailable_without_one
 
     monkeypatch.setattr(web_data, "build", broken)
     now = T0 + timedelta(hours=60)  # after the race: normal refresh path
-    kept = web_data.produce(2026, now=now, previous=GOOD, history=None, archive_path=tmp_path / "a")
+    kept = web_data.produce(
+        2026, now=now, previous=GOOD, history=None, archive_path=tmp_path / "a"
+    )
     assert kept["status"] == "ready"
     assert "roster not published" in kept["publication_state"]["reason"]
-    empty = web_data.produce(2026, now=now, previous=None, history=None, archive_path=tmp_path / "a")
+    empty = web_data.produce(
+        2026, now=now, previous=None, history=None, archive_path=tmp_path / "a"
+    )
     assert empty["status"] == "unavailable"
+
+
+def test_paused_weekend_without_previous_forecast_does_not_build_next_round(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(web_data.data, "season_weekends", lambda _: [weekend()])
+    monkeypatch.setattr(
+        web_data, "build", lambda *a, **k: pytest.fail("must stay paused")
+    )
+    out = web_data.produce(
+        2026,
+        now=T0 + timedelta(hours=30),
+        previous=None,
+        history=None,
+        archive_path=tmp_path / "archive.json",
+    )
+    assert out["status"] == "unavailable"
+    assert out["publication_state"]["state"] == "paused"
+    assert "until the race finishes" in out["message"]
+    assert not (tmp_path / "archive.json").exists()
+
+
+@pytest.mark.parametrize("previous", [GOOD, None])
+def test_schedule_failure_cannot_bypass_the_pause(monkeypatch, tmp_path, previous):
+    def broken_schedule(_):
+        raise DataError("schedule offline")
+
+    monkeypatch.setattr(web_data.data, "season_weekends", broken_schedule)
+    monkeypatch.setattr(
+        web_data, "build", lambda *a, **k: pytest.fail("window is unknown")
+    )
+    out = web_data.produce(
+        2026,
+        now=T0 + timedelta(hours=30),
+        previous=previous,
+        history=None,
+        archive_path=tmp_path / "archive.json",
+    )
+    if previous:
+        assert out["generated_at"] == GOOD["generated_at"]
+        assert "schedule offline" in out["publication_state"]["reason"]
+    else:
+        assert out["status"] == "unavailable"
+        assert "schedule offline" in out["message"]
 
 
 class _Null:
@@ -200,7 +264,9 @@ class NoLapTiming:
 
     @property
     def laps(self):
-        raise DataNotLoadedError("The data you are trying to access has not been loaded yet")
+        raise DataNotLoadedError(
+            "The data you are trying to access has not been loaded yet"
+        )
 
 
 def test_session_without_lap_timing_is_treated_as_no_laps_not_a_crash():
@@ -225,24 +291,36 @@ def test_estimate_assets_passes_practice_through_the_joint_model_wrapper(monkeyp
     from f1fantasy.projections import Estimate
 
     assets = tuple(
-        Asset(str(i), f"D{i}", "DRIVER", str(i // 2), 50, "ABCDEFGH"[i]) for i in range(8)
+        Asset(str(i), f"D{i}", "DRIVER", str(i // 2), 50, "ABCDEFGH"[i])
+        for i in range(8)
     ) + tuple(Asset(f"c{i}", f"T{i}", "CONSTRUCTOR", str(i), 50) for i in range(4))
-    base = {(0, a.id): Estimate(10 - int(a.id) if a.kind == "DRIVER" else 5, 0, 20) for a in assets}
+    base = {
+        (0, a.id): Estimate(10 - int(a.id) if a.kind == "DRIVER" else 5, 0, 20)
+        for a in assets
+    }
     monkeypatch.setattr(projections, "_estimate_legacy", lambda *a, **k: dict(base))
     flipped = {c: -g for c, g in PACE.items()}
     for joint in (False, True):
         if joint:
             import f1fantasy.fantasy_model as fm
 
-            monkeypatch.setattr(fm, "forecast", lambda assets, weekends, baseline, **k: dict(baseline))
+            monkeypatch.setattr(
+                fm, "forecast", lambda assets, weekends, baseline, **k: dict(baseline)
+            )
         out = projections.estimate_assets(
             assets, [None], use_joint_model=joint, practice=flipped
         )
-        assert out[0, "7"].qualifying > base[0, "7"].qualifying  # slowest-by-model now helped
+        assert (
+            out[0, "7"].qualifying > base[0, "7"].qualifying
+        )  # slowest-by-model now helped
         assert out[0, "0"].qualifying < base[0, "0"].qualifying
         # constructor shifts by its drivers' combined change
-        shift = sum(out[0, str(i)].qualifying - base[0, str(i)].qualifying for i in (0, 1))
-        assert out[0, "c0"].qualifying == pytest.approx(base[0, "c0"].qualifying + shift)
+        shift = sum(
+            out[0, str(i)].qualifying - base[0, str(i)].qualifying for i in (0, 1)
+        )
+        assert out[0, "c0"].qualifying == pytest.approx(
+            base[0, "c0"].qualifying + shift
+        )
         assert out[0, "0"].sprint == base[0, "0"].sprint
     untouched = projections.estimate_assets(assets, [None], use_joint_model=False)
     assert untouched == base

@@ -6,15 +6,15 @@ import {
 
 const SIX_HOURS = 6 * 3600000;
 
-// Rounds that have started or locked cannot be planned. A carried-forward
-// forecast was published before they did, so drop them here instead of failing.
-// The weekend still in progress is the exception: it stays first until its race
-// has finished, rather than the page jumping ahead to the next round.
+// Keep the current weekend visible until its final session ends. Planning has
+// its own stricter validation: displaying a forecast does not reopen the game.
 function openRounds(data, now) {
   const rounds = (data.rounds || []).filter(
     (r) =>
-      (Date.parse(r.first_session_utc) > now && !r.locked) ||
-      isRoundUnderway(data, r, now),
+      isRoundUnderway(data, r, now) ||
+      (Date.parse(r.first_session_utc) <= now &&
+        !Number.isFinite(Date.parse(r.last_session_utc))) ||
+      (Date.parse(r.first_session_utc) > now && !r.locked),
   );
   return { ...data, rounds };
 }
@@ -39,7 +39,14 @@ export function prepare(json, now = Date.now()) {
     };
   if (CARRIED_MODES.includes(data?.publication_state?.mode))
     data = openRounds(data, now);
-  return validateDataset(data, now);
+  return validateDataset(data, now, { display: true });
+}
+
+export function planningPaused(dataset, now = Date.now()) {
+  const round = dataset?.rounds?.[0];
+  return Boolean(
+    round && (round.locked || Date.parse(round.first_session_utc) <= now),
+  );
 }
 
 const stamp = (value) =>
@@ -59,8 +66,10 @@ export function bannerText(dataset) {
   const state = dataset.publication_state;
   if (!state) return "";
   const updated = `Last updated ${stamp(dataset.generated_at)}.`;
-  if (state.state === "paused")
+  if (state.state === "paused" && planningPaused(dataset))
     return `Predictions are paused for ${state.weekend || "this weekend"} from qualifying and resume after the race. ${updated}`;
+  if (planningPaused(dataset))
+    return `Showing forecasts for ${dataset.rounds[0].name}. New team plans resume after the race. ${updated}`;
   if (state.mode === "carried_forward")
     return `Showing the last published forecasts while the next round's data is not available yet. ${updated}`;
   if (state.mode === "stale" || state.mode === "cached")

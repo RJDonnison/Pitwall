@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepare, bannerText } from "../src/publication.js";
+import { prepare, bannerText, planningPaused } from "../src/publication.js";
+import { validateDataset } from "../src/optimizer.js";
 
 const HOUR = 3600000;
 function forecast({ generatedAgo = 0, rounds, state } = {}) {
@@ -45,14 +46,16 @@ function forecast({ generatedAgo = 0, rounds, state } = {}) {
 
 const rounds = (data) => data.rounds.map((r) => r.round);
 
-test("a started round that is not the weekend in progress is dropped instead of failing", () => {
+test("a paused forecast keeps the current weekend even without phase round metadata", () => {
   const data = prepare(
     forecast({
       generatedAgo: 30 * HOUR,
       state: { mode: "carried_forward", state: "paused", weekend: "Mexico" },
     }),
   );
-  assert.deepEqual(rounds(data), [2, 3]);
+  assert.deepEqual(rounds(data), [1, 2, 3]);
+  assert.equal(planningPaused(data), true);
+  assert.throws(() => validateDataset(data), /started, locked or inconsistent/);
 });
 
 test("a paused weekend stays the first round until its race has finished", () => {
@@ -87,7 +90,7 @@ test("the paused weekend is dropped once its last session has finished", () => {
   assert.deepEqual(rounds(data), [2, 3]);
 });
 
-test("only the round the publisher names is kept, not any started round", () => {
+test("calendar boundaries retain the current weekend when phase metadata names the next round", () => {
   const data = prepare(
     forecast({
       generatedAgo: 30 * HOUR,
@@ -99,7 +102,7 @@ test("only the round the publisher names is kept, not any started round", () => 
       },
     }),
   );
-  assert.deepEqual(rounds(data), [2, 3]);
+  assert.deepEqual(rounds(data), [1, 2, 3]);
 });
 
 test("a cached or stale copy keeps the weekend in progress too", () => {
@@ -154,18 +157,54 @@ test("a live forecast is rejected if the weekend in progress has already finishe
   );
 });
 
+for (const mode of ["carried_forward", "cached", "stale"]) {
+  test(`${mode} forecasts roll forward only after the weekend ends`, () => {
+    const source = forecast({
+      generatedAgo: 30 * HOUR,
+      state: { mode, state: "paused" },
+    });
+    source.rounds[0].locked = true;
+    const end = Date.parse(source.rounds[0].last_session_utc);
+    assert.equal(prepare(source, end).rounds[0].round, 1);
+    const next = prepare(source, end + 1);
+    assert.equal(next.rounds[0].round, 2);
+    assert.equal(planningPaused(next, end + 1), false);
+    assert.doesNotMatch(bannerText(next), /Predictions are paused/);
+    validateDataset(next, end + 1);
+  });
+}
+
+test("practice forecasts are visible while the current round is locked", () => {
+  const source = forecast({ state: { mode: "live", state: "practice" } });
+  source.rounds[0].locked = true;
+  const data = prepare(source);
+  assert.equal(data.rounds[0].round, 1);
+  assert.equal(planningPaused(data), true);
+  assert.match(bannerText(data), /New team plans resume after the race/);
+  assert.throws(() => validateDataset(data), /started, locked or inconsistent/);
+});
+
+test("the final weekend remains visible until its race ends", () => {
+  const source = forecast({
+    rounds: [-1],
+    state: { mode: "carried_forward", state: "paused" },
+  });
+  assert.equal(prepare(source).rounds.length, 1);
+});
+
 test("a live forecast older than six hours is shown as stale, not rejected", () => {
   const data = prepare(forecast({ generatedAgo: 9 * HOUR, rounds: [2, 9] }));
   assert.equal(data.publication_state.mode, "stale");
   assert.equal(data.rounds.length, 2);
 });
 
-test("a fresh live forecast keeps strict validation of started rounds", () => {
-  assert.throws(
-    () => prepare(forecast({ state: { mode: "live" } })),
-    /started, locked or inconsistent/,
-  );
-});
+for (const mode of ["live", "carried_forward"]) {
+  test(`${mode} display rejects started rounds without a verifiable end`, () => {
+    const source = forecast({ state: { mode } });
+    delete source.rounds[0].last_session_utc;
+    assert.throws(() => prepare(source), /started, locked or inconsistent/);
+  });
+}
 
 test("an unavailable publication is still an error for the caller to handle", () => {
   assert.throws(
@@ -179,6 +218,7 @@ test("banner text names the state and the real last-updated time", () => {
   const base = forecast({ rounds: [3] });
   const paused = {
     ...base,
+    rounds: forecast({ rounds: [-1] }).rounds,
     publication_state: {
       mode: "carried_forward",
       state: "paused",

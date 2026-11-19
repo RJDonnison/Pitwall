@@ -17,23 +17,18 @@ const fail = (message) => {
 
 export const CARRIED_MODES = ["carried_forward", "stale", "cached"];
 
-// The weekend the publisher says is under way (practice, or paused from
-// qualifying) stays the first round until its last session has finished, even
-// though it has started and the official game has locked it. Only that one round
-// is excused: it must be the published weekend and the race must not be over.
+// Calendar boundaries also work for cached forecasts with older phase metadata.
 export function isRoundUnderway(data, round, now = Date.now()) {
-  const state = data?.publication_state;
+  const start = Date.parse(round?.first_session_utc);
   const end = Date.parse(round?.last_session_utc);
-  return (
-    ["practice", "paused"].includes(state?.state) &&
-    Number.isInteger(state.round) &&
-    state.round === round?.round &&
-    Number.isFinite(end) &&
-    end > now
-  );
+  return start <= now && Number.isFinite(end) && end >= now;
 }
 
-export function validateDataset(data, now = Date.now()) {
+export function validateDataset(
+  data,
+  now = Date.now(),
+  { display = false } = {},
+) {
   if (data?.schema_version !== 1 || data.status !== "ready")
     fail(
       data?.message ||
@@ -74,7 +69,7 @@ export function validateDataset(data, now = Date.now()) {
   let previous = -Infinity;
   for (const [t, round] of data.rounds.entries()) {
     const start = Date.parse(round.first_session_utc);
-    const underway = t === 0 && isRoundUnderway(data, round, now);
+    const underway = display && t === 0 && isRoundUnderway(data, round, now);
     if (
       !Number.isFinite(start) ||
       (!underway && (start <= now || round.locked)) ||

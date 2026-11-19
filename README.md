@@ -20,6 +20,8 @@ The browser stores up to three teams locally. It can suggest a next-round team, 
 - **Validated before adoption:** a model is used only if it beats chronological baselines
 - **Wether data** is included in the racing model
 
+Forecasts update through practice, pause from qualifying until the scheduled race end, and keep the current weekend visible throughout. New team plans resume after the weekend ends and the next round is published.
+
 ### Race Insights
 
 - **Placement distributions** per driver and team, plus race and fastest-stop probabilities
