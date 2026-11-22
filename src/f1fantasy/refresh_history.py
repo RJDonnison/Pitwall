@@ -18,6 +18,31 @@ from . import (
 )
 
 
+def check_live_inputs(season, weekends, now):
+    """Exercise the live forecast inputs without making history depend on the game.
+
+    This is a check on the upcoming-venue, session and chip inputs, not a data
+    source, so the Fantasy game being closed must not discard a refresh whose
+    historical work is already done. From qualifying until the race finishes, and
+    again until the game publishes the next round's roster, ``data.snapshot``
+    rightly refuses to build a forecast and the Pages workflow keeps the last
+    published one. That is the normal state of every race weekend. With no upcoming
+    weekend left in the season there is nothing to exercise. Any other
+    ``DataError`` is a real fault and still fails the refresh.
+    """
+    upcoming = [w for w in weekends if w.first_session > now]
+    if not upcoming:
+        return {"next_gameday": None, "live_inputs": "season_complete"}
+    try:
+        result = web_data.build(season)
+    except data.RosterNotPublished:
+        return {
+            "next_gameday": upcoming[0].gameday_id,
+            "live_inputs": "roster_not_published",
+        }
+    return {"next_gameday": result["price_gameday_id"], "live_inputs": "verified"}
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--season", type=int, default=datetime.now(timezone.utc).year)
@@ -41,9 +66,10 @@ def main(argv=None):
         for year in range(args.season - 2, args.season + 1):
             public_history.schedule(year)
         circuit_info.refresh(document, args.season, now)
+        weekends = data.season_weekends(args.season)
         document["fantasy_events"] = {
             str(w.gameday_id): w.last_session.isoformat()
-            for w in data.season_weekends(args.season)
+            for w in weekends
             if w.last_session is not None and w.last_session < now
         }
         document["fantasy"] = {
@@ -65,10 +91,11 @@ def main(argv=None):
         predict_evidence.refresh_facts(document, args.season, now)
         # This exercises the actual upcoming-venue/session/chip inputs, not an
         # unrelated bulk download. Existing completed racing rows are reused.
-        result = web_data.build(args.season)
+        live = check_live_inputs(args.season, weekends, now)
         document["coverage"] = {
             "season": args.season,
-            "next_gameday": result["price_gameday_id"],
+            "next_gameday": live["next_gameday"],
+            "live_inputs": live["live_inputs"],
             "race_records": len(document["racing"]),
             "session_scores": len(document["scores"]),
             "telemetry_summaries": len(features),

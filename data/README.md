@@ -29,6 +29,8 @@ python -m f1fantasy.model_fit
 
 `refresh_history` is the only publication path that downloads missing completed sessions. It writes `history.json` through a temporary file, so a failed refresh leaves the previous committed dataset intact. Website publication reads the committed history without downloading gaps and fails closed when required records are missing or malformed.
 
+The updater ends by exercising the live forecast inputs against the next upcoming weekend. That check never gates the refresh on the Fantasy game being open: while the next round's roster is unpublished (from qualifying until the race finishes, and until the game opens the next round) it is skipped and `coverage.live_inputs` records `roster_not_published`; after the last round of a season it records `season_complete`. A successful check records `verified`. Any other live-data fault still fails the refresh and leaves `history.json` untouched. Published forecasts are unaffected: the Pages workflow keeps the last good forecast, with its original generation time, until a new one can be made.
+
 The **Refresh public history** workflow runs the updater, prunes unused history and first forecasts, and checks the publication path before committing the two archives. The Pages workflow reads that history, generates current Fantasy and Predict publications, and captures only the first eligible pre-weekend forecast for a round within the retention window. The **Fit model parameters** workflow runs after a successful history refresh. Each fitted family can move by at most one neighboring parameter step when the older folds, recent holdout and full paired sample pass the fit gates. When settings change, the workflow also refreshes `racing-evaluation.json`.
 
 ## Freshness and chronology
